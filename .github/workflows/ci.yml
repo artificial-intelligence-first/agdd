@@ -1,11 +1,119 @@
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
-  test:
+  core:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v2
-      - run: uv sync
-      - run: uv run python tools/check_docs.py
-      - run: uv run -m pytest -q
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Documentation guard
+        run: uv run python tools/check_docs.py
+
+      - name: Verify vendor assets
+        run: uv run python tools/verify_vendor.py
+
+      - name: Test suite
+        run: uv run -m pytest -q
+
+  flowrunner:
+    needs: core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Checkout Flow Runner
+        uses: actions/checkout@v4
+        with:
+          repository: artificial-intelligence-first/flow-runner
+          path: .flow-runner
+          ref: flowrunner-v1.0.0
+
+      - name: Install Flow Runner CLIs
+        run: |
+          cd .flow-runner
+          uv pip install -e packages/mcprouter -e packages/flowrunner
+
+      - name: Configure Flow Runner PYTHONPATH
+        run: echo "FLOW_RUNNER_PYTHONPATH=$GITHUB_WORKSPACE/.flow-runner/packages/flowrunner/src:$GITHUB_WORKSPACE/.flow-runner/packages/mcprouter/src" >> $GITHUB_ENV
+
+      - name: Run tests (Flow Runner)
+        run: uv run -m pytest -q
+
+      - name: Execute sample flow
+        run: |
+          uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml
+          uv run python -m agdd.cli flow summarize --output flow_summary.json
+
+      - name: Upload flow summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-summary
+          path: flow_summary.json
+
+  governance:
+    needs: core
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Checkout MAG
+        uses: actions/checkout@v4
+        with:
+          repository: artificial-intelligence-first/multi-agent-governance
+          path: .mag
+
+      - name: Prepare MAG environment
+        run: |
+          cd .mag
+          uv venv
+          uv pip install -r requirements.txt
+
+      - name: Run MAG validation
+        run: |
+          cd .mag
+          make validate
+          make test

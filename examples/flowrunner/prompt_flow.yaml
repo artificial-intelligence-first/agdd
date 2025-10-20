@@ -1,0 +1,11 @@
+$schema: ../../contracts/flow.schema.json
+version: 1
+run:
+  output_dir: .runs/${RUN_ID}
+steps:
+  - id: hello
+    uses: shell
+    run: "python -c \"print('hello from flow runner')\""
+    timeout_sec: 5
+    retries: 0
+    continue_on_error: false

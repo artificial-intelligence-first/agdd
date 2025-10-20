@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FlowRunner Schema v1",
+  "type": "object",
+  "required": ["version", "steps"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "const": 1 },
+    "agent_paths": { "type": "array", "items": { "type": "string" } },
+    "run": {
+      "type": "object",
+      "properties": {
+        "output_dir": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "uses"],
+        "properties": {
+          "id": { "type": "string" },
+          "uses": { "type": "string" },
+          "input": { "type": ["object", "null"] },
+          "timeout_sec": { "type": ["integer", "null"] },
+          "retries": { "type": ["integer", "null"] },
+          "continue_on_error": { "type": ["boolean", "null"] },
+          "policy": { "type": ["object", "null"] },
+          "config": { "type": ["object", "null"] },
+          "save": { "type": ["object", "null"] }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

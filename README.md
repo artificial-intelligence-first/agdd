@@ -13,23 +13,26 @@ AGDD Framework enables developers to build and manage automated agent-driven wor
 - **Agent Registry**: Centralized management of agent descriptors and routing
 - **Skills Framework**: Reusable, composable skills for agent capabilities
 - **Contract Verification**: Automated validation of system contracts and invariants
+- **Runner Plugins**: Pluggable runner boundary (Flow Runner provided by default)
+- **Walking Skeleton CLI**: Typer-powered entry point that exercises registry -> contract -> skill execution
 - **Documentation Standards**: Enforced documentation policies and guardrails
 - **Observability**: Built-in monitoring and logging infrastructure
+- **Packaged Schemas & Policies**: JSON Schemas and governance policies bundled for importlib-based loading
 - **CI Integration**: GitHub Actions workflows for automated testing and validation
 
 ## Project Structure
 
 ```
-agdd/
-├── agents/          # Agent descriptors and routing configurations
-├── skills/          # Reusable agent skills
-├── contracts/       # System contracts and validation logic
-├── registry/        # Central registry for agents and skills
-├── policies/        # Policy definitions and enforcement
-├── ci/              # CI/CD configurations
-├── observability/   # Monitoring and logging setup
-├── tools/           # Development and validation tools
-└── tests/           # Test suite
+.
+|-- agdd/            # Core Python package (CLI, runners, governance, bundled assets)
+|-- registry/        # Agent and skill registries plus per-agent descriptors
+|-- contracts/       # JSON Schemas governing descriptors and flow summaries
+|-- policies/        # Governance policies applied to summarized runs
+|-- observability/   # Run summarization utilities
+|-- examples/        # Sample flows and reference inputs
+|-- tools/           # Development and validation tools
+|-- tests/           # Pytest coverage for contracts, CLI, and tooling
+`-- docs/            # Supporting documentation artefacts (if present)
 ```
 
 ## Getting Started
@@ -52,9 +55,30 @@ agdd/
    uv sync
    ```
 
-3. Verify installation:
+3. Install development extras (recommended for local testing):
+   ```bash
+   uv sync --extra dev
+   ```
+
+4. Verify installation:
    ```bash
    uv run -m pytest -q
+   ```
+
+5. Smoke test the walking skeleton:
+   ```bash
+   uv run python -m agdd.cli validate
+   uv run python -m agdd.cli run hello --text "AGDD"
+   ```
+
+6. (Optional) Install Flow Runner to exercise the runner CLI:
+   ```bash
+   git clone https://github.com/artificial-intelligence-first/flow-runner.git
+   cd flow-runner
+   uv sync
+   uv pip install -e packages/mcprouter -e packages/flowrunner
+   # include Flow Runner sources in PYTHONPATH when using editable installs
+   export FLOW_RUNNER_PYTHONPATH="$(pwd)/packages/flowrunner/src:$(pwd)/packages/mcprouter/src"
    ```
 
 ## Usage
@@ -73,21 +97,87 @@ Run the full test suite:
 uv run -m pytest -q
 ```
 
+### Vendor Integrity
+
+Verify vendored Flow Runner assets (schema and example flow) match expected hashes:
+```bash
+uv run python tools/verify_vendor.py
+```
+
+### Walking Skeleton CLI
+
+Execute the Typer CLI that exercises the AI-first pipeline:
+```bash
+uv run python -m agdd.cli validate
+uv run python -m agdd.cli run hello --text "AGDD"
+```
+
+### Flow Runner CLI
+
+The runner boundary exposes Flow Runner commands once `flowctl` is available:
+```bash
+uv run python -m agdd.cli flow available
+uv run python -m agdd.cli flow validate examples/flowrunner/prompt_flow.yaml
+uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml --dry-run
+uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml  # produce .runs/ artifacts
+```
+
+Example flows live under `examples/flowrunner/` and the canonical schema is mirrored at `contracts/flow.schema.json` (tag `flowrunner-v1.0.0`).
+
+### Observability
+
+Flow Runner executions emit structured artifacts under `.runs/<RUN_ID>/`. Summaries can be generated with:
+```bash
+uv run python -m agdd.cli flow summarize
+```
+Or target a custom directory:
+```bash
+uv run python -m agdd.cli flow summarize --base /path/to/.runs
+uv run python -m agdd.cli flow summarize --output governance/flow_summary.json
+```
+
+The generated summary includes:
+- `runs` / `successes` / `success_rate`
+- `avg_latency_ms`
+- `errors` (total failures and error-type breakdown)
+- `mcp` (calls, errors, aggregated tokens, cost)
+- `steps` (per-step run count, success rate, average latency, optional model and error data)
+- `models` (per-model calls, errors, tokens, cost)
+
+The optional `--output` flag writes the JSON payload to disk, enabling downstream governance tooling (e.g., Multi Agent Governance workflows) to consume the metrics. Governance thresholds are defined in `policies/flow_governance.yaml` and enforced via:
+```bash
+uv run python -m agdd.cli flow gate governance/flow_summary.json --policy policies/flow_governance.yaml
+```
+The summary contract is captured in `contracts/flow_summary.schema.json`, and CI publishes the generated summary artifact alongside test results.
+
+### Packaged Resources
+
+The CLI depends on JSON Schemas and governance policies distributed within the `agdd` wheel under `agdd/assets/`. Building the project ensures these files ship with the package so `importlib.resources` can resolve them:
+```bash
+uv build
+python -m venv .venv_pkgtest
+.venv_pkgtest/bin/pip install dist/agdd-*.whl
+.venv_pkgtest/bin/agdd validate
+```
+Use a disposable virtual environment for this smoke test and delete it afterwards.
+
 ## Documentation
 
 - **[AGENTS.md](./AGENTS.md)**: Local development playbook and workflow guide
 - **[SSOT.md](./SSOT.md)**: Single source of truth for terminology and policies
 - **[PLANS.md](./PLANS.md)**: Execution plans and roadmap
 - **[CHANGELOG.md](./CHANGELOG.md)**: Version history and updates
+- **[RUNNERS.md](./RUNNERS.md)**: Runner capabilities, conformance, and swap guidance
 
 ## Development Workflow
 
 1. Review `SSOT.md` for terminology and policies
 2. Update `PLANS.md` before making changes
-3. Make your changes following the guidelines in `AGENTS.md`
-4. Run validation tools and tests
-5. Update `CHANGELOG.md` upon completion
-6. Submit a pull request
+3. Smoke test the walking skeleton (`agdd.cli validate` / `run`) as part of development
+4. Make your changes following the guidelines in `AGENTS.md`
+5. Run validation tools and tests
+6. Update `CHANGELOG.md` upon completion
+7. Submit a pull request
 
 ## Contributing
 
@@ -102,4 +192,4 @@ Please refer to `AGENTS.md` for the complete development workflow and PR policy.
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
-Copyright (c) 2025 Naru Kijima (黄島成)
+Copyright (c) 2025 Naru Kijima

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FlowSummary",
+  "type": "object",
+  "required": [
+    "runs",
+    "successes",
+    "success_rate",
+    "avg_latency_ms",
+    "errors",
+    "mcp",
+    "steps",
+    "models"
+  ],
+  "properties": {
+    "runs": { "type": "integer", "minimum": 0 },
+    "successes": { "type": "integer", "minimum": 0 },
+    "success_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "avg_latency_ms": { "type": "number", "minimum": 0 },
+    "errors": {
+      "type": "object",
+      "required": ["total", "by_type"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_type": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": true
+    },
+    "mcp": {
+      "type": "object",
+      "required": ["calls", "errors", "tokens", "cost_usd"],
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "tokens": {
+          "type": "object",
+          "required": ["input", "output", "total"],
+          "properties": {
+            "input": { "type": "integer", "minimum": 0 },
+            "output": { "type": "integer", "minimum": 0 },
+            "total": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": true
+        },
+        "cost_usd": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "runs", "successes", "errors"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "runs": { "type": "integer", "minimum": 0 },
+          "successes": { "type": "integer", "minimum": 0 },
+          "errors": { "type": "integer", "minimum": 0 },
+          "success_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "avg_latency_ms": { "type": "number", "minimum": 0 },
+          "mcp": {
+            "type": "object",
+            "properties": {
+              "calls": { "type": "integer", "minimum": 0 },
+              "errors": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": true
+          },
+          "models": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "error_types": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "calls", "errors", "tokens", "cost_usd"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "calls": { "type": "integer", "minimum": 0 },
+          "errors": { "type": "integer", "minimum": 0 },
+          "tokens": {
+            "type": "object",
+            "required": ["input", "output", "total"],
+            "properties": {
+              "input": { "type": "integer", "minimum": 0 },
+              "output": { "type": "integer", "minimum": 0 },
+              "total": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": true
+          },
+          "cost_usd": { "type": "number", "minimum": 0 }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

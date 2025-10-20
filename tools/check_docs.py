@@ -44,7 +44,18 @@ def validate_changelog(path: Path) -> list[str]:
 
 if __name__ == "__main__":
     problem_reports: list[str] = []
-    problem_reports.extend(ensure_files_exist(["AGENTS.md", "SSOT.md"]))
+    problem_reports.extend(
+        ensure_files_exist(
+            [
+                "AGENTS.md",
+                "SSOT.md",
+                "PLANS.md",
+                "README.md",
+                "CHANGELOG.md",
+                "RUNNERS.md",
+            ]
+        )
+    )
     problem_reports.extend(validate_changelog(ROOT / "CHANGELOG.md"))
 
     if problem_reports:
