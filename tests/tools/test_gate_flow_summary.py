@@ -72,3 +72,15 @@ def test_evaluate_fail_on_latency(summary_file: Path, policy_file: Path) -> None
     policy_file.write_text("max_avg_latency_ms: 200\n", encoding="utf-8")
     issues = evaluate(summary_file, policy_file)
     assert issues and "avg_latency_ms" in issues[0]
+
+
+def test_evaluate_fail_on_min_runs(summary_file: Path, policy_file: Path) -> None:
+    policy_file.write_text("min_runs: 2\n", encoding="utf-8")
+    issues = evaluate(summary_file, policy_file)
+    assert issues and "runs" in issues[0]
+
+
+def test_evaluate_fail_on_required_steps(summary_file: Path, policy_file: Path) -> None:
+    policy_file.write_text("required_steps:\n  - beta\n", encoding="utf-8")
+    issues = evaluate(summary_file, policy_file)
+    assert issues and "missing required steps" in issues[0]

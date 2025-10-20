@@ -35,7 +35,7 @@ VENDORED_FILES = (
     ),
     VendoredFile(
         path=ROOT / "agdd" / "assets" / "policies" / "flow_governance.yaml",
-        digest="e1d1db8af41cdc3cf913538551d42af6b07e809b7c814bce40c223fd76a12b06",
+        digest="07c59641c256e2e9c149d604d1ee4a37747b735b332f573b72b4d01645a471a3",
     ),
     VendoredFile(
         path=ROOT / "examples" / "flowrunner" / "prompt_flow.yaml",

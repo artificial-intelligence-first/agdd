@@ -108,7 +108,13 @@ def run(agent_id: str, text: str = "hello") -> None:
 def flow_available() -> None:
     """Check if Flow Runner CLI is installed."""
     runner = FlowRunner()
-    typer.echo("yes" if runner.is_available() else "no")
+    if not runner.is_available():
+        typer.echo("no")
+        return
+
+    info = runner.info()
+    capabilities = ", ".join(sorted(info.capabilities)) or "<none>"
+    typer.echo(f"yes ({info.name} {info.version}; capabilities: {capabilities})")
 
 
 @flow_app.command("validate")

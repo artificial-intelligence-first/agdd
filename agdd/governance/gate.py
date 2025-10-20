@@ -59,6 +59,12 @@ def evaluate(summary_path: Path, policy_path: Path | None = None) -> list[str]:
 
     errors: list[str] = []
 
+    min_runs = policy.get("min_runs")
+    if min_runs is not None:
+        runs = summary.get("runs")
+        if not isinstance(runs, int) or runs < int(min_runs):
+            errors.append(f"runs {runs} < min {int(min_runs)}")
+
     min_success = policy.get("min_success_rate")
     if min_success is not None:
         rate = summary.get("success_rate")
@@ -77,6 +83,17 @@ def evaluate(summary_path: Path, policy_path: Path | None = None) -> list[str]:
     default_step_policy = per_step.get("default", {})
 
     steps = summary.get("steps", [])
+    required_steps = [str(step) for step in policy.get("required_steps", [])]
+    if required_steps:
+        present_steps = {
+            str(step.get("name"))
+            for step in steps
+            if isinstance(step, dict) and "name" in step
+        }
+        missing = [step for step in required_steps if step not in present_steps]
+        if missing:
+            errors.append(f"missing required steps: {', '.join(missing)}")
+
     for step in steps:
         if not isinstance(step, dict):
             continue

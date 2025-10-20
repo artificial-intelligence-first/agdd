@@ -77,8 +77,8 @@ AGDD Framework enables developers to build and manage automated agent-driven wor
    cd flow-runner
    uv sync
    uv pip install -e packages/mcprouter -e packages/flowrunner
-   # include Flow Runner sources in PYTHONPATH when using editable installs
-   export FLOW_RUNNER_PYTHONPATH="$(pwd)/packages/flowrunner/src:$(pwd)/packages/mcprouter/src"
+   cd ..
+   source tools/flowrunner_env.sh  # exports FLOW_RUNNER_PYTHONPATH
    ```
 
 ## Usage
@@ -121,6 +121,9 @@ uv run python -m agdd.cli flow validate examples/flowrunner/prompt_flow.yaml
 uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml --dry-run
 uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml  # produce .runs/ artifacts
 ```
+`flow available` reports the detected runner version and capability set when the CLI is installed.
+
+If you clone Flow Runner to a different location, set `export FLOW_RUNNER_DIR=/path/to/flow-runner` before sourcing the helper script.
 
 Example flows live under `examples/flowrunner/` and the canonical schema is mirrored at `contracts/flow.schema.json` (tag `flowrunner-v1.0.0`).
 

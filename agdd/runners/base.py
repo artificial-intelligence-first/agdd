@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Optional, Protocol, Set
+from typing import Literal, Mapping, Optional, Protocol, Set
+
+RunnerCapability = Literal["dry-run", "resume", "retries", "artifacts", "otel-trace", "ui"]
 
 
 @dataclass(slots=True)
@@ -30,7 +32,7 @@ class RunnerInfo:
 
     name: str
     version: str
-    capabilities: Set[str]
+    capabilities: Set[RunnerCapability]
 
 
 class Runner(Protocol):

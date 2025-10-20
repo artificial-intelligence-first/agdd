@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("flow_runner", reason="flow_runner package not installed")
+
 pytestmark = pytest.mark.skipif(shutil.which("flowctl") is None, reason="flowctl not installed")
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,7 +48,8 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
 def test_flow_available_reports_status() -> None:
     cp = _run_cli("flow", "available")
     assert cp.returncode == 0
-    assert cp.stdout.strip() in ("yes", "no")
+    output = cp.stdout.strip()
+    assert output == "no" or output.startswith("yes")
 
 
 def test_flow_validate_example_succeeds() -> None:

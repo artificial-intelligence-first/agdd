@@ -5,3 +5,6 @@ __pycache__/
 .DS_Store
 .venv/
 .pytest_cache/
+agdd.egg-info/
+.runs/
+flow-runner/

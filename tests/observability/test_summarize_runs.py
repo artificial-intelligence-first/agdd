@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from observability.summarize_runs import summarize
 
 
@@ -39,6 +41,17 @@ def test_summarize_counts_successful_runs(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
+    run_success_empty_failures = base / "run-empty-failures"
+    run_success_empty_failures.mkdir()
+    (run_success_empty_failures / "summary.json").write_text(
+        '{"failures": {"hello": []}, "status": "success"}',
+        encoding="utf-8",
+    )
+    (run_success_empty_failures / "runs.jsonl").write_text(
+        '{"event": "end", "latency_ms": 12, "step": "hello", "status": "success", "extra": {"type": "shell"}}\n',
+        encoding="utf-8",
+    )
+
     run_failure = base / "run-failure"
     run_failure.mkdir()
     (run_failure / "summary.json").write_text('{"failures": {"step": "boom"}}', encoding="utf-8")
@@ -53,10 +66,10 @@ def test_summarize_counts_successful_runs(tmp_path: Path) -> None:
     )
 
     result = summarize(base)
-    assert result["runs"] == 2
-    assert result["successes"] == 1
-    assert result["success_rate"] == 0.5
-    assert result["avg_latency_ms"] == 20.0
+    assert result["runs"] == 3
+    assert result["successes"] == 2
+    assert result["success_rate"] == pytest.approx(2 / 3)
+    assert result["avg_latency_ms"] == pytest.approx((10 + 12 + 30) / 3)
     assert result["mcp"] == {
         "calls": 2,
         "errors": 1,
@@ -81,6 +94,14 @@ def test_summarize_counts_successful_runs(tmp_path: Path) -> None:
             "avg_latency_ms": 30.0,
             "mcp": {"calls": 1, "errors": 1},
             "error_types": {"timeout": 1},
+        },
+        {
+            "name": "hello",
+            "runs": 1,
+            "successes": 1,
+            "errors": 0,
+            "success_rate": 1.0,
+            "avg_latency_ms": 12.0,
         },
     ]
     assert result["errors"] == {"total": 1, "by_type": {"timeout": 1}}

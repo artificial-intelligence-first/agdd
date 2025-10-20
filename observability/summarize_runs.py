@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict
 
+_SUCCESS_STATUSES = {"ok", "success", "succeeded", "completed"}
+
 
 @dataclass(slots=True)
 class StepMetrics:
@@ -155,11 +157,12 @@ def _classify_error(record: dict[str, Any], extra: dict[str, Any] | None) -> str
     return "unknown"
 
 
-def _accumulate_metrics(run_dir: Path, metrics: RunMetrics) -> None:
+def _accumulate_metrics(run_dir: Path, metrics: RunMetrics) -> bool:
     path = run_dir / "runs.jsonl"
     if not path.exists():
-        return
+        return False
 
+    run_failed = False
     with path.open(encoding="utf-8") as handle:
         for line in handle:
             try:
@@ -174,7 +177,8 @@ def _accumulate_metrics(run_dir: Path, metrics: RunMetrics) -> None:
             if not isinstance(step, str) or not step:
                 continue
 
-            status = record.get("status")
+            raw_status = record.get("status")
+            status = str(raw_status).lower() if isinstance(raw_status, str) else ""
             latency = record.get("latency_ms")
 
             step_metrics = metrics.step_stats.setdefault(step, StepMetrics())
@@ -194,13 +198,39 @@ def _accumulate_metrics(run_dir: Path, metrics: RunMetrics) -> None:
                     if status != "ok":
                         step_metrics.mcp_errors += 1
 
-            if status == "ok":
+            if status in _SUCCESS_STATUSES:
                 step_metrics.successes += 1
             else:
                 step_metrics.failures += 1
                 category = _classify_error(record, extra if isinstance(extra, dict) else None)
                 step_metrics.error_categories[category] += 1
                 metrics.error_categories[category] += 1
+                run_failed = True
+
+    return run_failed
+
+
+def _summary_success(summary: dict[str, Any]) -> bool:
+    failures = summary.get("failures")
+    if isinstance(failures, dict):
+        if all(not value for value in failures.values()):
+            return True
+        return False
+    if isinstance(failures, list):
+        if not failures:
+            return True
+        return False
+    if failures in (None, False):
+        pass
+
+    status_fields = (
+        summary.get("status"),
+        summary.get("result"),
+    )
+    for field in status_fields:
+        if isinstance(field, str) and field.lower() in _SUCCESS_STATUSES:
+            return True
+    return False
 
 
 def summarize(base: Path | None = None) -> Dict[str, Any]:
@@ -232,13 +262,10 @@ def summarize(base: Path | None = None) -> Dict[str, Any]:
         if summary is None:
             continue
 
-        failures = summary.get("failures")
-        if isinstance(failures, dict) and not failures:
+        run_failed = _accumulate_metrics(run_dir, metrics)
+        summary_success = _summary_success(summary)
+        if summary_success or not run_failed:
             metrics.succeeded += 1
-        elif failures is None and summary.get("status") == "success":
-            metrics.succeeded += 1
-
-        _accumulate_metrics(run_dir, metrics)
         _aggregate_mcp_logs(run_dir, metrics)
 
     success_rate = (metrics.succeeded / total_runs) if total_runs else 0.0
@@ -329,4 +356,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

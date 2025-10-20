@@ -84,7 +84,7 @@ def test_flow_gate_uses_bundled_policy(tmp_path: Path) -> None:
                 },
                 "steps": [
                     {
-                        "name": "alpha",
+                        "name": "hello",
                         "runs": 1,
                         "successes": 1,
                         "errors": 0,
@@ -93,7 +93,15 @@ def test_flow_gate_uses_bundled_policy(tmp_path: Path) -> None:
                         "mcp": {"calls": 1, "errors": 0},
                     }
                 ],
-                "models": [],
+                "models": [
+                    {
+                        "name": "mock-model",
+                        "calls": 1,
+                        "errors": 0,
+                        "tokens": {"input": 10, "output": 5, "total": 15},
+                        "cost_usd": 0.01,
+                    }
+                ],
             }
         ),
         encoding="utf-8",
