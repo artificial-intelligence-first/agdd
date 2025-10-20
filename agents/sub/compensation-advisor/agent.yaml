@@ -1,0 +1,9 @@
+name: compensation-advisor
+role: sub
+version: 0.1.0
+depends_on:
+  - "agdd://skill.salary-band-lookup@>=0.1.0"
+evaluation:
+  retry:
+    max_attempts: 2
+    backoff: exponential

@@ -1,0 +1,11 @@
+tasks:
+  - match: "offer.generate"
+    main_agent: "agdd://main.offer-orchestrator@0.1.0"
+    variants:
+      - id: "ab.A"
+        weight: 50
+        main_agent: "agdd://main.offer-orchestrator@0.1.0"
+      - id: "ab.B"
+        weight: 50
+        main_agent: "agdd://main.offer-orchestrator@0.1.0"
+    risk: P1

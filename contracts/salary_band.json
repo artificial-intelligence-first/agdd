@@ -1,0 +1,1 @@
+{ "$schema":"http://json-schema.org/draft-07/schema#", "type":"object", "properties":{ "recommended_band":{"type":"string"} }, "required":["recommended_band"] }

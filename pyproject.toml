@@ -1,0 +1,10 @@
+[project]
+name = "agdd"
+version = "0.1.0"
+description = "Framework for AG-Driven Development (AGDD) systems"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jsonschema>=4.25.1",
+    "pytest>=8.4.2",
+]

@@ -1,0 +1,8 @@
+server_id: pg-readonly
+type: postgres
+scopes: ["read:tables"]
+conn:
+  url_env: "PG_RO_URL"    # Store the value in a secret manager or equivalent
+limits:
+  rate_per_min: 120
+  timeout_s: 20

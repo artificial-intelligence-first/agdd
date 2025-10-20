@@ -1,0 +1,11 @@
+skills:
+  - id: "skill.doc-gen"
+    version: "0.1.0"
+    location: "skills/doc-gen"
+    permissions:
+      - "mcp:pg-readonly"
+  - id: "skill.salary-band-lookup"
+    version: "0.1.0"
+    location: "skills/salary-band-lookup"
+    permissions:
+      - "mcp:pg-readonly"
