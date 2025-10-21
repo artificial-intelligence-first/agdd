@@ -1,0 +1,14 @@
+server_id: filesystem
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-filesystem"
+  - "/home/user/agdd"
+description: Secure file operations with configurable access controls
+scopes:
+  - read:files
+  - write:files
+limits:
+  rate_per_min: 60
+  timeout_s: 30
