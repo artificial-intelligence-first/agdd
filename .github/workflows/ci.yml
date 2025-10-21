@@ -55,7 +55,6 @@ jobs:
   flowrunner:
     needs: core
     runs-on: ubuntu-latest
-    continue-on-error: true  # Allow failure until Flow Runner sample is fixed
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,6 +96,7 @@ jobs:
           uv run python -m agdd.cli flow summarize --output flow_summary.json
 
       - name: Governance gate
+        continue-on-error: true  # Allow failure until Flow Runner sample is fixed
         run: uv run python -m agdd.cli flow gate flow_summary.json --policy agdd/assets/policies/flow_governance.yaml
 
       - name: Upload flow summary

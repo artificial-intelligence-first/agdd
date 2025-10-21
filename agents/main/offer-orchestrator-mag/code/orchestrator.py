@@ -58,11 +58,12 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
     Returns:
         Offer packet conforming to offer_packet schema
     """
-    run_id = f"mag-{uuid.uuid4().hex[:8]}"
+    # Use runner-provided run_id from ObservabilityLogger for consistency
+    run_id = obs.run_id if obs else f"mag-{uuid.uuid4().hex[:8]}"
     t0 = _now_ms()
 
     if obs:
-        obs.log(run_id, "start", {"agent": "OfferOrchestratorMAG", "run_id": run_id})
+        obs.log(run_id, "start", {"agent": "OfferOrchestratorMAG"})
 
     try:
         # ===== Phase 1: Task Decomposition =====
