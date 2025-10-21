@@ -112,6 +112,20 @@ uv run python -m agdd.cli validate
 uv run python -m agdd.cli run hello --text "AGDD"
 ```
 
+### Agent Orchestration CLI
+
+Execute MAG (Main Agent) and SAG (Sub-Agent) workflows:
+```bash
+# Generate an offer packet from candidate profile
+echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
+  uv run python -m agdd.cli agent run offer-orchestrator-mag
+
+# Or from a file
+uv run python -m agdd.cli agent run offer-orchestrator-mag --json examples/agents/candidate_profile.json
+```
+
+The agent runner produces observability artifacts in `.runs/agents/<RUN_ID>/` containing logs, metrics, and summaries.
+
 ### Flow Runner CLI
 
 The runner boundary exposes Flow Runner commands once `flowctl` is available:

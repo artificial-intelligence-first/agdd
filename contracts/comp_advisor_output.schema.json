@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/comp_advisor_output.schema.json",
+  "title": "CompAdvisorOutput",
+  "description": "Output from the CompensationAdvisorSAG sub-agent",
+  "type": "object",
+  "required": ["offer"],
+  "properties": {
+    "offer": {
+      "type": "object",
+      "required": ["role", "base_salary", "band"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Job role for this offer"
+        },
+        "base_salary": {
+          "type": "object",
+          "required": ["currency", "amount"],
+          "properties": {
+            "currency": {
+              "type": "string",
+              "description": "Currency code (e.g., 'USD', 'EUR')"
+            },
+            "amount": {
+              "type": "number",
+              "description": "Annual base salary amount",
+              "minimum": 0
+            }
+          }
+        },
+        "band": {
+          "type": "object",
+          "required": ["currency", "min", "max"],
+          "properties": {
+            "currency": {
+              "type": "string",
+              "description": "Currency code"
+            },
+            "min": {
+              "type": "number",
+              "description": "Minimum salary in band",
+              "minimum": 0
+            },
+            "max": {
+              "type": "number",
+              "description": "Maximum salary in band",
+              "minimum": 0
+            },
+            "source": {
+              "type": "string",
+              "description": "Data source for salary band (e.g., 'internal-table', 'market-data')"
+            }
+          }
+        },
+        "sign_on_bonus": {
+          "type": "object",
+          "properties": {
+            "currency": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "equity": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Equity type (e.g., 'RSU', 'Options')"
+            },
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "vesting_years": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional compensation notes"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

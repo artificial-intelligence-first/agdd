@@ -67,6 +67,29 @@ modifying code.
   `uv run -m pytest -q`, `uv run python tools/check_docs.py`, and the walking
   skeleton CLI checks listed above.
 
+## MAG/SAG Development Guide
+
+**Naming Convention:**
+- **MAG (Main Agent)**: Use suffix `-mag` (e.g., `offer-orchestrator-mag`)
+- **SAG (Sub-Agent)**: Use suffix `-sag` (e.g., `compensation-advisor-sag`)
+
+**Creating a New MAG:**
+1. Create `agents/main/<name>-mag/agent.yaml` with role: `main`, entrypoint, dependencies
+2. Implement orchestration logic in `agents/main/<name>-mag/code/`
+3. Document routing decisions in `agents/main/<name>-mag/ROUTE.md`
+4. Add task routing in `registry/agents.yaml`
+
+**Creating a New SAG:**
+1. Create `agents/sub/<name>-sag/agent.yaml` with role: `sub`, entrypoint, skills
+2. Implement domain logic in `agents/sub/<name>-sag/code/`
+3. Configure retry policy in `evaluation.retry_policy` section
+4. Document purpose and contracts in `README.md`
+
+**Testing Agents:**
+- Unit tests: `tests/agents/test_<agent-slug>.py`
+- Integration tests: `tests/integration/test_e2e_<workflow>.py`
+- Observability: Verify artifacts in `.runs/agents/<RUN_ID>/`
+
 ## Security & Credentials
 - Do not commit secrets, API keys, or Flow Runner credentials. Use environment
   variables sourced via `tools/flowrunner_env.sh` for local experimentation.

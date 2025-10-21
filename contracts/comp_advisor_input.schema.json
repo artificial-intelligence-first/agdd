@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/comp_advisor_input.schema.json",
+  "title": "CompAdvisorInput",
+  "description": "Input for the CompensationAdvisorSAG sub-agent",
+  "type": "object",
+  "required": ["candidate_profile"],
+  "properties": {
+    "candidate_profile": {
+      "$ref": "candidate_profile.schema.json",
+      "description": "Candidate profile for compensation analysis"
+    }
+  },
+  "additionalProperties": false
+}

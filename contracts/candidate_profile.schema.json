@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/candidate_profile.schema.json",
+  "title": "CandidateProfile",
+  "description": "Profile of a job candidate for offer generation",
+  "type": "object",
+  "required": ["role"],
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Job role/title (e.g., 'Senior Software Engineer', 'Product Manager')"
+    },
+    "level": {
+      "type": "string",
+      "description": "Seniority level (e.g., 'Junior', 'Mid', 'Senior', 'Staff', 'Principal')"
+    },
+    "location": {
+      "type": "string",
+      "description": "Geographic location for compensation adjustment (e.g., 'San Francisco, CA', 'Remote - US')"
+    },
+    "experience_years": {
+      "type": "number",
+      "description": "Years of relevant experience",
+      "minimum": 0
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional context or notes"
+    }
+  },
+  "additionalProperties": true
+}

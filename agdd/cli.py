@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field
 
 from agdd.runners.flowrunner import FlowRunner
+from agdd.runners.agent_runner import invoke_mag
 from agdd.skills import available_skills, get_skill
 from agdd.governance.gate import evaluate as evaluate_flow_summary
 from observability.summarize_runs import summarize as summarize_runs
@@ -19,6 +20,7 @@ from observability.summarize_runs import summarize as summarize_runs
 
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
+agent_app = typer.Typer(help="Agent orchestration commands")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_DIR = ROOT / "registry" / "agents"
@@ -206,7 +208,39 @@ def flow_gate(
     typer.echo("GOVERNANCE GATE PASSED")
 
 
+@agent_app.command("run")
+def agent_run(
+    slug: str = typer.Argument(..., help="Agent slug (e.g., 'offer-orchestrator-mag')"),
+    json_input: Optional[pathlib.Path] = typer.Option(
+        None,
+        "--json",
+        help="JSON file containing input payload (reads from stdin if '-' or omitted).",
+    ),
+) -> None:
+    """Execute a MAG agent with JSON input."""
+    import sys
+
+    # Read input
+    if json_input is None or str(json_input) == "-":
+        data = json.load(sys.stdin)
+    else:
+        data = json.loads(json_input.read_text(encoding="utf-8"))
+
+    try:
+        # Invoke MAG
+        output = invoke_mag(slug, data)
+        # Output result as JSON
+        typer.echo(json.dumps(output, ensure_ascii=False, indent=2))
+    except FileNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+    except Exception as e:
+        typer.echo(f"Execution failed: {e}", err=True)
+        raise typer.Exit(2)
+
+
 app.add_typer(flow_app, name="flow")
+app.add_typer(agent_app, name="agent")
 
 
 if __name__ == "__main__":
