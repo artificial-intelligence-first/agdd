@@ -86,7 +86,12 @@ def _format_known_skills(skills: Iterable[str]) -> str:
 @app.command()
 def run(
     agent_id: str,
-    text: str = typer.Option("hello", "--text", help="Input text for the agent skill"),
+    text: str = typer.Argument("hello", help="Input text for the agent skill."),
+    text_override: Optional[str] = typer.Option(
+        None,
+        "--text",
+        help="Input text for the agent skill (takes precedence over the positional argument).",
+    ),
 ) -> None:
     """Execute the first registered skill for the requested agent."""
     agent_path = _resolve_agent(agent_id)
@@ -96,6 +101,8 @@ def run(
     descriptor = _load_agent(agent_path)
     skill_name = descriptor.skills[0]
 
+    input_text = text_override if text_override is not None else text
+
     try:
         skill = get_skill(skill_name)
     except KeyError as exc:
@@ -104,7 +111,7 @@ def run(
             f"Skill '{skill_name}' is not available. Known skills: {known}"
         ) from exc
 
-    typer.echo(skill(text))
+    typer.echo(skill(input_text))
 
 
 @flow_app.command("available")
