@@ -7,12 +7,14 @@ This directory contains MCP server configurations for the AGDD framework.
 ### Filesystem (`filesystem.yaml`)
 Secure file operations with configurable access controls.
 - **Scopes**: read:files, write:files
-- **Repository Path**: /home/user/agdd
+- **Repository Path**: Current working directory (`.`)
+- **Note**: Run from repository root for proper operation
 
 ### Git (`git.yaml`)
 Tools to read, search, and manipulate Git repositories.
 - **Scopes**: read:git, write:git
-- **Repository Path**: /home/user/agdd
+- **Repository Path**: Current working directory (`.`)
+- **Note**: Run from repository root for proper operation
 
 ### Memory (`memory.yaml`)
 Knowledge graph-based persistent memory system.
@@ -30,6 +32,8 @@ Read-only PostgreSQL database access.
 ## Usage
 
 These MCP servers are automatically available to agents running within the AGDD framework. The servers are invoked via npx and use the official Model Context Protocol SDKs.
+
+**Important**: MCP servers using filesystem or git configurations must be run from the repository root directory. The configurations use relative paths (`.`) to ensure portability across different environments and user setups.
 
 ## Rate Limits
 

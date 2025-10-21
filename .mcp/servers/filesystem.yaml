@@ -4,7 +4,7 @@ command: npx
 args:
   - -y
   - "@modelcontextprotocol/server-filesystem"
-  - "/home/user/agdd"
+  - "."
 description: Secure file operations with configurable access controls
 scopes:
   - read:files
