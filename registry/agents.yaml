@@ -1,4 +1,12 @@
 tasks:
+  - id: "offer-orchestration"
+    description: "Generate a compensation offer packet from a candidate profile."
+    default: "agdd://main.offer-orchestrator-mag@>=0.1.0"
+    variants:
+      - id: "standard"
+        weight: 100
+        main_agent: "agdd://main.offer-orchestrator-mag@0.1.0"
+    risk: low
   - match: "offer.generate"
     main_agent: "agdd://main.offer-orchestrator@0.1.0"
     variants:
