@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-import functools
 import json
 import pathlib
-from importlib import resources
-from typing import Any, Iterable, Iterator, Optional
+from typing import Optional
 
 import typer
-import yaml
-from jsonschema import Draft202012Validator
-from pydantic import BaseModel, Field
 
 from agdd.runners.flowrunner import FlowRunner
 from agdd.runners.agent_runner import invoke_mag
-from agdd.skills import available_skills, get_skill
 from agdd.governance.gate import evaluate as evaluate_flow_summary
 from observability.summarize_runs import summarize as summarize_runs
 
@@ -21,99 +15,6 @@ from observability.summarize_runs import summarize as summarize_runs
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
 agent_app = typer.Typer(help="Agent orchestration commands")
-
-ROOT = pathlib.Path(__file__).resolve().parents[1]
-REGISTRY_DIR = ROOT / "registry" / "agents"
-
-CONTRACTS_PACKAGE = "agdd.assets.contracts"
-POLICIES_PACKAGE = "agdd.assets.policies"
-
-
-class AgentDescriptor(BaseModel):
-    """Structured view of an agent descriptor."""
-
-    id: str
-    name: str
-    version: str
-    skills: list[str] = Field(default_factory=list, min_length=1)
-    metadata: dict[str, Any] | None = None
-
-    model_config = {"extra": "allow"}
-
-
-def _iter_agent_files() -> Iterator[pathlib.Path]:
-    yield from sorted(REGISTRY_DIR.glob("*.y*ml"))
-
-
-@functools.lru_cache()
-def _load_schema() -> dict[str, Any]:
-    resource = resources.files(CONTRACTS_PACKAGE).joinpath("agent.schema.json")
-    return json.loads(resource.read_text(encoding="utf-8"))
-
-
-@functools.lru_cache()
-def _schema_validator() -> Draft202012Validator:
-    schema = _load_schema()
-    Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema)
-
-
-def _load_agent(path: pathlib.Path) -> AgentDescriptor:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    _schema_validator().validate(data)
-    return AgentDescriptor.model_validate(data)
-
-
-def _resolve_agent(agent_id: str) -> pathlib.Path | None:
-    for path in _iter_agent_files():
-        if path.stem == agent_id:
-            return path
-    return None
-
-
-@app.command()
-def validate() -> None:
-    """Validate all agent descriptors against the contract schema."""
-    count = 0
-    for path in _iter_agent_files():
-        _load_agent(path)
-        count += 1
-    typer.echo(f"Validated {count} agent(s). OK.")
-
-
-def _format_known_skills(skills: Iterable[str]) -> str:
-    return ", ".join(sorted(skills)) or "<none>"
-
-
-@app.command()
-def run(
-    agent_id: str,
-    text: str = typer.Argument("hello", help="Input text for the agent skill."),
-    text_override: Optional[str] = typer.Option(
-        None,
-        "--text",
-        help="Input text for the agent skill (takes precedence over the positional argument).",
-    ),
-) -> None:
-    """Execute the first registered skill for the requested agent."""
-    agent_path = _resolve_agent(agent_id)
-    if agent_path is None:
-        raise typer.BadParameter(f"Agent '{agent_id}' not found in registry '{REGISTRY_DIR}'.")
-
-    descriptor = _load_agent(agent_path)
-    skill_name = descriptor.skills[0]
-
-    input_text = text_override if text_override is not None else text
-
-    try:
-        skill = get_skill(skill_name)
-    except KeyError as exc:
-        known = _format_known_skills(available_skills())
-        raise typer.BadParameter(
-            f"Skill '{skill_name}' is not available. Known skills: {known}"
-        ) from exc
-
-    typer.echo(skill(input_text))
 
 
 @flow_app.command("available")

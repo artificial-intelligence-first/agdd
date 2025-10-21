@@ -52,13 +52,12 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 4. Update contributor documentation to reference ExecPlan lifecycle and validation expectations.
 
 ## Validation and Acceptance
-- [ ] `uv run python -m agdd.cli validate`
-- [ ] `uv run python -m agdd.cli run hello --text 'AGDD'`
+- [ ] `uv run -m pytest -q`
+- [ ] `uv run python tools/check_docs.py`
+- [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
 - [ ] `uv run python -m agdd.cli flow available`
 - [ ] `uv run python -m agdd.cli flow summarize --output /tmp/summary.json`
 - [ ] `uv run python -m agdd.cli flow gate /tmp/summary.json`
-- [ ] `uv run -m pytest -q`
-- [ ] `uv run python tools/check_docs.py`
 - [ ] `uv build` (smoke test packaging when bundled resources change)
 
 ## Idempotence and Recovery
@@ -73,9 +72,11 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 - Historical progress captured in this ExecPlan; future PRs must reference relevant sections.
 
 ## Interfaces and Dependencies
-- Flow Runner CLI (`agdd.cli.flow`) and registry interface (`registry/agents/*.yaml`).
+- Flow Runner CLI (`agdd.cli.flow`) for workflow execution.
 - Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG orchestration.
-- JSON Schema contracts in `contracts/` consumed by `agdd/skills/*` and agents.
+- Agent registry (`registry/agents.yaml`) and skill registry (`registry/skills.yaml`).
+- Agent descriptors in `agents/{main,sub}/<agent-slug>/agent.yaml`.
+- JSON Schema contracts in `contracts/` consumed by agents and skills.
 - CI workflows executing governance checks and packaging validation.
 
 ## MAG/SAG Roadmap

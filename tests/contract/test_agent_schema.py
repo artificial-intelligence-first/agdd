@@ -1,14 +1,9 @@
 from __future__ import annotations
 
 import json
-import pathlib
 from importlib import resources
 
-import yaml
 from jsonschema import Draft202012Validator
-
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-HELLO_AGENT_PATH = ROOT / "registry" / "agents" / "hello.yaml"
 
 
 def _load_schema() -> dict:
@@ -17,10 +12,5 @@ def _load_schema() -> dict:
 
 
 def test_agent_schema_is_valid() -> None:
+    """Verify agent.schema.json is a valid JSON Schema"""
     Draft202012Validator.check_schema(_load_schema())
-
-
-def test_hello_agent_descriptor_matches_schema() -> None:
-    schema = _load_schema()
-    descriptor = yaml.safe_load(HELLO_AGENT_PATH.read_text(encoding="utf-8"))
-    Draft202012Validator(schema).validate(descriptor)
