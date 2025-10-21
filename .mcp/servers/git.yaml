@@ -1,0 +1,15 @@
+server_id: git
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-git@1.0.0"
+  - --repository
+  - "."
+description: Tools to read, search, and manipulate Git repositories
+scopes:
+  - read:git
+  - write:git
+limits:
+  rate_per_min: 30
+  timeout_s: 60

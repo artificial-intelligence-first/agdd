@@ -1,0 +1,13 @@
+server_id: memory
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-memory@2025.9.25"
+description: Knowledge graph-based persistent memory system
+scopes:
+  - read:memory
+  - write:memory
+limits:
+  rate_per_min: 120
+  timeout_s: 20

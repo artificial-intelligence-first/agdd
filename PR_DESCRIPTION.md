@@ -1,12 +1,12 @@
-# Refactor: Improve code quality based on code review
+# Refactor: Improve code quality and add MCP configurations
 
 ## Summary
 
-This PR addresses several code quality issues identified during a comprehensive code review of the AGDD framework. All changes improve maintainability, robustness, and code clarity while maintaining backward compatibility.
+This PR addresses several code quality issues identified during a comprehensive code review of the AGDD framework, ensures full English language consistency, and adds official Model Context Protocol server configurations. All changes improve maintainability, robustness, and code clarity while maintaining backward compatibility.
 
 ## Changes
 
-### 🔴 High Priority Fixes
+### High Priority Fixes
 
 1. **Fixed variable shadowing in `observability/summarize_runs.py`** (L261, L329)
    - Renamed `summary` variable to `run_summary` in the loop to avoid shadowing the final return value
@@ -21,7 +21,7 @@ This PR addresses several code quality issues identified during a comprehensive 
    - The dependency was not directly used in the codebase
    - Reduces package footprint and dependency complexity
 
-### 🟡 Medium Priority Improvements
+### Medium Priority Improvements
 
 4. **Enhanced error handling in `agdd/runners/flowrunner.py`** (L46)
    - Added 300-second timeout to subprocess calls
@@ -33,7 +33,7 @@ This PR addresses several code quality issues identified during a comprehensive 
    - Now supports patterns like `*-experimental`, `model-*-test`, etc.
    - More flexible and robust pattern matching
 
-### 📚 Documentation & Code Quality
+### Documentation & Code Quality
 
 6. **Added comprehensive docstrings**
    - `_extract_model()`: Documents model extraction logic from various record locations
@@ -44,12 +44,29 @@ This PR addresses several code quality issues identified during a comprehensive 
    - MCP metrics fallback logic in `summarize_runs.py` (L308)
    - Explains why we aggregate from steps when not directly provided
 
-### ✅ Testing
+### Testing
 
 8. **Added 7 new tests** (30 total tests now passing)
    - `tests/runner/test_flowrunner_errors.py`: Tests error handling for unavailable flowctl
    - `tests/governance/test_gate_patterns.py`: Tests wildcard pattern matching scenarios
    - All existing tests continue to pass
+
+### Language Consistency
+
+9. **Translated Japanese section in PLANS.md to English**
+   - Converted "最新タスク" section to "Recent Tasks"
+   - Repository now 100% English across all documentation and code
+   - Improves accessibility for international contributors
+
+### Infrastructure & Configuration
+
+10. **Added official MCP server configurations**
+   - `filesystem.yaml`: Secure file operations with access controls
+   - `git.yaml`: Repository read, search, and manipulation tools
+   - `memory.yaml`: Knowledge graph-based persistent memory system
+   - `fetch.yaml`: Web content fetching and conversion
+   - Added `.mcp/README.md` documenting all servers, scopes, and rate limits
+   - Provides essential capabilities for AI agents in AGDD framework
 
 ## Testing
 
@@ -61,14 +78,28 @@ $ uv run -m pytest -q
 
 ## Files Changed
 
+**Code Quality:**
 - `agdd/cli.py`: Improved CLI argument design
 - `agdd/governance/gate.py`: Enhanced wildcard pattern matching
 - `agdd/runners/flowrunner.py`: Added error handling and timeout
 - `observability/summarize_runs.py`: Fixed variable shadowing, added docstrings
 - `pyproject.toml`: Removed unused idna dependency
+- `uv.lock`: Updated lock file
+
+**Testing:**
 - `tests/governance/test_gate_patterns.py`: New tests for pattern matching
 - `tests/runner/test_flowrunner_errors.py`: New tests for error handling
-- `uv.lock`: Updated lock file
+
+**Documentation:**
+- `PLANS.md`: Translated Japanese section to English
+- `PR_DESCRIPTION.md`: This file
+
+**Configuration:**
+- `.mcp/README.md`: MCP server documentation
+- `.mcp/servers/filesystem.yaml`: Filesystem MCP server config
+- `.mcp/servers/git.yaml`: Git MCP server config
+- `.mcp/servers/memory.yaml`: Memory MCP server config
+- `.mcp/servers/fetch.yaml`: Fetch MCP server config
 
 ## Breaking Changes
 
@@ -97,4 +128,6 @@ None. All changes are backward compatible.
 - Documentation improvements
 - Additional test coverage
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+---
+
+Generated with Claude Code (https://claude.com/claude-code)
