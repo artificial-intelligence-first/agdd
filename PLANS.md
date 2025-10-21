@@ -74,9 +74,39 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Interfaces and Dependencies
 - Flow Runner CLI (`agdd.cli.flow`) and registry interface (`registry/agents/*.yaml`).
-- JSON Schema contracts in `contracts/` consumed by `agdd/skills/*`.
+- Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG orchestration.
+- JSON Schema contracts in `contracts/` consumed by `agdd/skills/*` and agents.
 - CI workflows executing governance checks and packaging validation.
+
+## MAG/SAG Roadmap
+
+### Completed (v0.1.0)
+- [x] Agent Runner with MAG/SAG invocation and observability
+- [x] Registry loader for agent/skill resolution
+- [x] OfferOrchestratorMAG (main agent) and CompensationAdvisorSAG (sub-agent)
+- [x] CLI command `agdd agent run` for MAG execution
+- [x] Contracts: candidate_profile, comp_advisor_input/output, offer_packet
+- [x] Skills: salary-band-lookup, task-decomposition, result-aggregation
+- [x] E2E integration tests with observability validation
+
+### Short-Term (v0.2.0)
+- [ ] Additional SAG variants (data-analysis-sag, document-processing-sag)
+- [ ] Async/parallel SAG invocation for MAGs
+- [ ] A/B testing support in registry (variant selection by score)
+- [ ] Enhanced observability dashboard (visualize MAG→SAG flows)
+
+### Medium-Term (v0.3.0)
+- [ ] MCP integration for SAG skills (enhanced data access)
+- [ ] Governance policies for agent execution (SLO enforcement)
+- [ ] Agent health monitoring and circuit breaker patterns
+- [ ] Distributed tracing across MAG→SAG boundaries
+
+### Long-Term
+- [ ] Multi-MAG orchestration (MAG calling other MAGs)
+- [ ] Dynamic SAG selection based on runtime conditions
+- [ ] Agent versioning and blue/green deployments
+- [ ] Cost optimization and budget management per agent
 
 ---
 **Created**: 2025-10-20 02:27 UTC
-**Last Updated**: 2025-10-21 07:47 UTC
+**Last Updated**: 2025-10-21 (MAG/SAG implementation)

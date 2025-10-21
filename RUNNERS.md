@@ -51,7 +51,48 @@ When adding a new runner adapter:
 - Vendor assets (e.g., Flow Runner schema) are locked via `tools/verify_vendor.py`.
 - CI must execute the runner integration tests and publish run summaries for policy evaluation.
 
+## Agent Runner
+
+The **Agent Runner** (`agdd.runners.agent_runner`) orchestrates MAG (Main Agent) and SAG (Sub-Agent) execution with built-in observability.
+
+### Key Interfaces
+
+```python
+from agdd.runners.agent_runner import invoke_mag, invoke_sag, Delegation, Result
+
+# Invoke a Main Agent
+output = invoke_mag("offer-orchestrator-mag", {"role": "Engineer", "level": "Senior"})
+
+# Invoke a Sub-Agent
+delegation = Delegation(
+    task_id="task-001",
+    sag_id="compensation-advisor-sag",
+    input={"candidate_profile": {...}},
+    context={"parent_run_id": "mag-abc123"}
+)
+result = invoke_sag(delegation)
+```
+
+### Capabilities
+- **Dependency Injection**: Registry, skills, and runner instances injected into agent code
+- **Retry Logic**: SAGs can configure retry policies with exponential backoff
+- **Observability**: Automatic logging and metrics to `.runs/agents/<RUN_ID>/`
+- **Error Handling**: Graceful failure handling with partial result aggregation
+
+### Observability Artifacts
+- `logs.jsonl` - Event log (start, end, delegation, errors)
+- `metrics.json` - Performance metrics (latency_ms, task_count)
+- `summary.json` - Run summary with metadata
+
+### Conformance
+- Agents must provide `run(payload, *, registry, skills, runner, obs)` entrypoint
+- MAGs orchestrate tasks via `runner.invoke_sag(delegation)`
+- SAGs execute domain logic and return structured output
+- All execution produces observability artifacts for governance
+
 ## Future Work
 
 - Expand capability coverage as new runners expose richer feature sets.
 - Provide sample adapters or mocks for testing runner orchestration without external dependencies.
+- Add async/parallel SAG invocation for MAGs
+- Implement circuit breaker patterns for failing SAGs
