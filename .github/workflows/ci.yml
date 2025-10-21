@@ -31,9 +31,6 @@ jobs:
       - name: Verify vendor assets
         run: uv run python tools/verify_vendor.py
 
-      - name: Lint registry
-        run: uv run python tools/lint_registry.py
-
       - name: Test suite
         run: uv run -m pytest -q
 

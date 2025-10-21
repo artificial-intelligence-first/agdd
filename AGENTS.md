@@ -8,9 +8,9 @@ modifying code.
 - Use Python 3.12 with the [`uv`](https://docs.astral.sh/uv/) package manager.
   Install or refresh dependencies with `uv sync`, and include development tools
   when needed via `uv sync --extra dev`.
-- Exercise the walking skeleton early: `uv run python -m agdd.cli validate`
-  and `uv run python -m agdd.cli run hello --text "AGDD"` ensure the registry,
-  contracts, and skills integrate correctly.
+- Test the agent orchestration system early:
+  `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
+  ensures the registry, agent runner, contracts, and skills integrate correctly.
 - Flow Runner integration is optional but recommended when working on runner
   boundaries:
   1. Clone https://github.com/artificial-intelligence-first/flow-runner.git
@@ -21,8 +21,8 @@ modifying code.
 - Verify vendored Flow Runner assets with
   `uv run python tools/verify_vendor.py` whenever files under
   `agdd/assets/` or `examples/flowrunner/` change.
-- Keep new skills stateless under `agdd/skills/`, register agents via
-  `registry/agents/*.yaml`, and back descriptors with JSON Schemas under
+- Keep new skills stateless under `skills/`, register agents in
+  `agents/{main,sub}/<agent-slug>/agent.yaml`, and define contracts with JSON Schemas under
   `contracts/`. Prefer Typer-based CLIs that invoke agents to maintain the
   AI-first workflow.
 
@@ -30,14 +30,15 @@ modifying code.
 - Run the required checks locally before committing:
   - `uv run -m pytest -q`
   - `uv run python tools/check_docs.py`
-- Re-run the walking skeleton commands (`agdd.cli validate` and
-  `agdd.cli run hello`) after changes that affect registry wiring, contracts,
-  or skills.
+- Test agent orchestration after changes that affect registry wiring, contracts,
+  or skills:
+  - `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
+  - Check `.runs/agents/<RUN_ID>/` for observability artifacts
 - When Flow Runner is installed, validate the boundary with:
   - `uv run python -m agdd.cli flow available`
   - `uv run python -m agdd.cli flow summarize [--output <path>]`
   - `uv run python -m agdd.cli flow gate <summary.json> --policy policies/flow_governance.yaml`
-- Add or update pytest coverage for any new contracts, policies, or skills.
+- Add or update pytest coverage for any new contracts, policies, skills, or agents.
   Tests live under `tests/` and must pass before a pull request is opened.
 
 ## Build & Deployment

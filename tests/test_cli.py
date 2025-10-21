@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typer.testing import CliRunner
 
 from agdd.cli import app
@@ -7,19 +8,17 @@ from agdd.cli import app
 runner = CliRunner()
 
 
-def test_validate_command_succeeds() -> None:
-    result = runner.invoke(app, ["validate"])
+def test_agent_run_command_succeeds() -> None:
+    """Test that agent run command executes successfully"""
+    payload = json.dumps({"role": "Engineer", "level": "Mid", "location": "Remote", "experience_years": 5})
+    result = runner.invoke(app, ["agent", "run", "offer-orchestrator-mag"], input=payload)
     assert result.exit_code == 0
-    assert "Validated" in result.stdout
+    output = json.loads(result.stdout)
+    assert "offer" in output
+    assert "metadata" in output
 
 
-def test_run_command_executes_echo_skill() -> None:
-    result = runner.invoke(app, ["run", "hello", "--text", "AGDD"])
+def test_flow_available_command() -> None:
+    """Test that flow available command runs without error"""
+    result = runner.invoke(app, ["flow", "available"])
     assert result.exit_code == 0
-    assert result.stdout.strip() == "AGDD"
-
-
-def test_run_command_accepts_positional_text() -> None:
-    result = runner.invoke(app, ["run", "hello", "AGDD"])
-    assert result.exit_code == 0
-    assert result.stdout.strip() == "AGDD"

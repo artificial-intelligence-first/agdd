@@ -128,24 +128,16 @@ uv run -m pytest -q  # verify installation
 ### Basic Usage
 
 ```bash
-# Validate agent registry
-uv run python -m agdd.cli validate
+# Execute a MAG (Main Agent) with a candidate profile
+echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
+  uv run python -m agdd.cli agent run offer-orchestrator-mag
 
-# Run an agent
-uv run python -m agdd.cli run hello --text "Hello, AGDD!"
+# Or from a file
+uv run python -m agdd.cli agent run offer-orchestrator-mag \
+  --json examples/agents/candidate_profile.json
 ```
 
 ## Usage
-
-### CLI Commands
-
-```bash
-# Validate agent descriptors
-uv run python -m agdd.cli validate
-
-# Execute an agent
-uv run python -m agdd.cli run hello --text "AGDD"
-```
 
 ### Agent Orchestration
 
@@ -228,9 +220,6 @@ uv run python tools/check_docs.py
 
 # Verify vendor assets
 uv run python tools/verify_vendor.py
-
-# Lint registry
-uv run python tools/lint_registry.py
 ```
 
 ## Contributing

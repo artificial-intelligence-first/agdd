@@ -10,33 +10,34 @@ Coordinates the generation of complete offer packets by:
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
+# Import shared dataclasses from agent_runner
+# Note: These will be injected via the runner parameter, but we need them for type hints
+try:
+    from agdd.runners.agent_runner import Delegation, Result
+except ImportError:
+    # Fallback for when running outside package context
+    from dataclasses import dataclass
+    from typing import Optional
 
-@dataclass
-class Delegation:
-    """Request to delegate work to a sub-agent"""
+    @dataclass
+    class Delegation:
+        task_id: str
+        sag_id: str
+        input: Dict[str, Any]
+        context: Dict[str, Any]
 
-    task_id: str
-    sag_id: str
-    input: Dict[str, Any]
-    context: Dict[str, Any]
-
-
-@dataclass
-class Result:
-    """Result from sub-agent execution"""
-
-    task_id: str
-    status: str
-    output: Dict[str, Any]
-    metrics: Dict[str, Any]
-    error: Optional[str] = None
+    @dataclass
+    class Result:
+        task_id: str
+        status: str
+        output: Dict[str, Any]
+        metrics: Dict[str, Any]
+        error: Optional[str] = None
 
 
 def _now_ms() -> int:

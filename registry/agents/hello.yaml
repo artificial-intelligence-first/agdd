@@ -1,6 +1,0 @@
-id: hello
-name: Hello Agent
-version: 0.0.1
-description: Minimal agent that echoes text for walking-skeleton validation.
-skills:
-  - echo
