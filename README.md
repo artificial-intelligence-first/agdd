@@ -51,36 +51,37 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph CLI[CLI]
-        A[agdd.cli]
-    end
-    
-    subgraph Core[Core]
-        B[Registry]
-        C[Skills]
-        D[Contracts]
-    end
-    
-    subgraph Exec[Execution]
-        E[Agent<br/>Runner]
-        F[Flow<br/>Runner]
-    end
-    
-    subgraph Gov[Governance]
-        G[Gate]
-        H[Observability]
-    end
-    
-    A --> B
-    A --> E
-    A --> F
-    B --> C
-    B --> D
-    E --> C
-    F --> H
-    H --> G
+```
+┌─────────────────────────────────────────────────────────────┐
+│                          CLI Layer                          │
+│                         (agdd.cli)                          │
+└────────────┬────────────────────────────┬───────────────────┘
+             │                            │
+             ▼                            ▼
+┌────────────────────────┐   ┌───────────────────────────────┐
+│   Execution Layer      │   │      Core Components          │
+│                        │   │                               │
+│  ┌──────────────────┐  │   │  ┌─────────┐  ┌───────────┐  │
+│  │  Agent Runner    │──┼───┼─▶│ Skills  │  │ Contracts │  │
+│  └──────────────────┘  │   │  └─────────┘  └───────────┘  │
+│                        │   │       ▲            ▲          │
+│  ┌──────────────────┐  │   │       │            │          │
+│  │  Flow Runner     │  │   │  ┌────┴────────────┘          │
+│  └────────┬─────────┘  │   │  │  Registry                 │
+└───────────┼────────────┘   │  └───────────────────────────┘
+            │                └───────────────────────────────┘
+            ▼
+┌───────────────────────┐
+│  Governance Layer     │
+│                       │
+│  ┌─────────────────┐  │
+│  │ Observability   │  │
+│  └────────┬────────┘  │
+│           ▼           │
+│  ┌─────────────────┐  │
+│  │ Governance Gate │  │
+│  └─────────────────┘  │
+└───────────────────────┘
 ```
 
 ## Project Structure
