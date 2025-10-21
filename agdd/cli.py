@@ -84,7 +84,10 @@ def _format_known_skills(skills: Iterable[str]) -> str:
 
 
 @app.command()
-def run(agent_id: str, text: str = "hello") -> None:
+def run(
+    agent_id: str,
+    text: str = typer.Option("hello", "--text", help="Input text for the agent skill"),
+) -> None:
     """Execute the first registered skill for the requested agent."""
     agent_path = _resolve_agent(agent_id)
     if agent_path is None:

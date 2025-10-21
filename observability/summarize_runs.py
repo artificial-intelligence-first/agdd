@@ -52,6 +52,12 @@ def _load_json(path: Path) -> dict[str, Any] | None:
 
 
 def _extract_model(record: dict[str, Any]) -> str:
+    """
+    Extract model name from various possible locations in a record.
+
+    Searches in order: model, model_name, usage.model, config.model.
+    Returns "unknown" if no model name is found.
+    """
     for key in ("model", "model_name"):
         value = record.get(key)
         if isinstance(value, str) and value:
@@ -113,6 +119,12 @@ def _aggregate_mcp_logs(run_dir: Path, metrics: RunMetrics) -> None:
 
 
 def _classify_error(record: dict[str, Any], extra: dict[str, Any] | None) -> str:
+    """
+    Classify an error based on error information in the record.
+
+    Extracts error tokens from various fields and matches against known error patterns.
+    Returns one of: timeout, tool, validation, rate_limit, or unknown.
+    """
     tokens: list[str] = []
 
     for key in ("error_type", "error_code", "status"):
@@ -258,12 +270,12 @@ def summarize(base: Path | None = None) -> Dict[str, Any]:
     metrics = RunMetrics()
 
     for run_dir in runs:
-        summary = _load_json(run_dir / "summary.json")
-        if summary is None:
+        run_summary = _load_json(run_dir / "summary.json")
+        if run_summary is None:
             continue
 
         run_failed = _accumulate_metrics(run_dir, metrics)
-        summary_success = _summary_success(summary)
+        summary_success = _summary_success(run_summary)
         if summary_success or not run_failed:
             metrics.succeeded += 1
         _aggregate_mcp_logs(run_dir, metrics)
@@ -293,6 +305,7 @@ def summarize(base: Path | None = None) -> Dict[str, Any]:
             entry["error_types"] = dict(sorted(data.error_categories.items()))
         steps.append(entry)
 
+    # Fallback: aggregate MCP metrics from steps if not directly provided
     if metrics.mcp_calls == 0:
         metrics.mcp_calls = sum(data.mcp_calls for data in metrics.step_stats.values())
     if metrics.mcp_errors == 0:
