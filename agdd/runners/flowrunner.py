@@ -62,15 +62,9 @@ class FlowRunner(Runner):
                 ok=False, stderr="flowctl is not installed. See Flow Runner setup instructions."
             )
 
+        args = [self.exe, "validate", str(flow_path)]
         if schema is not None:
-            args = [self.exe, "validate", str(flow_path), "--schema", str(schema)]
-        else:
-            args = [
-                self.exe,
-                "run",
-                str(flow_path),
-                "--dry-run",
-            ]
+            args.extend(["--schema", str(schema)])
         cp = self._popen(args, env=None)
         ok = cp.returncode == 0
 

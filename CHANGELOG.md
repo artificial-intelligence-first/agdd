@@ -29,6 +29,7 @@
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
 - Fixed Flow Runner governance by counting successful runs when `failures` keys are empty
+- Flow Runner validation now shells out to `flowctl validate` rather than `run --dry-run`, ensuring CLI checks match upstream behavior
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)
