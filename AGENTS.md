@@ -27,19 +27,89 @@ modifying code.
   AI-first workflow.
 
 ## Testing Instructions
-- Run the required checks locally before committing:
-  - `uv run -m pytest -q`
-  - `uv run python tools/check_docs.py`
-- Test agent orchestration after changes that affect registry wiring, contracts,
-  or skills:
-  - `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
-  - Check `.runs/agents/<RUN_ID>/` for observability artifacts
-- When Flow Runner is installed, validate the boundary with:
-  - `uv run python -m agdd.cli flow available`
-  - `uv run python -m agdd.cli flow summarize [--output <path>]`
-  - `uv run python -m agdd.cli flow gate <summary.json> --policy policies/flow_governance.yaml`
-- Add or update pytest coverage for any new contracts, policies, skills, or agents.
-  Tests live under `tests/` and must pass before a pull request is opened.
+
+### Test Layers
+
+AGDD uses a three-layer testing strategy:
+
+#### 1. Unit Tests (`tests/unit/`)
+Test individual components in isolation:
+- **Registry:** Agent/skill resolution, entrypoint loading
+- **Runner:** ObservabilityLogger, SkillRuntime, delegation logic
+- **Contracts:** JSON Schema validation
+
+Example:
+```bash
+uv run -m pytest tests/unit/ -v
+```
+
+#### 2. Agent Tests (`tests/agents/`)
+Test MAG/SAG behavior with contract validation:
+- **Input/Output Contracts:** Validate against JSON schemas
+- **Fallback Logic:** Test error handling and partial failures
+- **Observability:** Verify logs, metrics, and summaries are generated
+
+Example:
+```bash
+uv run -m pytest tests/agents/ -v
+```
+
+#### 3. Integration Tests (`tests/integration/`)
+Test end-to-end workflows via CLI:
+- **E2E Flow:** Full MAG→SAG orchestration
+- **Observability Artifacts:** Check `.runs/agents/<RUN_ID>/` contents
+- **CLI Interface:** Test `agdd agent run` command
+
+Example:
+```bash
+uv run -m pytest tests/integration/ -v
+```
+
+### Running Tests
+
+- **All tests:**
+  ```bash
+  uv run -m pytest -q
+  ```
+
+- **With coverage:**
+  ```bash
+  uv run -m pytest --cov=agdd --cov-report=term-missing
+  ```
+
+- **Documentation checks:**
+  ```bash
+  uv run python tools/check_docs.py
+  ```
+
+### Manual Validation
+
+- Test agent orchestration after changes:
+  ```bash
+  echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag
+  ```
+
+- Check observability artifacts:
+  ```bash
+  ls -la .runs/agents/<RUN_ID>/
+  cat .runs/agents/<RUN_ID>/logs.jsonl
+  ```
+
+- When Flow Runner is installed:
+  ```bash
+  uv run python -m agdd.cli flow available
+  uv run python -m agdd.cli flow summarize [--output <path>]
+  uv run python -m agdd.cli flow gate <summary.json> --policy policies/flow_governance.yaml
+  ```
+
+### Adding Tests
+
+When adding new features, ensure coverage at all three layers:
+1. **Unit:** Test the component in isolation
+2. **Agent:** Test contract compliance and error handling
+3. **Integration:** Test the full workflow via CLI
+
+All tests must pass before a pull request is opened.
 
 ## Build & Deployment
 - Build distributable artifacts with `uv build`. Run this whenever bundled
