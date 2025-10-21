@@ -196,3 +196,6 @@ Please refer to `AGENTS.md` for the complete development workflow and PR policy.
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
 Copyright (c) 2025 Naru Kijima
+
+---
+<!-- Verification test: 2025-10-21 -->
