@@ -49,7 +49,11 @@ class Registry:
     """Central registry for agents and skills"""
 
     def __init__(self, base_path: Optional[Path] = None):
-        self.base_path = base_path or Path.cwd()
+        # Default to package directory (parent of agdd module) rather than CWD
+        # so registry works regardless of where the process is run from
+        if base_path is None:
+            base_path = Path(__file__).resolve().parents[1]
+        self.base_path = base_path
         self._agent_cache: Dict[str, AgentDescriptor] = {}
         self._skill_cache: Dict[str, SkillDescriptor] = {}
 
