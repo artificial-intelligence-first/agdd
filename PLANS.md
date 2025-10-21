@@ -1,46 +1,82 @@
-# AG-Driven Development (AGDD) Framework (ExecPlan)
-This ExecPlan is a living document. Keep Progress / Decision Log current.
+# AG-Driven Development (AGDD) Framework Hardening ExecPlan
 
-## Recent Tasks
-- Stabilize CI `flow gate` by integrating governance policies with `min_runs` / `required_steps` / new gate evaluation logic (agdd/assets/policies/flow_governance.yaml, agdd/governance/gate.py, observability/summarize_runs.py)
-- Enhance developer experience and quality guards in CI by adding Flow Runner environment scripts and registry linter (tools/flowrunner_env.sh, tools/lint_registry.py)
+This ExecPlan is a living document. Keep Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective current as work proceeds.
 
 ## Purpose / Big Picture
-Establish the minimal AG-Driven Development (AGDD) repository skeleton so future AG-Driven Development (AGDD) work starts from a compliant baseline.
+Anchor the AG-Driven Development (AGDD) repository around a resilient, AI-first walking skeleton so subsequent feature work inherits proven governance, observability, and packaging practices from day one.
 
 ## To-do
-- Document upgrade path for alternate runner adapters (Temporal, LangGraph, etc.)
-- Establish release cadence for updating mirrored Flow Runner assets and schemas
-- Expand policy coverage (skill manifests, security posture) ahead of scaling agent catalog
+### Governance and Policy
+- [ ] Document the upgrade path for alternative runner adapters (Temporal, LangGraph, bespoke adapters) so governance gates remain compatible.
+- [ ] Expand policy coverage to include skill manifest validation and security posture checks before scaling the agent catalog.
+
+### Release and Operations
+- [ ] Establish a documented release cadence for mirrored Flow Runner assets and JSON Schemas, including automation hooks.
+- [ ] Publish contributor-facing runbooks for syncing Flow Runner sample assets when upstream tags change.
+
+### Documentation Hygiene
+- [ ] Cross-link ExecPlan expectations from `README.md`, `AGENTS.md`, and contributor docs.
+- [ ] Capture validation guidance in `CHANGELOG.md` and `SSOT.md` as features graduate from this plan.
 
 ## Progress
-- Baseline repository skeleton established with uv tooling, initial directories, and documentation
-- Walking skeleton (registry -> contract validation -> skill execution) operational with tests and docs
-- Runner abstraction landed with Flow Runner adapter, CLI, and mirrored assets
-- Observability summary tooling in place for Flow Runner `.runs/`, including per-step metrics and MCP call counts
-- Governance gate operational via `tools/gate_flow_summary.py` and CI enforcement
-- CI workflow expanded with Flow Runner validation and Multi Agent Governance checks
-- Packaging configuration ensures bundled assets ship with the wheel and includes smoke-test guidance
+- [2025-10-21 07:40 UTC] Refactored ExecPlan to the ExecPlans template, migrated historical accomplishments, and identified remaining governance hardening tasks.
+- [2025-10-20 15:30 UTC] Walking skeleton validated end-to-end (registry lookup → schema validation → Flow Runner invocation) with automation tests and documentation updates.
+- [2025-10-20 13:45 UTC] Flow Runner adapter, CLI entry points, and mirrored assets integrated with packaging configuration and smoke-test guidance.
+- [2025-10-20 11:55 UTC] Governance gate operationalized via `tools/gate_flow_summary.py`, wired into CI alongside Flow Runner validation and Multi-Agent Governance checks.
+- [2025-10-20 11:10 UTC] Observability summary tooling created for Flow Runner `.runs/`, exposing per-step metrics and MCP call counts.
+- [2025-10-20 10:40 UTC] Baseline repository skeleton established with `uv` tooling, initial directories, and core documentation.
 
 ## Surprises & Discoveries
-None so far.
+- [2025-10-20 16:05 UTC] Packaging smoke tests revealed missing mirrored assets; resolved by extending `uv build` guidance and ensuring wheel includes Flow Runner fixtures.
 
 ## Decision Log
-- Commit to an AI & AI Agent-first walking skeleton before expanding feature depth
+- [2025-10-20 12:15 UTC] Prioritized delivering an AI & AI Agent-first walking skeleton before expanding feature depth to guarantee future agents inherit validated governance flows.
 
 ## Outcomes & Retrospective
-Framework deliverables are in place with passing tests and policy checks, ready for initial review and iteration.
+Framework deliverables are in place with passing tests and policy checks, ready for iterative enhancements to governance coverage and release operations.
 
 ## Context and Orientation
-Work performed inside freshly initialized `agdd` repository under feature branch `feat/bootstrap-agdd`.
+- Repository: `agdd` (feature lineage: `feat/bootstrap-agdd`).
+- Core directories: `agdd/`, `registry/`, `contracts/`, `observability/`, `policies/`, `tools/`.
+- Supporting documentation: `AGENTS.md`, `README.md`, `SSOT.md`, `CHANGELOG.md`.
 
 ## Plan of Work
-Deliver an executable path from registry lookup through skill invocation with schema validation, then harden supporting tooling and documentation so additional agents follow the same AG-first spine.
+1. **Stabilize Governance Spine** – Formalize adapter upgrade guidance and extend policy coverage.
+2. **Operationalize Release Cadence** – Define and automate Flow Runner asset/schema sync workflows.
+3. **Harden Documentation Loop** – Ensure ExecPlan practices feed back into contributor onboarding materials.
 
 ## Concrete Steps
-1. Publish guidance for integrating new runner adapters alongside Flow Runner
-2. Define process for syncing Flow Runner sample assets and schemas when upstream tags change
-3. Broaden governance playbooks to include skill manifests and security checks
+1. Draft adapter upgrade guide covering Temporal and LangGraph prototypes; store under `docs/` with cross-references from `AGENTS.md`.
+2. Implement automation (CLI or CI job) that syncs Flow Runner assets and regenerates schemas; document in `tools/flowrunner_env.sh`.
+3. Extend policy validation scripts to lint skill manifests and enforce security posture; add pytest coverage in `tests/governance/`.
+4. Update contributor documentation to reference ExecPlan lifecycle and validation expectations.
 
-## Validation & Acceptance
-Acceptance now includes passing Flow Runner CLI smoke tests (validate/run/summarize), documentation guardrails, pytest suite, and CI jobs (core, flowrunner, governance).
+## Validation and Acceptance
+- [ ] `uv run python -m agdd.cli validate`
+- [ ] `uv run python -m agdd.cli run hello --text 'AGDD'`
+- [ ] `uv run python -m agdd.cli flow available`
+- [ ] `uv run python -m agdd.cli flow summarize --output /tmp/summary.json`
+- [ ] `uv run python -m agdd.cli flow gate /tmp/summary.json`
+- [ ] `uv run -m pytest -q`
+- [ ] `uv run python tools/check_docs.py`
+- [ ] `uv build` (smoke test packaging when bundled resources change)
+
+## Idempotence and Recovery
+- Flow Runner asset sync scripts must be rerunnable; guard file operations with existence checks.
+- Governance policy updates should include rollback instructions (`git checkout -- policies/flow_governance.yaml`).
+- Maintain disposable virtual environments for packaging smoke tests to avoid contaminating the primary dev environment.
+
+## Artifacts and Notes
+- Policy definitions: `policies/flow_governance.yaml`.
+- Governance tooling: `observability/summarize_runs.py`, `tools/gate_flow_summary.py`.
+- Runner scripts: `tools/flowrunner_env.sh`.
+- Historical progress captured in this ExecPlan; future PRs must reference relevant sections.
+
+## Interfaces and Dependencies
+- Flow Runner CLI (`agdd.cli.flow`) and registry interface (`registry/agents/*.yaml`).
+- JSON Schema contracts in `contracts/` consumed by `agdd/skills/*`.
+- CI workflows executing governance checks and packaging validation.
+
+---
+**Created**: 2025-10-20 02:27 UTC
+**Last Updated**: 2025-10-21 07:47 UTC
