@@ -49,10 +49,10 @@ class ObservabilityLogger:
         self.logs = []
         self.metrics = {}
 
-    def log(self, run_id: str, event: str, data: Dict[str, Any]):
+    def log(self, event: str, data: Dict[str, Any]):
         """Log an event"""
         entry = {
-            "run_id": run_id,
+            "run_id": self.run_id,
             "event": event,
             "timestamp": time.time(),
             "data": data,
@@ -63,11 +63,11 @@ class ObservabilityLogger:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def metric(self, run_id: str, key: str, value: Any):
+    def metric(self, key: str, value: Any):
         """Record a metric"""
         if key not in self.metrics:
             self.metrics[key] = []
-        self.metrics[key].append({"run_id": run_id, "value": value, "timestamp": time.time()})
+        self.metrics[key].append({"run_id": self.run_id, "value": value, "timestamp": time.time()})
         # Write metrics
         metrics_file = self.run_dir / "metrics.json"
         with open(metrics_file, "w", encoding="utf-8") as f:
@@ -135,7 +135,7 @@ class AgentRunner:
         try:
             # Load agent descriptor
             agent = self.registry.load_agent(slug)
-            obs.log(run_id, "start", {"agent": agent.name, "slug": slug})
+            obs.log("start", {"agent": agent.name, "slug": slug})
 
             # Resolve entrypoint
             run_fn = self.registry.resolve_entrypoint(agent.entrypoint)
@@ -151,14 +151,14 @@ class AgentRunner:
             )
             duration_ms = int((time.time() - t0) * 1000)
 
-            obs.metric(run_id, "duration_ms", duration_ms)
-            obs.log(run_id, "end", {"status": "success", "duration_ms": duration_ms})
+            obs.metric("duration_ms", duration_ms)
+            obs.log("end", {"status": "success", "duration_ms": duration_ms})
             obs.finalize()
 
             return output
 
         except Exception as e:
-            obs.log(run_id, "error", {"error": str(e), "type": type(e).__name__})
+            obs.log("error", {"error": str(e), "type": type(e).__name__})
             obs.finalize()
             raise
 
@@ -182,7 +182,6 @@ class AgentRunner:
             # Load agent descriptor
             agent = self.registry.load_agent(delegation.sag_id)
             obs.log(
-                run_id,
                 "start",
                 {
                     "agent": agent.name,
@@ -208,9 +207,8 @@ class AgentRunner:
                     output = run_fn(delegation.input, skills=self.skills, obs=obs)
                     duration_ms = int((time.time() - t0) * 1000)
 
-                    obs.metric(run_id, "duration_ms", duration_ms)
+                    obs.metric("duration_ms", duration_ms)
                     obs.log(
-                        run_id,
                         "end",
                         {"status": "success", "attempt": attempt + 1, "duration_ms": duration_ms},
                     )
@@ -226,7 +224,6 @@ class AgentRunner:
                 except Exception as e:
                     last_error = e
                     obs.log(
-                        run_id,
                         "retry",
                         {"attempt": attempt + 1, "error": str(e), "type": type(e).__name__},
                     )
@@ -234,7 +231,7 @@ class AgentRunner:
                         time.sleep(backoff_ms / 1000.0)
 
             # All attempts failed
-            obs.log(run_id, "error", {"error": str(last_error), "attempts": max_attempts})
+            obs.log("error", {"error": str(last_error), "attempts": max_attempts})
             obs.finalize()
 
             return Result(
@@ -246,7 +243,7 @@ class AgentRunner:
             )
 
         except Exception as e:
-            obs.log(run_id, "error", {"error": str(e), "type": type(e).__name__})
+            obs.log("error", {"error": str(e), "type": type(e).__name__})
             obs.finalize()
             raise
 

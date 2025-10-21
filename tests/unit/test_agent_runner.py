@@ -15,8 +15,8 @@ class TestObservabilityLogger:
         with tempfile.TemporaryDirectory() as tmpdir:
             obs = ObservabilityLogger("test-run-123", base_dir=Path(tmpdir))
 
-            obs.log("test-run-123", "start", {"agent": "TestAgent"})
-            obs.metric("test-run-123", "latency_ms", 100)
+            obs.log("start", {"agent": "TestAgent"})
+            obs.metric("latency_ms", 100)
             obs.finalize()
 
             # Check files created

@@ -24,11 +24,10 @@ def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
     Returns:
         {"offer": {...}} conforming to comp_advisor_output schema
     """
-    run_id = f"sag-{uuid.uuid4().hex[:8]}"
     t0 = time.time()
 
     if obs:
-        obs.log(run_id, "start", {"agent": "CompensationAdvisorSAG"})
+        obs.log("start", {"agent": "CompensationAdvisorSAG"})
 
     # Extract candidate profile
     profile = payload.get("candidate_profile", payload)
@@ -46,10 +45,10 @@ def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
                 {"role": role, "level": level, "location": location},
             )
             if obs:
-                obs.log(run_id, "skill_invoked", {"skill": "salary-band-lookup", "band": band})
+                obs.log("skill_invoked", {"skill": "salary-band-lookup", "band": band})
         except Exception as e:
             if obs:
-                obs.log(run_id, "skill_error", {"skill": "salary-band-lookup", "error": str(e)})
+                obs.log("skill_error", {"skill": "salary-band-lookup", "error": str(e)})
             # Fallback to default band
             band = {"currency": "USD", "min": 100000, "max": 180000, "source": "fallback"}
     else:
@@ -87,7 +86,7 @@ def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
     # 5) Observability
     duration_ms = int((time.time() - t0) * 1000)
     if obs:
-        obs.metric(run_id, "duration_ms", duration_ms)
-        obs.log(run_id, "end", {"status": "success", "offer_generated": True})
+        obs.metric("duration_ms", duration_ms)
+        obs.log("end", {"status": "success", "offer_generated": True})
 
     return {"offer": offer}

@@ -57,13 +57,14 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
 
     Returns:
         Offer packet conforming to offer_packet schema
+
+    Raises:
+        RuntimeError: If all SAG delegations fail
     """
-    # Use runner-provided run_id from ObservabilityLogger for consistency
-    run_id = obs.run_id if obs else f"mag-{uuid.uuid4().hex[:8]}"
     t0 = _now_ms()
 
     if obs:
-        obs.log(run_id, "start", {"agent": "OfferOrchestratorMAG"})
+        obs.log("start", {"agent": "OfferOrchestratorMAG"})
 
     try:
         # ===== Phase 1: Task Decomposition =====
@@ -73,10 +74,10 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 # Use task decomposition skill
                 tasks = skills.invoke("skill.task-decomposition", {"candidate_profile": payload})
                 if obs:
-                    obs.log(run_id, "decomposition", {"task_count": len(tasks), "tasks": tasks})
+                    obs.log("decomposition", {"task_count": len(tasks), "tasks": tasks})
             except Exception as e:
                 if obs:
-                    obs.log(run_id, "decomposition_error", {"error": str(e)})
+                    obs.log("decomposition_error", {"error": str(e)})
                 # Fallback to default single task
                 tasks = [{"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": payload}}]
         else:
@@ -93,7 +94,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 sag_id=task.get("sag_id", "compensation-advisor-sag"),
                 input=task.get("input", {}),
                 context={
-                    "parent_run_id": run_id,
+                    "parent_run_id": obs.run_id if obs else "unknown",
                     "task_index": idx,
                     "total_tasks": len(tasks),
                 },
@@ -101,7 +102,6 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
 
             if obs:
                 obs.log(
-                    run_id,
                     "delegation_start",
                     {"task_id": task_id, "sag_id": delegation.sag_id, "index": idx},
                 )
@@ -113,7 +113,6 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
 
                 if obs:
                     obs.log(
-                        run_id,
                         "delegation_complete",
                         {
                             "task_id": task_id,
@@ -126,7 +125,6 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 if result.status != "success":
                     if obs:
                         obs.log(
-                            run_id,
                             "delegation_failure",
                             {"task_id": task_id, "error": result.error},
                         )
@@ -135,7 +133,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
 
             except Exception as e:
                 if obs:
-                    obs.log(run_id, "delegation_error", {"task_id": task_id, "error": str(e)})
+                    obs.log("delegation_error", {"task_id": task_id, "error": str(e)})
                 # Create failure result
                 results.append(
                     Result(
@@ -149,6 +147,22 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
 
         # ===== Phase 3: Result Aggregation =====
         output = {}
+        successful_count = sum(1 for r in results if r.status == "success")
+
+        # Check if all delegations failed
+        if successful_count == 0:
+            duration_ms = _now_ms() - t0
+            if obs:
+                obs.log("all_delegations_failed", {
+                    "total_tasks": len(tasks),
+                    "failed_tasks": len(results),
+                    "duration_ms": duration_ms
+                })
+                obs.metric("latency_ms", duration_ms)
+            raise RuntimeError(
+                f"All {len(tasks)} SAG delegation(s) failed. Cannot generate valid offer packet."
+            )
+
         if skills and skills.exists("skill.result-aggregation"):
             try:
                 # Collect successful outputs
@@ -158,10 +172,10 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 )
                 output = aggregated
                 if obs:
-                    obs.log(run_id, "aggregation", {"result_count": len(successful_outputs)})
+                    obs.log("aggregation", {"result_count": len(successful_outputs)})
             except Exception as e:
                 if obs:
-                    obs.log(run_id, "aggregation_error", {"error": str(e)})
+                    obs.log("aggregation_error", {"error": str(e)})
                 # Fallback: use first successful result
                 for result in results:
                     if result.status == "success":
@@ -179,28 +193,27 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
             "offer": output.get("offer", {}),
             "metadata": {
                 "generated_by": "OfferOrchestratorMAG",
-                "run_id": run_id,
+                "run_id": obs.run_id if obs else f"mag-{uuid.uuid4().hex[:8]}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "0.1.0",
                 "task_count": len(tasks),
-                "successful_tasks": sum(1 for r in results if r.status == "success"),
+                "successful_tasks": successful_count,
             },
         }
 
         # ===== Phase 5: Observability & Completion =====
         duration_ms = _now_ms() - t0
         if obs:
-            obs.metric(run_id, "latency_ms", duration_ms)
-            obs.metric(run_id, "task_count", len(tasks))
-            obs.metric(run_id, "success_count", final_output["metadata"]["successful_tasks"])
+            obs.metric("latency_ms", duration_ms)
+            obs.metric("task_count", len(tasks))
+            obs.metric("success_count", successful_count)
             obs.log(
-                run_id,
                 "end",
                 {
                     "status": "success",
                     "duration_ms": duration_ms,
                     "tasks": len(tasks),
-                    "successful": final_output["metadata"]["successful_tasks"],
+                    "successful": successful_count,
                 },
             )
 
@@ -210,6 +223,6 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         # Top-level error handling
         duration_ms = _now_ms() - t0
         if obs:
-            obs.log(run_id, "error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms})
-            obs.metric(run_id, "latency_ms", duration_ms)
+            obs.log("error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms})
+            obs.metric("latency_ms", duration_ms)
         raise
