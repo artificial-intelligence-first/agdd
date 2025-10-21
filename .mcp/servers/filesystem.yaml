@@ -3,7 +3,7 @@ type: mcp
 command: npx
 args:
   - -y
-  - "@modelcontextprotocol/server-filesystem"
+  - "@modelcontextprotocol/server-filesystem@2025.8.21"
   - "."
 description: Secure file operations with configurable access controls
 scopes:
