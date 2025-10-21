@@ -17,3 +17,9 @@ def test_run_command_executes_echo_skill() -> None:
     result = runner.invoke(app, ["run", "hello", "--text", "AGDD"])
     assert result.exit_code == 0
     assert result.stdout.strip() == "AGDD"
+
+
+def test_run_command_accepts_positional_text() -> None:
+    result = runner.invoke(app, ["run", "hello", "AGDD"])
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "AGDD"

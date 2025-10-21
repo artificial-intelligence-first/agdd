@@ -4,6 +4,7 @@ This ExecPlan is a living document. Keep Progress / Decision Log current.
 ## 最新タスク
 - ガバナンスポリシーを `min_runs` / `required_steps` / 新しいゲート評価と連動させ、CIの `flow gate` を安定化（agdd/assets/policies/flow_governance.yaml, agdd/governance/gate.py, observability/summarize_runs.py）
 - Flow Runner 環境スクリプトとレジストリリンタを追加し、CI での開発者体験と品質ガードを強化（tools/flowrunner_env.sh, tools/lint_registry.py）
+- Typer CLI `run` コマンドが位置引数を受け付けなくなった回帰を修正し、オプション指定との両立を保証（agdd/cli.py, tests/test_cli.py）
 
 ## Purpose / Big Picture
 Establish the minimal AG-Driven Development (AGDD) repository skeleton so future AG-Driven Development (AGDD) work starts from a compliant baseline.
