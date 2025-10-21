@@ -25,6 +25,7 @@
 - CI core workflow builds distributions, verifies wheel assets, and runs registry linting prior to tests
 - Flow summary aggregator treats empty failure logs as success and recognises success status variants
 ### Fixed
+- Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
