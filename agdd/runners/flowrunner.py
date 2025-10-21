@@ -43,7 +43,18 @@ class FlowRunner(Runner):
             merged_env["PYTHONPATH"] = (
                 f"{custom_path}{os.pathsep}{existing}" if existing else custom_path
             )
-        return subprocess.run(args, capture_output=True, text=True, env=merged_env)
+        try:
+            return subprocess.run(
+                args, capture_output=True, text=True, env=merged_env, timeout=300
+            )
+        except subprocess.TimeoutExpired as exc:
+            return subprocess.CompletedProcess(
+                args=args, returncode=1, stdout="", stderr=f"Process timeout after 300s: {exc}"
+            )
+        except FileNotFoundError as exc:
+            return subprocess.CompletedProcess(
+                args=args, returncode=1, stdout="", stderr=f"Executable not found: {exc}"
+            )
 
     def validate(self, flow_path: Path, schema: Optional[Path] = None) -> ValidationResult:
         if not self.is_available():

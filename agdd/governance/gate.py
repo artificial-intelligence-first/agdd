@@ -1,6 +1,7 @@
 """Governance gate evaluation for Flow Runner summaries."""
 from __future__ import annotations
 
+import fnmatch
 import json
 from pathlib import Path
 from typing import Any
@@ -34,9 +35,8 @@ def _ratio(numerator: float | int | None, denominator: float | int | None) -> fl
 
 
 def _match_pattern(value: str, pattern: str) -> bool:
-    if pattern.endswith("*"):
-        return value.startswith(pattern[:-1])
-    return value == pattern
+    """Match value against pattern with glob-style wildcards."""
+    return fnmatch.fnmatch(value, pattern)
 
 
 def _load_summary(path: Path) -> dict[str, Any]:
