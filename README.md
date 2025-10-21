@@ -53,23 +53,23 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 
 ```mermaid
 graph TB
-    subgraph CLI["CLI Layer"]
+    subgraph CLI[CLI]
         A[agdd.cli]
     end
     
-    subgraph Core["Core Components"]
+    subgraph Core[Core]
         B[Registry]
         C[Skills]
         D[Contracts]
     end
     
-    subgraph Exec["Execution Layer"]
+    subgraph Exec[Execution]
         E[Agent<br/>Runner]
         F[Flow<br/>Runner]
     end
     
-    subgraph Gov["Governance Layer"]
-        G[Governance<br/>Gate]
+    subgraph Gov[Governance]
+        G[Gate]
         H[Observability]
     end
     
