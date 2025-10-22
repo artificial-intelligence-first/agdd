@@ -1,9 +1,8 @@
 """API configuration management."""
+
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Annotated
-
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

@@ -1,9 +1,8 @@
-"""Rate limiting for API endpoints.
+"""Rate limiting utilities for the AGDD HTTP API."""
 
-Provides both in-memory and Redis-based rate limiting.
-"""
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from threading import Lock
@@ -12,6 +11,9 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 
 from .config import Settings, get_settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryRateLimiter:
@@ -159,17 +161,18 @@ class RedisRateLimiter:
         except HTTPException:
             # Re-raise rate limit exceeded (don't swallow it)
             raise
-        except Exception as e:
-            # If Redis connection fails, allow request (fail open)
-            # Log error in production
-            pass
+        except Exception as exc:  # pragma: no cover - network failures are environment-specific
+            # If Redis connection fails, allow request (fail open) but emit a log for observability
+            logger.warning("Redis rate limiting failed for key %s: %s", key, exc)
 
 
 # Global rate limiter instance
 _rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
 
 
-def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | RedisRateLimiter | None:
+def get_rate_limiter(
+    settings: Settings | None = None,
+) -> InMemoryRateLimiter | RedisRateLimiter | None:
     """
     Get or create rate limiter instance.
 
@@ -196,7 +199,9 @@ def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | 
     return _rate_limiter
 
 
-async def rate_limit_dependency(request: Request, settings: Settings = Depends(get_settings)) -> None:
+async def rate_limit_dependency(
+    request: Request, settings: Settings = Depends(get_settings)
+) -> None:
     """
     FastAPI dependency for rate limiting.
 

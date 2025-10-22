@@ -120,6 +120,55 @@ uv run -m pytest tests/integration/ -v
   uv run agdd flow gate <summary.json> --policy policies/flow_governance.yaml
   ```
 
+## Running Agents via HTTP API
+
+The FastAPI server exposes the same orchestration capabilities over HTTP. Launch
+the server locally while developing:
+
+```bash
+./scripts/run-api-server.sh
+```
+
+### Execute Agents
+
+```bash
+# List registered agents
+curl -sS http://localhost:8000/api/v1/agents | jq
+
+# Execute an agent (include API key if configured)
+curl -sS -X POST \
+  -H "Authorization: Bearer $AGDD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"payload": {"role": "Staff Engineer", "level": "Staff"}}' \
+  http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq
+```
+
+### Retrieve Results
+
+```bash
+# Summary + metrics
+curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+  http://localhost:8000/api/v1/runs/<RUN_ID> | jq
+
+# Log tail (NDJSON)
+curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?tail=20"
+
+# Live stream with Server-Sent Events
+curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true"
+```
+
+### Troubleshooting
+
+- `401 Unauthorized`: ensure `AGDD_API_KEY` matches the server configuration
+- `404 Not Found`: verify the agent slug exists in `registry/agents.yaml` and
+  the run directory still exists under `.runs/agents/`
+- `429 Too Many Requests`: adjust `AGDD_RATE_LIMIT_QPS` or enable Redis-backed
+  rate limiting via `AGDD_REDIS_URL`
+
+More operational guidance is available in [API.md](./API.md).
+
 ### Adding Tests
 
 When adding new features, ensure coverage at all three layers:

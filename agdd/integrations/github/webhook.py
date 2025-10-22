@@ -1,13 +1,11 @@
-"""GitHub webhook event handlers.
+"""GitHub webhook handling and response utilities for AGDD."""
 
-Processes GitHub webhook events, extracts commands, executes agents,
-and posts results back as comments.
-"""
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import Iterable, Any
 
 import httpx
 from anyio import to_thread
@@ -16,7 +14,56 @@ from agdd.api.config import Settings
 from agdd.api.run_tracker import find_new_run_id, snapshot_runs
 from agdd.runners.agent_runner import invoke_mag
 
-from .comment_parser import extract_from_code_blocks
+from .comment_parser import ParsedCommand, extract_from_code_blocks
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _execute_commands(
+    repo_full_name: str,
+    issue_or_pr_number: int,
+    commands: Iterable[ParsedCommand],
+    settings: Settings,
+) -> None:
+    """Execute parsed commands and post results back to GitHub."""
+
+    cmds = list(commands)
+    if not cmds:
+        return
+
+    if not settings.GITHUB_TOKEN:
+        logger.debug("Skipping GitHub command execution because AGDD_GITHUB_TOKEN is unset")
+        return
+
+    for cmd in cmds:
+        base = Path(settings.RUNS_BASE_DIR)
+        before = snapshot_runs(base)
+        started_at = time.time()
+
+        try:
+            output = await to_thread.run_sync(invoke_mag, cmd.slug, cmd.payload, base)
+
+            run_id: str | None = None
+            if isinstance(output, dict):
+                run_id = output.get("run_id")
+            if run_id is None:
+                run_id = find_new_run_id(base, before, cmd.slug, started_at)
+
+            response = format_success_comment(cmd.slug, run_id, output, settings.API_PREFIX)
+        except Exception as exc:  # pragma: no cover - delegate to higher level logging
+            response = format_error_comment(cmd.slug, exc)
+
+        try:
+            await post_comment(repo_full_name, issue_or_pr_number, response, settings.GITHUB_TOKEN)
+        except Exception as exc:  # pragma: no cover - network and GitHub availability dependent
+            logger.warning(
+                "Failed to post GitHub comment for %s#%s via agent %s: %s",
+                repo_full_name,
+                issue_or_pr_number,
+                cmd.slug,
+                exc,
+            )
 
 
 async def post_comment(
@@ -54,7 +101,9 @@ async def post_comment(
         response.raise_for_status()
 
 
-def format_success_comment(slug: str, run_id: str | None, output: dict[str, Any], api_prefix: str) -> str:
+def format_success_comment(
+    slug: str, run_id: str | None, output: dict[str, Any], api_prefix: str
+) -> str:
     """
     Format successful agent execution result as GitHub comment.
 
@@ -76,7 +125,7 @@ def format_success_comment(slug: str, run_id: str | None, output: dict[str, Any]
 
     if run_id:
         comment += f"**Run ID**: `{run_id}`\n\n"
-        comment += f"**Artifacts**:\n"
+        comment += "**Artifacts**:\n"
         comment += f"- Summary: `GET {api_prefix}/runs/{run_id}`\n"
         comment += f"- Logs: `GET {api_prefix}/runs/{run_id}/logs`\n\n"
 
@@ -129,45 +178,12 @@ async def handle_issue_comment(event: dict[str, Any], settings: Settings) -> Non
     issue_number = event["issue"]["number"]
     comment_body = event["comment"]["body"]
 
-    # Parse commands from comment
-    commands = extract_from_code_blocks(comment_body)
-    if not commands:
-        return  # No commands found
-
-    # Ensure GitHub token is configured
-    if not settings.GITHUB_TOKEN:
-        return  # Cannot post response without token
-
-    # Execute each command
-    for cmd in commands:
-        base = Path(settings.RUNS_BASE_DIR)
-        before = snapshot_runs(base)
-        started_at = time.time()
-
-        try:
-            # Execute agent
-            output = await to_thread.run_sync(invoke_mag, cmd.slug, cmd.payload, base)
-
-            # Determine run_id
-            run_id: str | None = None
-            if isinstance(output, dict):
-                run_id = output.get("run_id")
-            if run_id is None:
-                run_id = find_new_run_id(base, before, cmd.slug, started_at)
-
-            # Format success response
-            response = format_success_comment(cmd.slug, run_id, output, settings.API_PREFIX)
-
-        except Exception as e:
-            # Format error response
-            response = format_error_comment(cmd.slug, e)
-
-        # Post result as comment
-        try:
-            await post_comment(repo, issue_number, response, settings.GITHUB_TOKEN)
-        except Exception:
-            # Silent failure - webhook should not fail if comment posting fails
-            pass
+    await _execute_commands(
+        repo,
+        issue_number,
+        extract_from_code_blocks(comment_body),
+        settings,
+    )
 
 
 async def handle_pull_request_review_comment(event: dict[str, Any], settings: Settings) -> None:
@@ -188,39 +204,12 @@ async def handle_pull_request_review_comment(event: dict[str, Any], settings: Se
     pr_number = event["pull_request"]["number"]
     comment_body = event["comment"]["body"]
 
-    # Parse commands
-    commands = extract_from_code_blocks(comment_body)
-    if not commands:
-        return
-
-    if not settings.GITHUB_TOKEN:
-        return
-
-    # Execute commands and post results
-    # (Same logic as issue_comment, using pr_number instead)
-    for cmd in commands:
-        base = Path(settings.RUNS_BASE_DIR)
-        before = snapshot_runs(base)
-        started_at = time.time()
-
-        try:
-            output = await to_thread.run_sync(invoke_mag, cmd.slug, cmd.payload, base)
-
-            run_id: str | None = None
-            if isinstance(output, dict):
-                run_id = output.get("run_id")
-            if run_id is None:
-                run_id = find_new_run_id(base, before, cmd.slug, started_at)
-
-            response = format_success_comment(cmd.slug, run_id, output, settings.API_PREFIX)
-
-        except Exception as e:
-            response = format_error_comment(cmd.slug, e)
-
-        try:
-            await post_comment(repo, pr_number, response, settings.GITHUB_TOKEN)
-        except Exception:
-            pass
+    await _execute_commands(
+        repo,
+        pr_number,
+        extract_from_code_blocks(comment_body),
+        settings,
+    )
 
 
 async def handle_pull_request(event: dict[str, Any], settings: Settings) -> None:
@@ -241,35 +230,9 @@ async def handle_pull_request(event: dict[str, Any], settings: Settings) -> None
     pr_number = event["pull_request"]["number"]
     pr_body = event["pull_request"].get("body", "")
 
-    # Parse commands from PR body
-    commands = extract_from_code_blocks(pr_body)
-    if not commands:
-        return
-
-    if not settings.GITHUB_TOKEN:
-        return
-
-    # Execute commands and post results
-    for cmd in commands:
-        base = Path(settings.RUNS_BASE_DIR)
-        before = snapshot_runs(base)
-        started_at = time.time()
-
-        try:
-            output = await to_thread.run_sync(invoke_mag, cmd.slug, cmd.payload, base)
-
-            run_id: str | None = None
-            if isinstance(output, dict):
-                run_id = output.get("run_id")
-            if run_id is None:
-                run_id = find_new_run_id(base, before, cmd.slug, started_at)
-
-            response = format_success_comment(cmd.slug, run_id, output, settings.API_PREFIX)
-
-        except Exception as e:
-            response = format_error_comment(cmd.slug, e)
-
-        try:
-            await post_comment(repo, pr_number, response, settings.GITHUB_TOKEN)
-        except Exception:
-            pass
+    await _execute_commands(
+        repo,
+        pr_number,
+        extract_from_code_blocks(pr_body),
+        settings,
+    )

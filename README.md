@@ -13,7 +13,14 @@ A comprehensive framework for building, executing, and governing AI agent-driven
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
+- [Configuration](#configuration)
 - [Usage](#usage)
+  - [Agent Orchestration](#agent-orchestration)
+  - [HTTP API](#http-api)
+  - [GitHub Integration](#github-integration)
+  - [Flow Runner](#flow-runner)
+  - [Observability](#observability)
+  - [Governance](#governance)
 - [Documentation](#documentation)
 - [Development](#development)
 - [Contributing](#contributing)
@@ -112,6 +119,29 @@ agdd/
 └── tests/                      # Test suite
 ```
 
+## Configuration
+
+Runtime settings are managed via environment variables (loaded automatically from `.env`).
+Use the provided template to get started:
+
+```bash
+cp .env.example .env
+```
+
+Key options:
+
+| Variable | Description |
+| --- | --- |
+| `AGDD_API_DEBUG` | Enable FastAPI debug/reload mode (development only) |
+| `AGDD_API_KEY` | Shared secret for authenticating HTTP API requests |
+| `AGDD_RATE_LIMIT_QPS` | Requests-per-second limit for the public API |
+| `AGDD_REDIS_URL` | Redis connection string to enable distributed rate limiting |
+| `AGDD_GITHUB_WEBHOOK_SECRET` | Secret used to verify incoming GitHub webhooks |
+| `AGDD_GITHUB_TOKEN` | Token used to post results back to GitHub |
+| `AGDD_CORS_ORIGINS` | JSON array of allowed origins (avoid `"*"` in production) |
+
+See [API.md](./API.md) and [GITHUB.md](./GITHUB.md) for the complete configuration matrix.
+
 ## Quick Start
 
 ### Prerequisites
@@ -197,40 +227,69 @@ Observability artifacts are generated in `.runs/agents/<RUN_ID>/`.
 
 ### HTTP API
 
-Start the API server:
+Start the FastAPI server with uv or the bundled helper script:
 
 ```bash
-# Using script
+# Run with sensible defaults (reads .env)
 ./scripts/run-api-server.sh
 
-# Or directly with uvicorn
+# Manual startup
 uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
 
-# With hot reload (development)
-AGDD_API_DEBUG=1 uv run uvicorn agdd.api.server:app --reload
+# Hot reload for development
+AGDD_API_DEBUG=true uv run uvicorn agdd.api.server:app --reload
 ```
 
-API endpoints:
+Quick start (assumes the server is listening on `http://localhost:8000`):
 
 ```bash
-# List agents
-curl http://localhost:8000/api/v1/agents | jq
+# List registered agents
+curl -sS http://localhost:8000/api/v1/agents | jq
 
-# Run agent
-curl -X POST http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run \
+# Execute an agent and capture the run_id
+curl -sS -X POST \
+  -H "Authorization: Bearer $AGDD_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"payload": {"role":"Senior Engineer","level":"Senior","experience_years":8}}' | jq
+  -d '{"payload": {"role": "Senior Engineer", "level": "Senior"}}' \
+  http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq
 
-# Get run results
-curl http://localhost:8000/api/v1/runs/<RUN_ID> | jq
+# Retrieve run summary and metrics
+curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+  http://localhost:8000/api/v1/runs/<RUN_ID> | jq
 
-# Stream logs (Server-Sent Events)
-curl http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true
+# Stream logs with Server-Sent Events (press Ctrl+C to exit)
+curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true&tail=20"
 ```
 
-See interactive documentation at `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc).
+Interactive documentation is always available at:
 
-For more examples, run: `./examples/api/curl_examples.sh`
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+- OpenAPI: `http://localhost:8000/api/v1/openapi.json`
+
+Full endpoint reference, authentication details, rate limiting, and troubleshooting
+steps are documented in [API.md](./API.md). For copy-paste ready curl snippets run
+`./examples/api/curl_examples.sh`.
+
+### GitHub Integration
+
+The GitHub integration allows teams to trigger agents from issues, PR comments,
+or pull-request descriptions using the `@agent-slug { ... }` syntax. Results are
+posted back to GitHub with links to run artifacts.
+
+1. Deploy the HTTP API and configure the webhook secret/token in `.env`
+2. Create the webhook with `./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook`
+3. Comment on an issue or PR: `@offer-orchestrator-mag {"role": "Staff Engineer"}`
+
+Security highlights:
+
+- Webhook signatures are verified with HMAC SHA-256
+- Outgoing comments use the configured `AGDD_GITHUB_TOKEN`
+- Non-command comments are ignored gracefully
+
+Examples and GitHub Actions recipes are provided in [GITHUB.md](./GITHUB.md) and
+[examples/api/github_actions.yml](./examples/api/github_actions.yml).
 
 ### Flow Runner
 
@@ -276,6 +335,8 @@ uv run agdd flow gate flow_summary.json \
 - [PLANS.md](./PLANS.md) - Roadmap and execution plans
 - [RUNNERS.md](./RUNNERS.md) - Runner capabilities and integration
 - [CHANGELOG.md](./CHANGELOG.md) - Version history
+- [API.md](./API.md) - HTTP API reference, authentication, and rate limiting
+- [GITHUB.md](./GITHUB.md) - GitHub integration and webhook guide
 
 ## Development
 

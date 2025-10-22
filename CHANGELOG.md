@@ -42,6 +42,11 @@
   - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
+- **Documentation & Operational Guides**
+  - Dedicated API reference (`API.md`) with authentication, rate limiting, SSE, and troubleshooting guidance
+  - GitHub integration playbook (`GITHUB.md`) covering webhook setup, comment syntax, and remediation steps
+  - Updated `README.md` and `AGENTS.md` with HTTP API quick starts, GitHub overviews, and configuration guidance
+  - Environment template (`.env.example`) enumerating all server and webhook variables
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -64,6 +69,11 @@
 - Obsolete `tools/lint_registry.py` (functionality replaced by contract validation in tests)
 - Manual Flow Runner setup script `tools/flowrunner_env.sh` (replaced by automated `scripts/setup-flowrunner.sh`)
 ### Fixed
+- Hardened HTTP API rate limiting with an atomic Lua script and structured logging when Redis is unavailable
+- Prevented timestamp collisions in Redis buckets by storing `timestamp:seq` members
+- Ensured `HTTPException` instances raised by Redis failures propagate to clients instead of being swallowed
+- Sanitized HTTP examples to avoid leaking API keys and added dependency wiring for rate limiting across routes
+- Documented required configuration to keep API keys and webhook secrets out of logs and scripts
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
