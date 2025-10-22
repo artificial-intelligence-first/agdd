@@ -102,7 +102,7 @@ class RedisRateLimiter:
 
     def check_rate_limit(self, key: str) -> None:
         """
-        Check if request is within rate limit using Redis.
+        Check if request is within rate limit using Redis with atomic Lua script.
 
         Args:
             key: Identifier for rate limit bucket
@@ -113,26 +113,38 @@ class RedisRateLimiter:
         redis_key = f"rate_limit:{key}"
         now = time.time()
 
+        # Lua script for atomic rate limiting
+        # Returns -1 if rate limit exceeded, otherwise returns current count
+        lua_script = """
+        local key = KEYS[1]
+        local now = tonumber(ARGV[1])
+        local qps = tonumber(ARGV[2])
+        local window_start = now - 1
+
+        -- Remove old entries (older than 1 second)
+        redis.call('zremrangebyscore', key, 0, window_start)
+
+        -- Count current requests in window
+        local count = redis.call('zcard', key)
+
+        -- Check if limit exceeded
+        if count >= qps then
+            return -1
+        end
+
+        -- Add current request
+        redis.call('zadd', key, now, tostring(now))
+
+        -- Set expiry (2 seconds to ensure cleanup)
+        redis.call('expire', key, 2)
+
+        return count
+        """
+
         try:
-            # Use Redis sorted set with timestamps
-            pipe = self.redis.pipeline()
+            result = self.redis.eval(lua_script, 1, redis_key, now, self.qps)
 
-            # Remove old entries (older than 1 second)
-            pipe.zremrangebyscore(redis_key, 0, now - 1)
-
-            # Count requests in current window
-            pipe.zcard(redis_key)
-
-            # Add current request
-            pipe.zadd(redis_key, {str(now): now})
-
-            # Set expiry
-            pipe.expire(redis_key, 2)
-
-            results = pipe.execute()
-            count = results[1]
-
-            if count >= self.qps:
+            if result == -1:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail={
