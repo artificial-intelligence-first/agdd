@@ -4,6 +4,15 @@ Operational guidance for the AG-Driven Development (AGDD) repository. The
 instructions below supersede general documentation when you are running or
 modifying code.
 
+## Subsystem-Specific Guides
+
+For detailed guidance on specific subsystems, see:
+
+- **[agents/AGENTS.md](agents/AGENTS.md)** - Agent development (MAG/SAG creation, testing, contracts)
+- **[skills/AGENTS.md](skills/AGENTS.md)** - Skill development (stateless functions, composition, testing)
+
+These subsystem guides provide specialized instructions that complement the project-wide procedures below.
+
 ## Dev Environment Tips
 - Use Python 3.12 with the [`uv`](https://docs.astral.sh/uv/) package manager.
   Install or refresh dependencies with `uv sync`, and include development tools
@@ -23,14 +32,17 @@ modifying code.
 - Verify vendored Flow Runner assets with
   `uv run python tools/verify_vendor.py` whenever files under
   `agdd/assets/` or `examples/flowrunner/` change.
-- Keep new skills stateless under `skills/`, register agents in
-  `agents/{main,sub}/<agent-slug>/agent.yaml`, and define contracts with JSON Schemas under
-  `contracts/`. Prefer Typer-based CLIs that invoke agents to maintain the
-  AI-first workflow.
+- Keep new skills stateless under `skills/` (see [skills/AGENTS.md](skills/AGENTS.md)),
+  register agents in `agents/{main,sub}/<agent-slug>/agent.yaml` (see [agents/AGENTS.md](agents/AGENTS.md)),
+  and define contracts with JSON Schemas under `contracts/`. Prefer Typer-based CLIs that
+  invoke agents to maintain the AI-first workflow.
 - **Creating New Agents:** Use the templates in `agents/_template/`:
   - `mag-template/` - Template for Main Agents (orchestrators)
   - `sag-template/` - Template for Sub-Agents (specialists)
   - Copy template, customize agent.yaml and code, then add tests
+  - See [agents/AGENTS.md](agents/AGENTS.md) for detailed instructions
+- **Creating New Skills:** Use the template in `skills/_template/`
+  - See [skills/AGENTS.md](skills/AGENTS.md) for detailed instructions
 
 ## Testing Instructions
 
@@ -146,27 +158,16 @@ All tests must pass before a pull request is opened.
 
 ## MAG/SAG Development Guide
 
-**Naming Convention:**
-- **MAG (Main Agent)**: Use suffix `-mag` (e.g., `offer-orchestrator-mag`)
-- **SAG (Sub-Agent)**: Use suffix `-sag` (e.g., `compensation-advisor-sag`)
+For detailed agent development procedures, see **[agents/AGENTS.md](agents/AGENTS.md)**.
 
-**Creating a New MAG:**
-1. Copy template: `cp -r agents/_template/mag-template agents/main/<name>-mag`
-2. Customize `agent.yaml` (slug, name, description, contracts, dependencies)
-3. Implement orchestration logic in `code/orchestrator.py`
-4. Update `ROUTE.md` with decision logic and `README.md` with documentation
-5. Add task routing in `registry/agents.yaml`
+**Quick Reference:**
+- **MAG (Main Agent)**: Orchestrators with suffix `-mag` (e.g., `offer-orchestrator-mag`)
+- **SAG (Sub-Agent)**: Specialists with suffix `-sag` (e.g., `compensation-advisor-sag`)
+- **Templates**: Use `agents/_template/mag-template/` or `agents/_template/sag-template/`
+- **Testing**: Three-layer strategy (unit, agent, integration)
+- **Observability**: Artifacts in `.runs/agents/<RUN_ID>/`
 
-**Creating a New SAG:**
-1. Copy template: `cp -r agents/_template/sag-template agents/sub/<name>-sag`
-2. Customize `agent.yaml` (slug, name, description, contracts, skills)
-3. Implement domain logic in `code/advisor.py`
-4. Update `README.md` with purpose and contracts
-
-**Testing Agents:**
-- Unit tests: `tests/agents/test_<agent-slug>.py`
-- Integration tests: `tests/integration/test_e2e_<workflow>.py`
-- Observability: Verify artifacts in `.runs/agents/<RUN_ID>/`
+See [agents/AGENTS.md](agents/AGENTS.md) for complete development workflow, contract creation, registry integration, and troubleshooting.
 
 ## Security & Credentials
 - Do not commit secrets, API keys, or Flow Runner credentials. Use environment
