@@ -51,8 +51,10 @@ echo "======================"
 echo "API URL: $API_URL$API_PREFIX"
 if [ -n "$API_KEY" ]; then
   echo "Auth: Enabled"
+  AUTH_HEADER_DISPLAY="-H 'Authorization: Bearer \$AGDD_API_KEY'"
 else
   echo "Auth: Disabled"
+  AUTH_HEADER_DISPLAY=""
 fi
 echo ""
 
@@ -146,9 +148,17 @@ if [ "$RUN_ID" != "example-run-id" ]; then
 fi
 
 # ============================================================================
-# 8. Error Handling - 404
+# 8. GitHub Integration Health Check
 # ============================================================================
-print_section "8. Error Handling - Non-existent Agent (404)"
+print_section "8. GitHub Webhook Health"
+api_call GET "$API_PREFIX/github/health" | jq '.'
+print_success "GitHub health endpoint reachable"
+
+# ============================================================================
+# 9. Error Handling - 404
+# ============================================================================
+# NOTE: intentionally hitting a missing agent to exercise error handling
+print_section "9. Error Handling - Non-existent Agent (404)"
 api_call POST "$API_PREFIX/agents/non-existent/run" \
     -H "Content-Type: application/json" \
     -d '{"payload": {}}' \
@@ -156,9 +166,9 @@ api_call POST "$API_PREFIX/agents/non-existent/run" \
 print_success "404 error handled correctly"
 
 # ============================================================================
-# 9. Error Handling - 400
+# 10. Error Handling - 400
 # ============================================================================
-print_section "9. Error Handling - Invalid Run ID (404/400)"
+print_section "10. Error Handling - Invalid Run ID (400)"
 api_call GET "$API_PREFIX/runs/invalid-run-id" 2>&1 | head -5 || true
 print_success "Error handled correctly"
 
@@ -168,17 +178,17 @@ print_success "Error handled correctly"
 print_section "Additional Commands"
 echo ""
 echo "Stream logs (SSE - will block):"
-echo "  curl -N $API_URL$API_PREFIX/runs/\$RUN_ID/logs?follow=true"
+echo "  curl -N ${AUTH_HEADER_DISPLAY:+$AUTH_HEADER_DISPLAY }$API_URL$API_PREFIX/runs/\$RUN_ID/logs?follow=true"
 echo ""
 echo "Batch execution:"
 echo "  for i in {1..5}; do"
-echo "    curl -sS -X POST $API_URL$API_PREFIX/agents/$AGENT_SLUG/run \\"
+echo "    curl -sS -X POST ${AUTH_HEADER_DISPLAY:+$AUTH_HEADER_DISPLAY }$API_URL$API_PREFIX/agents/$AGENT_SLUG/run \\"
 echo "      -H 'Content-Type: application/json' \\"
 echo "      -d '{\"payload\": {\"batch_id\": '\$i'}}' | jq -r .run_id"
 echo "  done"
 echo ""
 echo "Monitor multiple runs:"
-echo "  watch -n 2 \"curl -sS $API_URL$API_PREFIX/runs/\$RUN_ID | jq '.summary.status'\""
+echo "  watch -n 2 \"curl -sS ${AUTH_HEADER_DISPLAY:+$AUTH_HEADER_DISPLAY }$API_URL$API_PREFIX/runs/\$RUN_ID | jq '.summary.status'\""
 echo ""
 
 # ============================================================================

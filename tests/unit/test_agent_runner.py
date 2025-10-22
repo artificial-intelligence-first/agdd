@@ -1,10 +1,9 @@
 """Unit tests for agdd.runners.agent_runner module"""
 
-import pytest
 import tempfile
 import json
 from pathlib import Path
-from agdd.runners.agent_runner import AgentRunner, Delegation, Result, ObservabilityLogger, SkillRuntime
+from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
 
 
 class TestObservabilityLogger:
@@ -44,11 +43,10 @@ class TestSkillRuntime:
     def test_invoke(self):
         """Test skill invocation"""
         runtime = SkillRuntime()
-        result = runtime.invoke("skill.salary-band-lookup", {
-            "role": "Senior Engineer",
-            "level": "Senior",
-            "location": "New York, NY"
-        })
+        result = runtime.invoke(
+            "skill.salary-band-lookup",
+            {"role": "Senior Engineer", "level": "Senior", "location": "New York, NY"},
+        )
 
         assert "min" in result
         assert "max" in result
@@ -67,13 +65,15 @@ class TestAgentRunner:
             delegation = Delegation(
                 task_id="task-001",
                 sag_id="compensation-advisor-sag",
-                input={"candidate_profile": {
-                    "role": "Software Engineer",
-                    "level": "Mid",
-                    "location": "Remote",
-                    "experience_years": 5
-                }},
-                context={"parent_run_id": "mag-test"}
+                input={
+                    "candidate_profile": {
+                        "role": "Software Engineer",
+                        "level": "Mid",
+                        "location": "Remote",
+                        "experience_years": 5,
+                    }
+                },
+                context={"parent_run_id": "mag-test"},
             )
 
             result = runner.invoke_sag(delegation)
@@ -93,7 +93,7 @@ class TestAgentRunner:
                 "role": "Staff Engineer",
                 "level": "Staff",
                 "location": "San Francisco, CA",
-                "experience_years": 12
+                "experience_years": 12,
             }
 
             output = runner.invoke_mag("offer-orchestrator-mag", payload)
@@ -115,7 +115,7 @@ class TestAgentRunner:
                 task_id="task-retry",
                 sag_id="compensation-advisor-sag",
                 input={"candidate_profile": {"role": "Engineer"}},
-                context={}
+                context={},
             )
 
             result = runner.invoke_sag(delegation)

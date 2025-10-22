@@ -1,6 +1,5 @@
 """Tests for OfferOrchestratorMAG"""
 
-import pytest
 from agdd.runners.agent_runner import AgentRunner
 
 
@@ -15,7 +14,7 @@ class TestOfferOrchestratorMAG:
             "role": "Software Engineer",
             "level": "Mid",
             "location": "Seattle, WA",
-            "experience_years": 5
+            "experience_years": 5,
         }
 
         output = runner.invoke_mag("offer-orchestrator-mag", payload)
@@ -53,7 +52,7 @@ class TestOfferOrchestratorMAG:
             "role": "Senior Engineer",
             "level": "Senior",
             "location": "Remote",
-            "experience_years": 8
+            "experience_years": 8,
         }
 
         output = runner.invoke_mag("offer-orchestrator-mag", payload)
@@ -94,7 +93,7 @@ class TestOfferOrchestratorMAG:
             "level": "Principal",
             "location": "New York, NY",
             "experience_years": 15,
-            "notes": "Referral from CTO, exceptional systems design experience"
+            "notes": "Referral from CTO, exceptional systems design experience",
         }
 
         output = runner.invoke_mag("offer-orchestrator-mag", payload)

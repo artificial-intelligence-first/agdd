@@ -1,4 +1,5 @@
 """Summarize Flow Runner execution artifacts."""
+
 from __future__ import annotations
 
 import json
@@ -239,8 +240,8 @@ def _summary_success(summary: dict[str, Any]) -> bool:
         summary.get("status"),
         summary.get("result"),
     )
-    for field in status_fields:
-        if isinstance(field, str) and field.lower() in _SUCCESS_STATUSES:
+    for status_field in status_fields:
+        if isinstance(status_field, str) and status_field.lower() in _SUCCESS_STATUSES:
             return True
     return False
 

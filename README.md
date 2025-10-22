@@ -124,8 +124,9 @@ agdd/
 ```bash
 git clone https://github.com/artificial-intelligence-first/agdd.git
 cd agdd
+cp .env.example .env  # customize API credentials and rate limits
 uv sync
-uv sync --extra dev  # for development
+uv sync --extra dev  # recommended for tests, linting, and typing
 uv run -m pytest -q  # verify installation
 ```
 
@@ -197,40 +198,71 @@ Observability artifacts are generated in `.runs/agents/<RUN_ID>/`.
 
 ### HTTP API
 
-Start the API server:
+The FastAPI server exposes agent orchestration over HTTP with authentication, rate limiting, and real-time log streaming.
 
 ```bash
-# Using script
-./scripts/run-api-server.sh
-
-# Or directly with uvicorn
+# Start with defaults (0.0.0.0:8000, /api/v1 prefix)
 uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
 
-# With hot reload (development)
+# Development hot-reload with debug logging
 AGDD_API_DEBUG=1 uv run uvicorn agdd.api.server:app --reload
+
+# Override configuration via environment variables
+AGDD_API_KEY="local-dev-key" \
+AGDD_RATE_LIMIT_QPS=5 \
+AGDD_GITHUB_WEBHOOK_SECRET="change-me" \
+uv run uvicorn agdd.api.server:app
 ```
 
-API endpoints:
+Quick commands once the server is running:
 
 ```bash
-# List agents
-curl http://localhost:8000/api/v1/agents | jq
+# List available agents
+curl -H "Authorization: Bearer $AGDD_API_KEY" \
+  http://localhost:8000/api/v1/agents | jq
 
-# Run agent
-curl -X POST http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run \
+# Execute a main agent
+curl -X POST \
+  -H "Authorization: Bearer $AGDD_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"payload": {"role":"Senior Engineer","level":"Senior","experience_years":8}}' | jq
+  -d '{"payload": {"role":"Senior Engineer","level":"Senior","experience_years":8}}' \
+  http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq
 
-# Get run results
-curl http://localhost:8000/api/v1/runs/<RUN_ID> | jq
+# Retrieve run summary and latest logs
+curl -H "Authorization: Bearer $AGDD_API_KEY" \
+  http://localhost:8000/api/v1/runs/<RUN_ID> | jq
+curl -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?tail=20"
 
-# Stream logs (Server-Sent Events)
-curl http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true
+# Follow logs with SSE (requires curl -N to keep the connection open)
+curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true"
 ```
 
-See interactive documentation at `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc).
+Interactive documentation is available at:
 
-For more examples, run: `./examples/api/curl_examples.sh`
+- Swagger UI: <http://localhost:8000/docs>
+- ReDoc: <http://localhost:8000/redoc>
+- OpenAPI schema: <http://localhost:8000/api/v1/openapi.json>
+
+See [API.md](./API.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
+
+### GitHub Integration
+
+The GitHub webhook bridge triggers agents from comments and posts the results back to pull requests or issues.
+
+- Supported events: `issue_comment`, `pull_request_review_comment`, and `pull_request`
+- Command syntax: ``@agent-slug {"json": "payload"}``
+- Responses include run IDs and links back to the HTTP API for logs and summaries
+
+Provision the webhook with the helper script:
+
+```bash
+GITHUB_WEBHOOK_SECRET=my-secret \
+./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
+```
+
+Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./GITHUB.md).
 
 ### Flow Runner
 
@@ -272,9 +304,11 @@ uv run agdd flow gate flow_summary.json \
 ## Documentation
 
 - [AGENTS.md](./AGENTS.md) - Development playbook and workflow guide
+- [API.md](./API.md) - HTTP API reference and authentication guide
 - [SSOT.md](./SSOT.md) - Terminology and policies reference
 - [PLANS.md](./PLANS.md) - Roadmap and execution plans
 - [RUNNERS.md](./RUNNERS.md) - Runner capabilities and integration
+- [GITHUB.md](./GITHUB.md) - GitHub webhook integration guide
 - [CHANGELOG.md](./CHANGELOG.md) - Version history
 
 ## Development

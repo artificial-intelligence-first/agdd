@@ -4,7 +4,7 @@ Result Aggregation Skill
 Aggregates sub-agent results into unified output.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 def run(payload: Dict[str, Any]) -> Dict[str, Any]:

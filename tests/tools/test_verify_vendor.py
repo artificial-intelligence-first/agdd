@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from tools.verify_vendor import VendoredFile
 
 
 def test_vendored_file_hash_matches(tmp_path: Path) -> None:
     target = tmp_path / "file.txt"
     target.write_text("hello", encoding="utf-8")
-    vf = VendoredFile(path=target, digest="2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824")
+    vf = VendoredFile(
+        path=target, digest="2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+    )
     ok, _ = vf.check()
     assert ok
 
