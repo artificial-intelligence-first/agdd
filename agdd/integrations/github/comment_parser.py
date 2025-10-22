@@ -8,7 +8,6 @@ import json
 import re
 from typing import Any, NamedTuple
 
-
 # Pattern to match @agent-slug {json}
 # Allows alphanumeric slugs with hyphens, JSON payload (including multiline)
 # Use greedy matching to handle nested braces correctly

@@ -8,7 +8,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import Mapping, Optional
 
-from .base import RunResult, Runner, RunnerInfo, ValidationResult
+from .base import Runner, RunnerInfo, RunResult, ValidationResult
 
 
 class FlowRunner(Runner):
