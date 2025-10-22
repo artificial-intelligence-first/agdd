@@ -26,9 +26,11 @@
   - OpenAPI/Swagger documentation at `/docs` and `/redoc`
   - API authentication support via bearer token or x-api-key header
   - Run tracking system to identify agent runs from filesystem artifacts
+  - Rate limiting (in-memory token bucket + optional Redis for distributed deployments)
+  - Configurable QPS limits via `AGDD_RATE_LIMIT_QPS` environment variable
   - API server startup script (`scripts/run-api-server.sh`)
-  - Example curl commands (`examples/api/curl_examples.sh`)
-  - Integration tests for API endpoints
+  - Comprehensive curl examples (`examples/api/curl_examples.sh`) with error handling
+  - Integration tests for API endpoints (118 total tests)
 - **GitHub Integration (Phase 2)**
   - GitHub webhook endpoint (`/api/v1/github/webhook`) with signature verification
   - Comment parser for `@agent-slug {json}` command syntax

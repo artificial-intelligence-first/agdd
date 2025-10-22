@@ -7,20 +7,21 @@ from typing import Any
 
 import yaml
 from anyio import to_thread
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from agdd.registry import get_registry
 from agdd.runners.agent_runner import invoke_mag
 
 from ..config import Settings, get_settings
 from ..models import AgentInfo, AgentRunRequest, AgentRunResponse
+from ..rate_limit import rate_limit_dependency
 from ..run_tracker import find_new_run_id, snapshot_runs
 from ..security import require_api_key
 
 router = APIRouter(tags=["agents"])
 
 
-@router.get("/agents", response_model=list[AgentInfo])
+@router.get("/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)])
 async def list_agents(
     _: None = Depends(require_api_key),
     settings: Settings = Depends(get_settings),
@@ -70,7 +71,7 @@ async def list_agents(
     return items
 
 
-@router.post("/agents/{slug}/run", response_model=AgentRunResponse)
+@router.post("/agents/{slug}/run", response_model=AgentRunResponse, dependencies=[Depends(rate_limit_dependency)])
 async def run_agent(
     slug: str,
     req: AgentRunRequest,
