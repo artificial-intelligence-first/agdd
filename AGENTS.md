@@ -44,6 +44,60 @@ These subsystem guides provide specialized instructions that complement the proj
 - **Creating New Skills:** Use the template in `skills/_template/`
   - See [skills/AGENTS.md](skills/AGENTS.md) for detailed instructions
 
+## Running Agents via HTTP API
+
+The HTTP API mirrors the CLI experience and is the recommended integration surface for external systems.
+
+### Authentication
+
+- Configure `AGDD_API_KEY` in your environment and send it via either the `Authorization: Bearer` header or an `x-api-key` header.
+- Leave the key unset only for local development. Production deployments must require authentication.
+
+### Executing Agents
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: Bearer $AGDD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"payload": {"role": "Staff Engineer", "level": "Staff"}}' \
+  http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq '.'
+```
+
+- Payloads must conform to the agent's input contract. Validation errors return HTTP 400 with an `invalid_payload` code.
+- Run identifiers are discovered automatically and surfaced in the response when available.
+
+### Retrieving Results
+
+```bash
+# Summary/metrics
+curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+  http://localhost:8000/api/v1/runs/<RUN_ID> | jq '.'
+
+# NDJSON log tail
+curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?tail=50"
+```
+
+- Responses include `has_logs` to indicate whether `logs.jsonl` exists.
+- Errors use structured JSON with `code`/`message` pairs (see [API.md](API.md)).
+
+### Streaming Logs (SSE)
+
+```bash
+curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+  "http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true"
+```
+
+- SSE streaming sends `data:` events for each log line. Use tooling such as `jq` or `grep` downstream for live analysis.
+- Combine with `tail` to replay the last `N` lines before following.
+
+### Troubleshooting
+
+- `401 Unauthorized`: Verify the API key matches `AGDD_API_KEY` on the server or disable auth for local testing.
+- `404 Not Found`: Confirm the agent slug exists in `registry/agents.yaml` or that the run directory persists under `.runs/agents`.
+- `429 Too Many Requests`: Reduce call frequency or increase `AGDD_RATE_LIMIT_QPS`. For multi-instance deployments, configure `AGDD_REDIS_URL`.
+- `invalid_run_id`: The request attempted to traverse directories. Use run IDs emitted by the API or `.runs` folder names only.
+
 ## Testing Instructions
 
 ### Test Layers

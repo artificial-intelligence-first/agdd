@@ -25,6 +25,8 @@ api_call() {
     local endpoint="$2"
     shift 2
 
+    # Prefer Authorization header but fall back to anonymous calls when AGDD_API_KEY is unset.
+    # Use --header 'x-api-key: ...' in $@ if you rely on alternate header names.
     if [ -n "$API_KEY" ]; then
         curl -sS -X "$method" "$API_URL$endpoint" \
             -H "Authorization: Bearer $API_KEY" \

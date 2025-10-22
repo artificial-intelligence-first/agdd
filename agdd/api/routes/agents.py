@@ -24,7 +24,6 @@ router = APIRouter(tags=["agents"])
 @router.get("/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)])
 async def list_agents(
     _: None = Depends(require_api_key),
-    settings: Settings = Depends(get_settings),
 ) -> list[AgentInfo]:
     """
     List all registered agents by scanning agents/main/ and agents/sub/ directories.

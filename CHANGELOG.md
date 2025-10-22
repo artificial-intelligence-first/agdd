@@ -42,6 +42,9 @@
   - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
+- **Operational Documentation**
+  - API reference (`API.md`), GitHub integration guide (`GITHUB.md`), and documented environment template (`.env.example`)
+  - Expanded README/AGENTS guidance covering HTTP API usage, SSE streaming, rate limiting, and GitHub automation flows
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -67,6 +70,15 @@
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
+- Hardened GitHub comment parsing to support nested JSON payloads and prevent duplicate execution
+- Added Redis failure warnings so rate limiting degradations are observable in production logs
+- Wired run summary/log endpoints through the global rate-limiting dependency to keep throttle enforcement consistent
+- Phase 1 follow-up bug fixes:
+  - Enforced Redis Lua script atomicity to prevent concurrent limit breaches
+  - Added timestamp sequence suffixes to eliminate sorted-set collisions
+  - Re-raised `HTTPException` instances during Redis failures to preserve status codes
+  - Scrubbed API key values from curl examples and logging output
+  - Ensured every external route declares the shared `rate_limit_dependency`
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
 - Fixed Flow Runner governance by counting successful runs when `failures` keys are empty
 ## [0.1.0] - 2025-10-20

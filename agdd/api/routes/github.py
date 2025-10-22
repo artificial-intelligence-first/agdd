@@ -13,11 +13,12 @@ from agdd.integrations.github.webhook import (
 
 from ..config import Settings, get_settings
 from ..security import verify_github_signature
+from ..rate_limit import rate_limit_dependency
 
 router = APIRouter(tags=["github"])
 
 
-@router.post("/github/webhook")
+@router.post("/github/webhook", dependencies=[Depends(rate_limit_dependency)])
 async def webhook(
     request: Request,
     x_github_event: str | None = Header(default=None),

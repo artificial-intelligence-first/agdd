@@ -1,103 +1,87 @@
-"""GitHub comment parser for agent commands.
-
-Extracts @agent-slug {json} commands from GitHub comments.
-"""
+"""Parse AGDD GitHub comment commands."""
 from __future__ import annotations
 
 import json
 import re
-from typing import Any, NamedTuple
+from typing import Any, Iterator, NamedTuple
 
 
-# Pattern to match @agent-slug {json}
-# Allows alphanumeric slugs with hyphens, JSON payload (including multiline)
-# Use greedy matching to handle nested braces correctly
-CMD_RE = re.compile(
-    r"@(?P<agent>[a-z0-9][a-z0-9-]{1,63})\s+(?P<payload>\{(?:[^{}]|\{[^{}]*\})*\})",
-    re.MULTILINE,
-)
+# Agent slugs are lowercase alphanumeric with hyphens (mirrors registry convention).
+# The regex purposely stops right before the payload so that JSON decoding can
+# handle arbitrarily nested structures.
+_SLUG_PATTERN = re.compile(r"@(?P<agent>[a-z0-9][a-z0-9-]{1,63})\s*", re.MULTILINE)
 
 
 class ParsedCommand(NamedTuple):
-    """Parsed agent command from comment."""
+    """Parsed agent command from a GitHub comment."""
 
     slug: str
     payload: dict[str, Any]
 
 
-def parse_comment(text: str) -> list[ParsedCommand]:
-    """
-    Parse GitHub comment text to extract agent commands.
+def _iter_commands(text: str) -> Iterator[ParsedCommand]:
+    """Yield ``ParsedCommand`` objects from ``text`` using JSON decoding."""
 
-    Format: @agent-slug {json_payload}
+    decoder = json.JSONDecoder()
+    position = 0
+    length = len(text)
 
-    Args:
-        text: Comment body text
+    while True:
+        match = _SLUG_PATTERN.search(text, pos=position)
+        if not match:
+            break
 
-    Returns:
-        List of parsed commands (may be empty)
-
-    Example:
-        >>> parse_comment("@my-agent {\"foo\": \"bar\"}")
-        [ParsedCommand(slug='my-agent', payload={'foo': 'bar'})]
-    """
-    commands: list[ParsedCommand] = []
-
-    for match in CMD_RE.finditer(text):
         slug = match.group("agent")
-        payload_str = match.group("payload")
+        cursor = match.end()
 
-        try:
-            payload = json.loads(payload_str)
-            if not isinstance(payload, dict):
-                # Skip non-dict payloads
-                continue
-            commands.append(ParsedCommand(slug=slug, payload=payload))
-        except json.JSONDecodeError:
-            # Skip invalid JSON
+        # Skip whitespace between the slug and JSON payload.
+        while cursor < length and text[cursor].isspace():
+            cursor += 1
+
+        if cursor >= length or text[cursor] != "{":
+            position = cursor
             continue
 
-    return commands
+        try:
+            payload, offset = decoder.raw_decode(text[cursor:])
+        except json.JSONDecodeError:
+            position = cursor + 1
+            continue
+
+        if isinstance(payload, dict):
+            yield ParsedCommand(slug=slug, payload=payload)
+
+        position = cursor + offset
+
+
+def parse_comment(text: str) -> list[ParsedCommand]:
+    """Parse GitHub comment text to extract agent commands."""
+
+    return list(_iter_commands(text))
 
 
 def extract_from_code_blocks(text: str) -> list[ParsedCommand]:
-    """
-    Extract commands from markdown code blocks in addition to inline.
+    """Extract commands from inline text and fenced code blocks."""
 
-    Supports:
-    ```json
-    @agent-slug {
-      "key": "value"
-    }
-    ```
-
-    Args:
-        text: Comment body text with potential code blocks
-
-    Returns:
-        List of parsed commands from both inline and code blocks
-    """
     commands: list[ParsedCommand] = []
-    seen_slugs: set[tuple[str, str]] = set()  # Track (slug, payload) to avoid duplicates
+    seen: set[tuple[str, str]] = set()
 
-    # First, extract inline commands (outside code blocks)
-    # Remove code blocks temporarily to avoid duplicates
+    # Remove fenced blocks temporarily to avoid double counting when parsing inline content.
     code_block_re = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.MULTILINE)
-    text_without_blocks = code_block_re.sub("", text)
+    inline_text = code_block_re.sub("", text)
 
-    for cmd in parse_comment(text_without_blocks):
-        key = (cmd.slug, json.dumps(cmd.payload, sort_keys=True))
-        if key not in seen_slugs:
+    for cmd in _iter_commands(inline_text):
+        fingerprint = (cmd.slug, json.dumps(cmd.payload, sort_keys=True))
+        if fingerprint not in seen:
+            seen.add(fingerprint)
             commands.append(cmd)
-            seen_slugs.add(key)
 
-    # Extract from code blocks
-    for block_match in code_block_re.finditer(text):
-        block_content = block_match.group(1)
-        for cmd in parse_comment(block_content):
-            key = (cmd.slug, json.dumps(cmd.payload, sort_keys=True))
-            if key not in seen_slugs:
+    for block in code_block_re.finditer(text):
+        block_content = block.group(1)
+        for cmd in _iter_commands(block_content):
+            fingerprint = (cmd.slug, json.dumps(cmd.payload, sort_keys=True))
+            if fingerprint not in seen:
+                seen.add(fingerprint)
                 commands.append(cmd)
-                seen_slugs.add(key)
 
     return commands

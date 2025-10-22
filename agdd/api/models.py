@@ -19,6 +19,8 @@ class AgentRunRequest(BaseModel):
 class AgentInfo(BaseModel):
     """Agent metadata from registry."""
 
+    model_config = ConfigDict(extra="forbid")
+
     slug: str = Field(..., description="Agent slug identifier")
     title: str | None = Field(default=None, description="Human-readable agent title")
     description: str | None = Field(default=None, description="Agent description")
@@ -26,6 +28,8 @@ class AgentInfo(BaseModel):
 
 class AgentRunResponse(BaseModel):
     """Response from agent execution."""
+
+    model_config = ConfigDict(extra="forbid")
 
     run_id: str | None = Field(default=None, description="Unique run identifier")
     slug: str = Field(..., description="Agent slug that was executed")
@@ -38,6 +42,8 @@ class AgentRunResponse(BaseModel):
 class RunSummary(BaseModel):
     """Summary of a completed agent run."""
 
+    model_config = ConfigDict(extra="forbid")
+
     run_id: str = Field(..., description="Unique run identifier")
     slug: str | None = Field(default=None, description="Agent slug")
     summary: dict[str, Any] | None = Field(default=None, description="Summary data from summary.json")
@@ -48,10 +54,13 @@ class RunSummary(BaseModel):
 class ApiError(BaseModel):
     """Standard API error response."""
 
+    model_config = ConfigDict(extra="forbid")
+
     code: Literal[
         "agent_not_found",
         "invalid_payload",
         "execution_failed",
+        "invalid_run_id",
         "not_found",
         "unauthorized",
         "rate_limit_exceeded",
