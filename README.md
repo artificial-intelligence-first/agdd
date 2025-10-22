@@ -93,17 +93,18 @@ agdd/
 │   ├── registry.py             # Agent/skill resolution
 │   ├── runners/                # Execution engines
 │   ├── governance/             # Policy enforcement
-│   ├── skills/                 # Built-in skills
 │   └── assets/                 # Bundled resources
 ├── agents/                     # Agent implementations
+│   ├── _template/              # MAG/SAG templates
 │   ├── main/                   # Main Agents (MAG)
 │   └── sub/                    # Sub-Agents (SAG)
+├── skills/                     # Reusable skill implementations
 ├── registry/                   # Configuration
 │   ├── agents.yaml             # Task routing
 │   └── skills.yaml             # Skill definitions
 ├── contracts/                  # JSON Schemas
 ├── policies/                   # Governance policies
-├── observability/              # Metrics aggregation
+├── scripts/                    # Automation scripts
 ├── tools/                      # Development utilities
 └── tests/                      # Test suite
 ```

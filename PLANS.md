@@ -47,7 +47,7 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Concrete Steps
 1. Draft adapter upgrade guide covering Temporal and LangGraph prototypes; store under `docs/` with cross-references from `AGENTS.md`.
-2. Implement automation (CLI or CI job) that syncs Flow Runner assets and regenerates schemas; document in `tools/flowrunner_env.sh`.
+2. Flow Runner setup is now automated via `scripts/setup-flowrunner.sh` (run with `make setup-flowrunner`).
 3. Extend policy validation scripts to lint skill manifests and enforce security posture; add pytest coverage in `tests/governance/`.
 4. Update contributor documentation to reference ExecPlan lifecycle and validation expectations.
 
@@ -67,8 +67,10 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Artifacts and Notes
 - Policy definitions: `policies/flow_governance.yaml`.
-- Governance tooling: `observability/summarize_runs.py`, `tools/gate_flow_summary.py`.
-- Runner scripts: `tools/flowrunner_env.sh`.
+- Governance tooling: `observability/summarize_runs.py`, CLI command `agdd flow gate`.
+- Runner scripts: `scripts/setup-flowrunner.sh` (generates `scripts/flowrunner-env.sh`).
+- Agent templates: `agents/_template/mag-template/` and `agents/_template/sag-template/`.
+- Development automation: `Makefile` with common tasks.
 - Historical progress captured in this ExecPlan; future PRs must reference relevant sections.
 
 ## Interfaces and Dependencies

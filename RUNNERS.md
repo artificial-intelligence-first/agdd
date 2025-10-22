@@ -7,7 +7,7 @@ This document captures the expectations for runner adapters that integrate with 
   - Capabilities: `dry-run`, `artifacts`
   - CLI support: `agdd cli flow available|validate|run|summarize|gate`
   - Artifacts: `.runs/<RUN_ID>/runs.jsonl`, `summary.json`, `mcp_calls.jsonl`
-  - Governance: `policies/flow_governance.yaml`, validated via `agdd.cli flow gate` (or `tools/gate_flow_summary.py`)
+  - Governance: `policies/flow_governance.yaml`, validated via `agdd flow gate` or `make flow-run`
 
 ## Required Interface
 
