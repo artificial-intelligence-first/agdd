@@ -120,6 +120,50 @@ uv run -m pytest tests/integration/ -v
   uv run agdd flow gate <summary.json> --policy policies/flow_governance.yaml
   ```
 
+### Running Agents via HTTP API
+
+Use the FastAPI service when you need remote execution, CI automation, or GitHub-driven workflows.
+
+1. **Launch the server**
+   ```bash
+   cp .env.example .env  # configure API key, rate limits, and GitHub secrets
+   uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
+   ```
+
+2. **Authenticate**
+   - Set `AGDD_API_KEY` in your shell or CI environment
+   - Pass it via `Authorization: Bearer <key>` or the `x-api-key` header
+
+3. **Execute an agent**
+   ```bash
+   curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{"payload": {"role": "Staff Engineer", "level": "Staff"}}' \
+        http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq
+   ```
+
+4. **Retrieve run metadata**
+   ```bash
+   RUN_ID=<value from previous response>
+   curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+        "http://localhost:8000/api/v1/runs/$RUN_ID" | jq
+   ```
+
+5. **Stream logs with SSE**
+   ```bash
+   curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+        "http://localhost:8000/api/v1/runs/$RUN_ID/logs?follow=true"
+   ```
+
+#### Troubleshooting
+
+- `401 Unauthorized`: Verify the API key in `.env` matches the header value and that HTTPS terminates before FastAPI in production.
+- `404 not_found`: Confirm the agent slug exists in `registry/agents.yaml` or that the `RUN_ID` references an existing artifact directory.
+- `429 rate_limit_exceeded`: Increase `AGDD_RATE_LIMIT_QPS` or configure Redis (`AGDD_REDIS_URL`) for distributed deployments.
+- `invalid_signature` on `/github/webhook`: Ensure `AGDD_GITHUB_WEBHOOK_SECRET` matches the webhook secret configured in GitHub.
+
+Refer to [API.md](./API.md) for comprehensive endpoint documentation and error schemas.
+
 ### Adding Tests
 
 When adding new features, ensure coverage at all three layers:

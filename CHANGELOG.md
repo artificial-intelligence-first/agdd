@@ -30,6 +30,7 @@
   - Configurable QPS limits via `AGDD_RATE_LIMIT_QPS` environment variable
   - API server startup script (`scripts/run-api-server.sh`)
   - Comprehensive curl examples (`examples/api/curl_examples.sh`) with error handling
+  - Dedicated HTTP API documentation (`API.md`) and `.env.example` for configuration bootstrapping
   - Integration tests for API endpoints (118 total tests)
 - **GitHub Integration (Phase 2)**
   - GitHub webhook endpoint (`/api/v1/github/webhook`) with signature verification
@@ -42,6 +43,7 @@
   - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
+  - Comprehensive GitHub operations manual (`GITHUB.md`)
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -69,6 +71,11 @@
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
 - Fixed Flow Runner governance by counting successful runs when `failures` keys are empty
+- Hardened HTTP API components:
+  - Guaranteed atomic Redis rate limiting with unique `timestamp:seq` members
+  - Re-raised FastAPI `HTTPException` instances emitted by the rate limiter
+  - Scrubbed documentation and scripts to avoid printing API keys
+  - Applied rate-limit dependencies consistently across agents, runs, and GitHub webhook routes
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)

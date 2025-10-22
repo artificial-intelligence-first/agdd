@@ -13,11 +13,16 @@ from ..config import Settings, get_settings
 from ..models import RunSummary
 from ..run_tracker import open_logs_file, read_metrics, read_summary
 from ..security import require_api_key
+from ..rate_limit import rate_limit_dependency
 
 router = APIRouter(tags=["runs"])
 
 
-@router.get("/runs/{run_id}", response_model=RunSummary)
+@router.get(
+    "/runs/{run_id}",
+    response_model=RunSummary,
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def get_run(
     run_id: str,
     _: None = Depends(require_api_key),
@@ -68,7 +73,10 @@ async def get_run(
     )
 
 
-@router.get("/runs/{run_id}/logs")
+@router.get(
+    "/runs/{run_id}/logs",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def get_logs(
     run_id: str,
     tail: int | None = Query(default=None, ge=1, description="Return last N lines only"),

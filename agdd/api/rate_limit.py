@@ -4,6 +4,7 @@ Provides both in-memory and Redis-based rate limiting.
 """
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from threading import Lock
@@ -12,6 +13,8 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 
 from .config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryRateLimiter:
@@ -161,8 +164,7 @@ class RedisRateLimiter:
             raise
         except Exception as e:
             # If Redis connection fails, allow request (fail open)
-            # Log error in production
-            pass
+            logger.warning("Redis rate limiter failure for key %s: %s", redis_key, e)
 
 
 # Global rate limiter instance

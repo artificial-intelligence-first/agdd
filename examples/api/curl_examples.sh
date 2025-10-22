@@ -12,6 +12,7 @@ set -euo pipefail
 API_URL="${API_URL:-http://localhost:8000}"
 API_PREFIX="/api/v1"
 API_KEY="${AGDD_API_KEY:-}"
+# API keys are read from the environment and never printed to stdout.
 
 # Colors
 GREEN='\033[0;32m'
