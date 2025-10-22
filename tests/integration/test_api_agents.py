@@ -1,7 +1,7 @@
 """Integration tests for /agents API endpoints."""
+
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from agdd.api.server import app

@@ -120,6 +120,62 @@ uv run -m pytest tests/integration/ -v
   uv run agdd flow gate <summary.json> --policy policies/flow_governance.yaml
   ```
 
+## Running Agents via HTTP API
+
+The FastAPI service mirrors CLI execution with API-key or bearer-token authentication, optional rate limiting, and streaming logs.
+
+1. **Start the server**
+   ```bash
+   uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
+
+   AGDD_API_KEY="local-dev-key" \
+   AGDD_RATE_LIMIT_QPS=5 \
+   uv run uvicorn agdd.api.server:app
+   ```
+
+2. **List available agents**
+   ```bash
+   curl -H "Authorization: Bearer $AGDD_API_KEY" \
+     http://localhost:8000/api/v1/agents | jq
+   ```
+
+3. **Execute a MAG**
+   ```bash
+   curl -X POST \
+     -H "Authorization: Bearer $AGDD_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "payload": {
+         "role": "Senior Engineer",
+         "level": "Senior",
+         "experience_years": 8
+       },
+       "request_id": "dev-env-$(date +%s)",
+       "metadata": {"source": "curl"}
+     }' \
+     http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run | jq
+   ```
+
+4. **Retrieve run results**
+   ```bash
+   RUN_ID="mag-20240101-abcdef"
+   curl -H "Authorization: Bearer $AGDD_API_KEY" \
+     http://localhost:8000/api/v1/runs/$RUN_ID | jq
+   ```
+
+5. **Stream logs with SSE**
+   ```bash
+   curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+     "http://localhost:8000/api/v1/runs/$RUN_ID/logs?follow=true&tail=25"
+   ```
+
+### Troubleshooting (API)
+
+- `401 Unauthorized`: confirm `AGDD_API_KEY` matches the server configuration or unset the key when auth is disabled.
+- `429 Too Many Requests`: adjust `AGDD_RATE_LIMIT_QPS` or stagger requests; rate limiting is keyed by the presented credential.
+- `404 Not Found`: verify the agent slug exists and that run artifacts were written to `.runs/agents/`.
+- `502/504 from proxies`: prefer polling summaries if SSE connections are terminated upstream.
+
 ### Adding Tests
 
 When adding new features, ensure coverage at all three layers:

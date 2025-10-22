@@ -1,6 +1,5 @@
 """Tests for CompensationAdvisorSAG"""
 
-import pytest
 from agdd.runners.agent_runner import AgentRunner, Delegation
 
 
@@ -14,13 +13,15 @@ class TestCompensationAdvisorSAG:
         delegation = Delegation(
             task_id="test-001",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Software Engineer",
-                "level": "Mid",
-                "location": "Austin, TX",
-                "experience_years": 4
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Software Engineer",
+                    "level": "Mid",
+                    "location": "Austin, TX",
+                    "experience_years": 4,
+                }
+            },
+            context={},
         )
 
         result = runner.invoke_sag(delegation)
@@ -43,13 +44,15 @@ class TestCompensationAdvisorSAG:
         delegation = Delegation(
             task_id="test-002",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Senior Software Engineer",
-                "level": "Senior",
-                "location": "Remote",
-                "experience_years": 10
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Senior Software Engineer",
+                    "level": "Senior",
+                    "location": "Remote",
+                    "experience_years": 10,
+                }
+            },
+            context={},
         )
 
         result = runner.invoke_sag(delegation)
@@ -68,34 +71,40 @@ class TestCompensationAdvisorSAG:
         delegation_sf = Delegation(
             task_id="test-003a",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Engineer",
-                "level": "Mid",
-                "location": "San Francisco, CA",
-                "experience_years": 5
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Engineer",
+                    "level": "Mid",
+                    "location": "San Francisco, CA",
+                    "experience_years": 5,
+                }
+            },
+            context={},
         )
 
         # Non-SF location
         delegation_other = Delegation(
             task_id="test-003b",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Engineer",
-                "level": "Mid",
-                "location": "Remote",
-                "experience_years": 5
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Engineer",
+                    "level": "Mid",
+                    "location": "Remote",
+                    "experience_years": 5,
+                }
+            },
+            context={},
         )
 
         result_sf = runner.invoke_sag(delegation_sf)
         result_other = runner.invoke_sag(delegation_other)
 
         # SF should have higher salary due to location adjustment
-        assert result_sf.output["offer"]["base_salary"]["amount"] > \
-               result_other.output["offer"]["base_salary"]["amount"]
+        assert (
+            result_sf.output["offer"]["base_salary"]["amount"]
+            > result_other.output["offer"]["base_salary"]["amount"]
+        )
 
     def test_experience_affects_salary(self):
         """Test that experience affects salary positioning in band"""
@@ -105,34 +114,40 @@ class TestCompensationAdvisorSAG:
         delegation_junior = Delegation(
             task_id="test-004a",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Engineer",
-                "level": "Mid",
-                "location": "Remote",
-                "experience_years": 2
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Engineer",
+                    "level": "Mid",
+                    "location": "Remote",
+                    "experience_years": 2,
+                }
+            },
+            context={},
         )
 
         # Experienced (8 years)
         delegation_senior = Delegation(
             task_id="test-004b",
             sag_id="compensation-advisor-sag",
-            input={"candidate_profile": {
-                "role": "Engineer",
-                "level": "Mid",
-                "location": "Remote",
-                "experience_years": 8
-            }},
-            context={}
+            input={
+                "candidate_profile": {
+                    "role": "Engineer",
+                    "level": "Mid",
+                    "location": "Remote",
+                    "experience_years": 8,
+                }
+            },
+            context={},
         )
 
         result_junior = runner.invoke_sag(delegation_junior)
         result_senior = runner.invoke_sag(delegation_senior)
 
         # More experience should yield higher salary
-        assert result_senior.output["offer"]["base_salary"]["amount"] > \
-               result_junior.output["offer"]["base_salary"]["amount"]
+        assert (
+            result_senior.output["offer"]["base_salary"]["amount"]
+            > result_junior.output["offer"]["base_salary"]["amount"]
+        )
 
     def test_output_schema_compliance(self):
         """Test that output conforms to comp_advisor_output schema"""
@@ -142,7 +157,7 @@ class TestCompensationAdvisorSAG:
             task_id="test-005",
             sag_id="compensation-advisor-sag",
             input={"candidate_profile": {"role": "PM", "level": "Senior"}},
-            context={}
+            context={},
         )
 
         result = runner.invoke_sag(delegation)

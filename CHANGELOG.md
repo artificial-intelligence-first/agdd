@@ -42,6 +42,7 @@
   - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
+  - Comprehensive documentation (`API.md`, `GITHUB.md`) and `.env.example` template
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -69,13 +70,14 @@
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
 - Fixed Flow Runner governance by counting successful runs when `failures` keys are empty
-- **API Security & Reliability Fixes (Codex P1 Issues)**
-  - Fixed rate limiting dependency not wired to API routes (was defined but never applied)
-  - Fixed API key leak in curl_examples.sh (changed from showing key value to "Enabled"/"Disabled")
-  - Fixed Redis rate limiter error handling to re-raise HTTPException (was swallowing rate limit violations)
-  - Fixed Redis rate limiter atomicity using Lua script (prevented race conditions under concurrent load)
-  - Fixed timestamp collision in Redis rate limiter (added unique sequence counter to member values)
+- HTTP API hardening from Codex reviews:
+  - Lua script now guarantees atomic Redis rate limiting
+  - Unique timestamp sequence members prevent collision during bursts
+  - HTTP exceptions from the rate limiter bubble up instead of being swallowed
+  - Rate limit dependency is applied to all FastAPI routes, including GitHub webhook handlers
+  - Example scripts avoid printing API keys during demonstrations
   - Removed unused imports and variables (ruff clean)
+  - Fixed .env.example to comment out empty values (prevents Pydantic validation errors)
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)

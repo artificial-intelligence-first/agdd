@@ -1,4 +1,5 @@
 """Agent execution API endpoints."""
+
 from __future__ import annotations
 
 import time
@@ -21,7 +22,9 @@ from ..security import require_api_key
 router = APIRouter(tags=["agents"])
 
 
-@router.get("/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)])
+@router.get(
+    "/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)]
+)
 async def list_agents(
     _: None = Depends(require_api_key),
     settings: Settings = Depends(get_settings),
@@ -71,7 +74,11 @@ async def list_agents(
     return items
 
 
-@router.post("/agents/{slug}/run", response_model=AgentRunResponse, dependencies=[Depends(rate_limit_dependency)])
+@router.post(
+    "/agents/{slug}/run",
+    response_model=AgentRunResponse,
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def run_agent(
     slug: str,
     req: AgentRunRequest,

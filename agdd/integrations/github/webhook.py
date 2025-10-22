@@ -1,10 +1,12 @@
-"""GitHub webhook event handlers.
+"""GitHub webhook handlers for AGDD integration.
 
 Processes GitHub webhook events, extracts commands, executes agents,
 and posts results back as comments.
 """
+
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,8 @@ from agdd.api.run_tracker import find_new_run_id, snapshot_runs
 from agdd.runners.agent_runner import invoke_mag
 
 from .comment_parser import extract_from_code_blocks
+
+logger = logging.getLogger(__name__)
 
 
 async def post_comment(
@@ -54,7 +58,9 @@ async def post_comment(
         response.raise_for_status()
 
 
-def format_success_comment(slug: str, run_id: str | None, output: dict[str, Any], api_prefix: str) -> str:
+def format_success_comment(
+    slug: str, run_id: str | None, output: dict[str, Any], api_prefix: str
+) -> str:
     """
     Format successful agent execution result as GitHub comment.
 
@@ -76,7 +82,7 @@ def format_success_comment(slug: str, run_id: str | None, output: dict[str, Any]
 
     if run_id:
         comment += f"**Run ID**: `{run_id}`\n\n"
-        comment += f"**Artifacts**:\n"
+        comment += "**Artifacts**:\n"
         comment += f"- Summary: `GET {api_prefix}/runs/{run_id}`\n"
         comment += f"- Logs: `GET {api_prefix}/runs/{run_id}/logs`\n\n"
 
@@ -166,8 +172,12 @@ async def handle_issue_comment(event: dict[str, Any], settings: Settings) -> Non
         try:
             await post_comment(repo, issue_number, response, settings.GITHUB_TOKEN)
         except Exception:
-            # Silent failure - webhook should not fail if comment posting fails
-            pass
+            logger.warning(
+                "Failed to post GitHub comment for repo=%s issue=%s",
+                repo,
+                issue_number,
+                exc_info=True,
+            )
 
 
 async def handle_pull_request_review_comment(event: dict[str, Any], settings: Settings) -> None:
@@ -220,7 +230,12 @@ async def handle_pull_request_review_comment(event: dict[str, Any], settings: Se
         try:
             await post_comment(repo, pr_number, response, settings.GITHUB_TOKEN)
         except Exception:
-            pass
+            logger.warning(
+                "Failed to post GitHub review comment for repo=%s pr=%s",
+                repo,
+                pr_number,
+                exc_info=True,
+            )
 
 
 async def handle_pull_request(event: dict[str, Any], settings: Settings) -> None:
@@ -272,4 +287,6 @@ async def handle_pull_request(event: dict[str, Any], settings: Settings) -> None
         try:
             await post_comment(repo, pr_number, response, settings.GITHUB_TOKEN)
         except Exception:
-            pass
+            logger.warning(
+                "Failed to post GitHub PR comment for repo=%s pr=%s", repo, pr_number, exc_info=True
+            )

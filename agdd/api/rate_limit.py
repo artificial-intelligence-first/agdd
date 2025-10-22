@@ -2,8 +2,10 @@
 
 Provides both in-memory and Redis-based rate limiting.
 """
+
 from __future__ import annotations
 
+import logging
 import time
 from collections import defaultdict
 from threading import Lock
@@ -12,6 +14,8 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 
 from .config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryRateLimiter:
@@ -161,15 +165,18 @@ class RedisRateLimiter:
             raise
         except Exception:
             # If Redis connection fails, allow request (fail open)
-            # Log error in production
-            pass
+            logger.warning(
+                "Redis rate limit check failed; falling back to allow request", exc_info=True
+            )
 
 
 # Global rate limiter instance
 _rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
 
 
-def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | RedisRateLimiter | None:
+def get_rate_limiter(
+    settings: Settings | None = None,
+) -> InMemoryRateLimiter | RedisRateLimiter | None:
     """
     Get or create rate limiter instance.
 
@@ -196,7 +203,9 @@ def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | 
     return _rate_limiter
 
 
-async def rate_limit_dependency(request: Request, settings: Settings = Depends(get_settings)) -> None:
+async def rate_limit_dependency(
+    request: Request, settings: Settings = Depends(get_settings)
+) -> None:
     """
     FastAPI dependency for rate limiting.
 
@@ -218,6 +227,14 @@ async def rate_limit_dependency(request: Request, settings: Settings = Depends(g
     if limiter is None:
         return  # Rate limiting disabled
 
-    # Use client IP as key (or could use API key, user ID, etc.)
-    client_ip = request.client.host if request.client else "unknown"
-    limiter.check_rate_limit(client_ip)
+    # Prefer API key (if present) for per-credential limiting, fallback to client IP
+    identifier = request.headers.get("x-api-key")
+    if not identifier:
+        auth_header = request.headers.get("authorization")
+        if auth_header and " " in auth_header:
+            identifier = auth_header.split(" ", 1)[1]
+
+    if not identifier:
+        identifier = request.client.host if request.client else "unknown"
+
+    limiter.check_rate_limit(identifier)
