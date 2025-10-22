@@ -252,7 +252,7 @@ See [API.md](./API.md) for a complete endpoint reference, authentication details
 The GitHub webhook bridge triggers agents from comments and posts the results back to pull requests or issues.
 
 - Supported events: `issue_comment`, `pull_request_review_comment`, and `pull_request`
-- Command syntax: ``@agent-slug {"json": "payload"}``
+- Command syntax: `@agent-slug {"json": "payload"}`
 - Responses include run IDs and links back to the HTTP API for logs and summaries
 
 Provision the webhook with the helper script:

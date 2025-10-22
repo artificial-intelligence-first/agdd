@@ -76,6 +76,8 @@
   - HTTP exceptions from the rate limiter bubble up instead of being swallowed
   - Rate limit dependency is applied to all FastAPI routes, including GitHub webhook handlers
   - Example scripts avoid printing API keys during demonstrations
+  - Removed unused imports and variables (ruff clean)
+  - Fixed .env.example to comment out empty values (prevents Pydantic validation errors)
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)
