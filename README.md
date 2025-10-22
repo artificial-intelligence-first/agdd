@@ -24,6 +24,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 
 **Key Capabilities:**
 - AI-First Development: Build workflows invokable via agents and skills
+- Multiple Entry Points: CLI, HTTP API, and GitHub integration
 - Comprehensive Observability: Track execution metrics, token usage, and costs
 - Governance & Policy: Enforce quality thresholds and compliance checks
 - Pluggable Architecture: Integrate with Flow Runner or custom execution engines
@@ -36,6 +37,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - Skills Framework: Reusable, composable skills for agent capabilities
 - Contract Verification: Automated JSON Schema validation
 - CLI Interface: Typer-powered command-line tools
+- HTTP API: FastAPI-powered RESTful API with OpenAPI/Swagger documentation
 
 ### Advanced Capabilities
 - Runner Plugins: Pluggable execution engines (Flow Runner included)
@@ -90,6 +92,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 agdd/
 ├── agdd/                       # Core Python package
 │   ├── cli.py                  # CLI entry point
+│   ├── api/                    # HTTP API (FastAPI)
 │   ├── registry.py             # Agent/skill resolution
 │   ├── runners/                # Execution engines
 │   ├── governance/             # Policy enforcement
@@ -191,6 +194,43 @@ uv run agdd agent run offer-orchestrator-mag \
 ```
 
 Observability artifacts are generated in `.runs/agents/<RUN_ID>/`.
+
+### HTTP API
+
+Start the API server:
+
+```bash
+# Using script
+./scripts/run-api-server.sh
+
+# Or directly with uvicorn
+uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
+
+# With hot reload (development)
+AGDD_API_DEBUG=1 uv run uvicorn agdd.api.server:app --reload
+```
+
+API endpoints:
+
+```bash
+# List agents
+curl http://localhost:8000/api/v1/agents | jq
+
+# Run agent
+curl -X POST http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run \
+  -H "Content-Type: application/json" \
+  -d '{"payload": {"role":"Senior Engineer","level":"Senior","experience_years":8}}' | jq
+
+# Get run results
+curl http://localhost:8000/api/v1/runs/<RUN_ID> | jq
+
+# Stream logs (Server-Sent Events)
+curl http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true
+```
+
+See interactive documentation at `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc).
+
+For more examples, run: `./examples/api/curl_examples.sh`
 
 ### Flow Runner
 

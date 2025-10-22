@@ -19,6 +19,16 @@
   - Agent templates (`agents/_template/mag-template/`, `agents/_template/sag-template/`) for rapid development
   - Flow Runner automated setup script (`scripts/setup-flowrunner.sh`) with Makefile integration
   - Development automation via `Makefile` with 15+ common tasks
+- **HTTP API (Phase 1)**
+  - FastAPI-powered RESTful API (`agdd.api`) for agent execution
+  - Endpoints: `/api/v1/agents` (list/run), `/api/v1/runs` (summary/metrics/logs)
+  - Server-Sent Events (SSE) for real-time log streaming
+  - OpenAPI/Swagger documentation at `/docs` and `/redoc`
+  - API authentication support via bearer token or x-api-key header
+  - Run tracking system to identify agent runs from filesystem artifacts
+  - API server startup script (`scripts/run-api-server.sh`)
+  - Example curl commands (`examples/api/curl_examples.sh`)
+  - Integration tests for API endpoints
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
