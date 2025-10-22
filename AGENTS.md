@@ -12,12 +12,14 @@ modifying code.
   `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
   ensures the registry, agent runner, contracts, and skills integrate correctly.
 - Flow Runner integration is optional but recommended when working on runner
-  boundaries:
-  1. Clone https://github.com/artificial-intelligence-first/flow-runner.git
-  2. From the Flow Runner repo, run `uv sync` followed by
-     `uv pip install -e packages/mcprouter -e packages/flowrunner`
-  3. Source `tools/flowrunner_env.sh` or export
-     `FLOW_RUNNER_PYTHONPATH` so `flowctl` can import the runner modules
+  boundaries. Use the automated setup script:
+  ```bash
+  make setup-flowrunner
+  source scripts/flowrunner-env.sh
+  ```
+  Or manually:
+  1. Run `./scripts/setup-flowrunner.sh`
+  2. Source `scripts/flowrunner-env.sh` to configure environment variables
 - Verify vendored Flow Runner assets with
   `uv run python tools/verify_vendor.py` whenever files under
   `agdd/assets/` or `examples/flowrunner/` change.
@@ -25,6 +27,10 @@ modifying code.
   `agents/{main,sub}/<agent-slug>/agent.yaml`, and define contracts with JSON Schemas under
   `contracts/`. Prefer Typer-based CLIs that invoke agents to maintain the
   AI-first workflow.
+- **Creating New Agents:** Use the templates in `agents/_template/`:
+  - `mag-template/` - Template for Main Agents (orchestrators)
+  - `sag-template/` - Template for Sub-Agents (specialists)
+  - Copy template, customize agent.yaml and code, then add tests
 
 ## Testing Instructions
 

@@ -137,6 +137,44 @@ uv run agdd agent run offer-orchestrator-mag \
   --json examples/agents/candidate_profile.json
 ```
 
+## Creating New Agents
+
+AGDD provides templates for quickly creating new MAG and SAG agents:
+
+### Using Agent Templates
+
+```bash
+# Copy MAG template
+cp -r agents/_template/mag-template agents/main/your-orchestrator-mag
+
+# Copy SAG template
+cp -r agents/_template/sag-template agents/sub/your-advisor-sag
+
+# Customize the templates:
+# 1. Edit agent.yaml (slug, name, description, contracts)
+# 2. Update README.md with your agent's purpose
+# 3. Modify code/orchestrator.py (MAG) or code/advisor.py (SAG)
+# 4. Create contract schemas in contracts/
+# 5. Add tests in tests/agents/
+```
+
+### Using Make Commands
+
+```bash
+# Common development tasks
+make test              # Run all tests
+make test-agents       # Run agent tests only
+make agent-run         # Execute sample MAG
+make docs-check        # Validate documentation
+
+# Flow Runner setup (optional)
+make setup-flowrunner  # One-time setup
+make flow-run          # Execute sample flow
+
+# See all available targets
+make help
+```
+
 ## Usage
 
 ### Agent Orchestration
