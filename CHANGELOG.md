@@ -5,10 +5,20 @@
 - Documentation guardrail extension to ensure README/PLANS/SSOT/AGENTS/CHANGELOG are present
 - Runner abstraction (`agdd.runners`) with Flow Runner adapter, CLI entry points, and mirrored Flow Runner assets
 - Flow Runner observability summary tooling (`observability/summarize_runs.py`) and Typer CLI integration
-- Governance artifacts (`contracts/flow_summary.schema.json`, `policies/flow_governance.yaml`) and gating tool (`tools/gate_flow_summary.py`) with CLI support
+- Governance artifacts (`contracts/flow_summary.schema.json`, `policies/flow_governance.yaml`) and CLI command (`agdd flow gate`)
 - Vendor verification script (`tools/verify_vendor.py`) and runner documentation (`RUNNERS.md`)
-- Registry linter (`tools/lint_registry.py`) with pytest coverage for duplicate IDs and missing skills
-- Flow Runner environment helper (`tools/flowrunner_env.sh`) for bash/zsh shells
+- **MAG/SAG Orchestration System v0.1**
+  - Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG execution with observability
+  - OfferOrchestratorMAG and CompensationAdvisorSAG reference implementations
+  - Agent registry system (`agdd.registry`) with YAML-based configuration
+  - Contract schemas for candidate profiles, compensation advisors, and offer packets
+  - CLI command `agdd agent run` for MAG execution
+  - Comprehensive observability: logs.jsonl, metrics.json, summary.json with SLO definitions
+  - Three-layer testing strategy (unit/agent/integration) with 63 tests
+- **Development Productivity Tools**
+  - Agent templates (`agents/_template/mag-template/`, `agents/_template/sag-template/`) for rapid development
+  - Flow Runner automated setup script (`scripts/setup-flowrunner.sh`) with Makefile integration
+  - Development automation via `Makefile` with 15+ common tasks
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -24,6 +34,12 @@
 - Flow governance policy now enforces `min_runs` / `required_steps`, and Flow Runner availability reports capability metadata
 - CI core workflow builds distributions, verifies wheel assets, and runs registry linting prior to tests
 - Flow summary aggregator treats empty failure logs as success and recognises success status variants
+- CLI usage simplified from `uv run python -m agdd.cli` to `uv run agdd` across all documentation
+- All documentation updated to reference automated scripts and Makefile instead of manual procedures
+### Removed
+- Legacy skill-based agent system (`registry/agents/hello.yaml`, `agdd validate`, `agdd run <agent_id>` commands)
+- Obsolete `tools/lint_registry.py` (functionality replaced by contract validation in tests)
+- Manual Flow Runner setup script `tools/flowrunner_env.sh` (replaced by automated `scripts/setup-flowrunner.sh`)
 ### Fixed
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor

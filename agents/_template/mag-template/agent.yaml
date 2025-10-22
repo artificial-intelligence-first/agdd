@@ -1,0 +1,41 @@
+slug: "your-orchestrator-mag"
+name: "YourOrchestratorMAG"
+role: "main"
+version: "0.1.0"
+description: "Main agent for orchestrating [describe your task]"
+
+entrypoint: "agents/main/your-orchestrator-mag/code/orchestrator.py:run"
+
+depends_on:
+  sub_agents:
+    - "your-advisor-sag"
+  skills:
+    - "skill.task-decomposition"
+    - "skill.result-aggregation"
+
+contracts:
+  input_schema: "contracts/your_input.schema.json"
+  output_schema: "contracts/your_output.schema.json"
+
+risk_class: "low"
+
+budgets:
+  max_tokens: 100000
+  max_cost_usd: 1.00
+  timeout_seconds: 30
+
+observability:
+  log_level: "info"
+  trace_delegations: true
+  metrics:
+    - "latency_ms"
+    - "task_count"
+    - "success_count"
+
+evaluation:
+  success_criteria:
+    - "output conforms to schema"
+    - "all required fields present"
+  performance_targets:
+    p95_latency_ms: 5000
+    success_rate: 0.95

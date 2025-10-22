@@ -93,17 +93,18 @@ agdd/
 │   ├── registry.py             # Agent/skill resolution
 │   ├── runners/                # Execution engines
 │   ├── governance/             # Policy enforcement
-│   ├── skills/                 # Built-in skills
 │   └── assets/                 # Bundled resources
 ├── agents/                     # Agent implementations
+│   ├── _template/              # MAG/SAG templates
 │   ├── main/                   # Main Agents (MAG)
 │   └── sub/                    # Sub-Agents (SAG)
+├── skills/                     # Reusable skill implementations
 ├── registry/                   # Configuration
 │   ├── agents.yaml             # Task routing
 │   └── skills.yaml             # Skill definitions
 ├── contracts/                  # JSON Schemas
 ├── policies/                   # Governance policies
-├── observability/              # Metrics aggregation
+├── scripts/                    # Automation scripts
 ├── tools/                      # Development utilities
 └── tests/                      # Test suite
 ```
@@ -135,6 +136,44 @@ echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
 # Or from a file
 uv run agdd agent run offer-orchestrator-mag \
   --json examples/agents/candidate_profile.json
+```
+
+## Creating New Agents
+
+AGDD provides templates for quickly creating new MAG and SAG agents:
+
+### Using Agent Templates
+
+```bash
+# Copy MAG template
+cp -r agents/_template/mag-template agents/main/your-orchestrator-mag
+
+# Copy SAG template
+cp -r agents/_template/sag-template agents/sub/your-advisor-sag
+
+# Customize the templates:
+# 1. Edit agent.yaml (slug, name, description, contracts)
+# 2. Update README.md with your agent's purpose
+# 3. Modify code/orchestrator.py (MAG) or code/advisor.py (SAG)
+# 4. Create contract schemas in contracts/
+# 5. Add tests in tests/agents/
+```
+
+### Using Make Commands
+
+```bash
+# Common development tasks
+make test              # Run all tests
+make test-agents       # Run agent tests only
+make agent-run         # Execute sample MAG
+make docs-check        # Validate documentation
+
+# Flow Runner setup (optional)
+make setup-flowrunner  # One-time setup
+make flow-run          # Execute sample flow
+
+# See all available targets
+make help
 ```
 
 ## Usage
