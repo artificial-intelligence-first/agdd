@@ -132,11 +132,15 @@ class RedisRateLimiter:
             return -1
         end
 
-        -- Add current request
-        redis.call('zadd', key, now, tostring(now))
+        -- Add current request with unique member to avoid collision
+        -- Use timestamp + counter to ensure uniqueness
+        local seq = redis.call('incr', key .. ':seq')
+        local member = tostring(now) .. ':' .. tostring(seq)
+        redis.call('zadd', key, now, member)
 
         -- Set expiry (2 seconds to ensure cleanup)
         redis.call('expire', key, 2)
+        redis.call('expire', key .. ':seq', 2)
 
         return count
         """
