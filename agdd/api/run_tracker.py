@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 # Valid run_id pattern: alphanumeric + hyphens, reasonable length
 # Prevents directory traversal attacks (../, absolute paths, etc.)
 _RUN_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9-]{0,127}$")

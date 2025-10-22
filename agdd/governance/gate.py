@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import fnmatch
 import json
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
 import yaml
 from jsonschema import validate as jsonschema_validate
-
-from importlib import resources
 
 CONTRACTS_PACKAGE = "agdd.assets.contracts"
 POLICIES_PACKAGE = "agdd.assets.policies"
