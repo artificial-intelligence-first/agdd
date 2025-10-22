@@ -1,3 +1,4 @@
+"""Validate all contract JSON Schemas are well-formed"""
 import json
 import pathlib
 
@@ -11,12 +12,20 @@ def load(name: str) -> dict:
 
 
 def test_candidate_profile_schema_valid() -> None:
-    jsonschema.Draft7Validator.check_schema(load("candidate_profile.json"))
+    """Validate candidate_profile.schema.json is a valid JSON Schema"""
+    jsonschema.Draft7Validator.check_schema(load("candidate_profile.schema.json"))
+
+
+def test_comp_advisor_input_schema_valid() -> None:
+    """Validate comp_advisor_input.schema.json is a valid JSON Schema"""
+    jsonschema.Draft7Validator.check_schema(load("comp_advisor_input.schema.json"))
+
+
+def test_comp_advisor_output_schema_valid() -> None:
+    """Validate comp_advisor_output.schema.json is a valid JSON Schema"""
+    jsonschema.Draft7Validator.check_schema(load("comp_advisor_output.schema.json"))
 
 
 def test_offer_packet_schema_valid() -> None:
-    jsonschema.Draft7Validator.check_schema(load("offer_packet.json"))
-
-
-def test_salary_band_schema_valid() -> None:
-    jsonschema.Draft7Validator.check_schema(load("salary_band.json"))
+    """Validate offer_packet.schema.json is a valid JSON Schema"""
+    jsonschema.Draft7Validator.check_schema(load("offer_packet.schema.json"))

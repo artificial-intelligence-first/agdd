@@ -80,9 +80,71 @@ result = invoke_sag(delegation)
 - **Error Handling**: Graceful failure handling with partial result aggregation
 
 ### Observability Artifacts
-- `logs.jsonl` - Event log (start, end, delegation, errors)
-- `metrics.json` - Performance metrics (latency_ms, task_count)
-- `summary.json` - Run summary with metadata
+
+All agent executions produce structured artifacts in `.runs/agents/<RUN_ID>/`:
+
+#### `logs.jsonl` - Event Log
+JSONL format with one event per line:
+```json
+{"run_id": "mag-abc123", "event": "start", "timestamp": 1234567890.123, "data": {"agent": "OfferOrchestratorMAG"}}
+{"run_id": "mag-abc123", "event": "delegation_start", "timestamp": 1234567891.234, "data": {"task_id": "task-001", "sag_id": "compensation-advisor-sag"}}
+{"run_id": "mag-abc123", "event": "delegation_complete", "timestamp": 1234567892.345, "data": {"task_id": "task-001", "status": "success"}}
+{"run_id": "mag-abc123", "event": "end", "timestamp": 1234567893.456, "data": {"status": "success", "duration_ms": 3333}}
+```
+
+**Standard Events:**
+- `start` - Agent execution begins
+- `delegation_start` / `delegation_complete` - SAG invocation lifecycle
+- `error` - Runtime errors with type and message
+- `end` - Agent execution completes
+
+#### `metrics.json` - Performance Metrics
+```json
+{
+  "latency_ms": 3333,
+  "task_count": 2,
+  "success_count": 2,
+  "duration_ms": 3333
+}
+```
+
+**Standard Metrics:**
+- `latency_ms` (required) - Total execution time in milliseconds
+- `task_count` - Number of SAG delegations
+- `success_count` - Number of successful delegations
+- `attempts` - Retry attempts for SAGs
+- `tokens` - Token usage (if available)
+- `cost` - Estimated cost (if available)
+
+#### `summary.json` - Run Summary
+```json
+{
+  "run_id": "mag-abc123",
+  "agent": "OfferOrchestratorMAG",
+  "status": "success",
+  "start_time": 1234567890.123,
+  "end_time": 1234567893.456,
+  "duration_ms": 3333,
+  "metadata": {
+    "version": "0.1.0",
+    "task_count": 2,
+    "successful_tasks": 2
+  }
+}
+```
+
+### Observability SLO
+
+Agent executions should meet these minimum thresholds:
+
+| Metric | Target | Critical |
+|--------|--------|----------|
+| Success Rate (MAG) | ≥ 95% | ≥ 90% |
+| Success Rate (SAG) | ≥ 98% | ≥ 95% |
+| P95 Latency (MAG) | ≤ 5s | ≤ 10s |
+| P95 Latency (SAG) | ≤ 2s | ≤ 5s |
+
+**Note:** SLOs are measured over 24-hour rolling windows. Critical thresholds trigger alerts; below-target values require investigation.
 
 ### Conformance
 - Agents must provide `run(payload, *, registry, skills, runner, obs)` entrypoint
