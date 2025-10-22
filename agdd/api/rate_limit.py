@@ -159,7 +159,7 @@ class RedisRateLimiter:
         except HTTPException:
             # Re-raise rate limit exceeded (don't swallow it)
             raise
-        except Exception as e:
+        except Exception:
             # If Redis connection fails, allow request (fail open)
             # Log error in production
             pass

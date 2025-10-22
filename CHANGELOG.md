@@ -69,6 +69,13 @@
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
 - Prevented Flow Runner environment helper from mutating caller shell options and ensured zsh compatibility
 - Fixed Flow Runner governance by counting successful runs when `failures` keys are empty
+- **API Security & Reliability Fixes (Codex P1 Issues)**
+  - Fixed rate limiting dependency not wired to API routes (was defined but never applied)
+  - Fixed API key leak in curl_examples.sh (changed from showing key value to "Enabled"/"Disabled")
+  - Fixed Redis rate limiter error handling to re-raise HTTPException (was swallowing rate limit violations)
+  - Fixed Redis rate limiter atomicity using Lua script (prevented race conditions under concurrent load)
+  - Fixed timestamp collision in Redis rate limiter (added unique sequence counter to member values)
+  - Removed unused imports and variables (ruff clean)
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)

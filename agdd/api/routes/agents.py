@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 from anyio import to_thread
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from agdd.registry import get_registry
 from agdd.runners.agent_runner import invoke_mag

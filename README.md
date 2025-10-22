@@ -208,6 +208,11 @@ uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
 
 # With hot reload (development)
 AGDD_API_DEBUG=1 uv run uvicorn agdd.api.server:app --reload
+
+# Production with authentication and rate limiting
+AGDD_API_KEY="your-secret-key" \
+AGDD_RATE_LIMIT_QPS=10 \
+uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
 ```
 
 API endpoints:
@@ -216,9 +221,10 @@ API endpoints:
 # List agents
 curl http://localhost:8000/api/v1/agents | jq
 
-# Run agent
+# Run agent (with optional API key)
 curl -X POST http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-key" \
   -d '{"payload": {"role":"Senior Engineer","level":"Senior","experience_years":8}}' | jq
 
 # Get run results
@@ -228,9 +234,46 @@ curl http://localhost:8000/api/v1/runs/<RUN_ID> | jq
 curl http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true
 ```
 
-See interactive documentation at `http://localhost:8000/docs` (Swagger UI) or `http://localhost:8000/redoc` (ReDoc).
+**Features:**
+- OpenAPI/Swagger UI at `http://localhost:8000/docs`
+- ReDoc documentation at `http://localhost:8000/redoc`
+- API key authentication (optional)
+- Rate limiting (in-memory or Redis-based)
+- Server-Sent Events for log streaming
 
 For more examples, run: `./examples/api/curl_examples.sh`
+
+### GitHub Integration
+
+Integrate AGDD with GitHub Issues and Pull Requests via webhooks:
+
+```bash
+# Setup webhook (requires gh CLI)
+./scripts/setup-github-webhook.sh owner/repo https://your-domain.com/api/v1/github/webhook
+
+# Or manually configure webhook:
+# - URL: https://your-domain.com/api/v1/github/webhook
+# - Content type: application/json
+# - Secret: Set GITHUB_WEBHOOK_SECRET environment variable
+# - Events: Issue comments, Pull request reviews
+```
+
+**Usage in GitHub:**
+
+Comment on issues or PRs with agent commands:
+
+```
+@offer-orchestrator-mag {"role": "Senior Engineer", "level": "Senior", "experience_years": 8}
+```
+
+The bot will:
+1. Parse the command
+2. Execute the agent
+3. Post results as a comment
+
+**Environment variables:**
+- `GITHUB_WEBHOOK_SECRET` - Webhook signature verification secret
+- `GITHUB_TOKEN` - Personal access token for posting comments
 
 ### Flow Runner
 
