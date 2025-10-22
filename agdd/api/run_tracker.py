@@ -36,12 +36,15 @@ def find_new_run_id(
     started_at: float,
 ) -> str | None:
     """
-    Find newly created run_id by comparing snapshots and matching slug.
+    Find newly created run_id by comparing snapshots.
+
+    First tries to match by slug in summary.json, then falls back to
+    finding the newest MAG directory created after started_at.
 
     Args:
         base_dir: Base directory containing agent runs
         before: Set of run directories before execution
-        slug: Agent slug to match in summary.json
+        slug: Agent slug to match in summary.json (optional matching)
         started_at: Timestamp when execution started
 
     Returns:
@@ -50,14 +53,22 @@ def find_new_run_id(
     after = snapshot_runs(base_dir)
     new_dirs = after - before
 
-    # First pass: Check new directories with mtime >= started_at
+    # First pass: Check new directories with mtime >= started_at and matching slug
     candidates = [d for d in new_dirs if d.stat().st_mtime >= started_at - 0.001]
     for d in sorted(candidates, key=lambda x: x.stat().st_mtime, reverse=True):
         summary = _read_json(d / "summary.json")
         if summary and summary.get("slug") == slug:
             return d.name
 
-    # Second pass: Check all directories (including before) with matching slug and recent mtime
+    # Second pass: If slug not found in summary.json, return newest MAG directory
+    # This handles cases where ObservabilityLogger doesn't write slug to summary
+    mag_dirs = [d for d in candidates if d.name.startswith("mag-")]
+    if mag_dirs:
+        # Return the most recently created MAG directory
+        newest_mag = max(mag_dirs, key=lambda x: x.stat().st_mtime)
+        return newest_mag.name
+
+    # Third pass: Check all directories with matching slug and recent mtime
     # This handles cases where directory already existed but was updated
     for d in sorted(after, key=lambda x: x.stat().st_mtime, reverse=True):
         summary = _read_json(d / "summary.json")

@@ -87,8 +87,9 @@ async def run_agent(
     started_at = time.time()
 
     # Execute agent in thread pool (invoke_mag is blocking)
+    # Pass base_dir to ensure consistency between execution and tracking
     try:
-        output: dict[str, Any] = await to_thread.run_sync(invoke_mag, slug, req.payload)
+        output: dict[str, Any] = await to_thread.run_sync(invoke_mag, slug, req.payload, base)
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
