@@ -1,6 +1,7 @@
 .PHONY: help install test test-unit test-agents test-integration \
         setup-flowrunner clean-flowrunner agent-run flow-run \
-        docs-check vendor-check build install-dev
+        docs-check vendor-check build install-dev \
+        api-server api-test api-examples
 
 # Default target
 help:
@@ -25,6 +26,11 @@ help:
 	@echo "Agent Execution:"
 	@echo "  make agent-run        - Run sample MAG execution"
 	@echo "  make flow-run         - Run sample flow (requires Flow Runner)"
+	@echo ""
+	@echo "HTTP API:"
+	@echo "  make api-server       - Start HTTP API server"
+	@echo "  make api-test         - Run API integration tests"
+	@echo "  make api-examples     - Show API usage examples"
 	@echo ""
 	@echo "Flow Runner:"
 	@echo "  make setup-flowrunner - Setup Flow Runner (one-time)"
@@ -92,6 +98,33 @@ clean-flowrunner:
 	@rm -rf .flow-runner
 	@rm -f scripts/flowrunner-env.sh
 	@echo "Flow Runner removed."
+
+# HTTP API
+api-server:
+	@echo "Starting HTTP API server..."
+	@./scripts/run-api-server.sh
+
+api-test:
+	@echo "Running API integration tests..."
+	@uv run -m pytest tests/integration/test_api_*.py -v
+
+api-examples:
+	@echo "API Usage Examples"
+	@echo "=================="
+	@echo ""
+	@echo "Start server:    make api-server"
+	@echo "Run tests:       make api-test"
+	@echo ""
+	@echo "List agents:     curl http://localhost:8000/api/v1/agents | jq"
+	@echo "Run agent:       curl -X POST http://localhost:8000/api/v1/agents/offer-orchestrator-mag/run \\"
+	@echo "                      -H 'Content-Type: application/json' \\"
+	@echo "                      -d '{\"payload\": {\"role\":\"Engineer\",\"level\":\"Senior\"}}' | jq"
+	@echo "Get run summary: curl http://localhost:8000/api/v1/runs/<RUN_ID> | jq"
+	@echo "Stream logs:     curl http://localhost:8000/api/v1/runs/<RUN_ID>/logs?follow=true"
+	@echo ""
+	@echo "Docs:            http://localhost:8000/docs"
+	@echo ""
+	@echo "For more examples: ./examples/api/curl_examples.sh"
 
 # Cleanup
 clean:

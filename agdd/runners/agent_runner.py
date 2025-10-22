@@ -41,8 +41,9 @@ class Result:
 class ObservabilityLogger:
     """Simple logger for agent execution traces"""
 
-    def __init__(self, run_id: str, base_dir: Optional[Path] = None):
+    def __init__(self, run_id: str, slug: Optional[str] = None, base_dir: Optional[Path] = None):
         self.run_id = run_id
+        self.slug = slug
         self.base_dir = base_dir or Path.cwd() / ".runs" / "agents"
         self.run_dir = self.base_dir / run_id
         self.run_dir.mkdir(parents=True, exist_ok=True)
@@ -82,6 +83,9 @@ class ObservabilityLogger:
             "metrics": self.metrics,
             "run_dir": str(self.run_dir),
         }
+        # Include slug if provided (for run tracking/identification)
+        if self.slug:
+            summary["slug"] = self.slug
         with open(summary_file, "w", encoding="utf-8") as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
 
@@ -130,7 +134,7 @@ class AgentRunner:
             Exception: If execution fails
         """
         run_id = f"mag-{uuid.uuid4().hex[:8]}"
-        obs = ObservabilityLogger(run_id, base_dir=self.base_dir)
+        obs = ObservabilityLogger(run_id, slug=slug, base_dir=self.base_dir)
 
         try:
             # Load agent descriptor
@@ -176,7 +180,7 @@ class AgentRunner:
             Exception: If execution fails (with retry logic applied)
         """
         run_id = f"sag-{uuid.uuid4().hex[:8]}"
-        obs = ObservabilityLogger(run_id, base_dir=self.base_dir)
+        obs = ObservabilityLogger(run_id, slug=delegation.sag_id, base_dir=self.base_dir)
 
         try:
             # Load agent descriptor
