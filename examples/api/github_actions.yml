@@ -1,0 +1,163 @@
+# Example GitHub Actions workflow for AGDD agent execution
+#
+# This workflow demonstrates two approaches to running AGDD agents:
+# 1. Direct CLI execution (requires checked out code)
+# 2. HTTP API execution (requires deployed API server)
+
+name: AGDD Agent Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent_slug:
+        description: "Agent slug to execute"
+        required: true
+        type: string
+        default: "offer-orchestrator-mag"
+      payload:
+        description: "JSON payload for agent"
+        required: true
+        type: string
+        default: '{"test": "data"}'
+      method:
+        description: "Execution method"
+        required: true
+        type: choice
+        options:
+          - cli
+          - api
+        default: "cli"
+
+jobs:
+  run-agent-cli:
+    name: Run Agent via CLI
+    runs-on: ubuntu-latest
+    if: inputs.method == 'cli'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run agent
+        run: |
+          echo '${{ inputs.payload }}' | uv run agdd agent run '${{ inputs.agent_slug }}'
+
+      - name: Upload run artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-run-artifacts
+          path: .runs/agents/
+          retention-days: 7
+
+  run-agent-api:
+    name: Run Agent via HTTP API
+    runs-on: ubuntu-latest
+    if: inputs.method == 'api'
+
+    steps:
+      - name: Execute agent via API
+        id: api_call
+        env:
+          API_URL: ${{ secrets.AGDD_API_URL }}
+          API_KEY: ${{ secrets.AGDD_API_KEY }}
+        run: |
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"payload\": ${{ inputs.payload }}}" \
+            "${API_URL}/api/v1/agents/${{ inputs.agent_slug }}/run")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Status: $http_code"
+          echo "$body" | jq '.'
+
+          if [ "$http_code" != "200" ]; then
+            echo "::error::Agent execution failed with status $http_code"
+            exit 1
+          fi
+
+          # Extract run_id
+          run_id=$(echo "$body" | jq -r '.run_id // empty')
+          if [ -n "$run_id" ]; then
+            echo "run_id=$run_id" >> $GITHUB_OUTPUT
+            echo "::notice::Agent executed successfully. Run ID: $run_id"
+          fi
+
+      - name: Fetch run summary
+        if: steps.api_call.outputs.run_id
+        env:
+          API_URL: ${{ secrets.AGDD_API_URL }}
+          API_KEY: ${{ secrets.AGDD_API_KEY }}
+        run: |
+          run_id="${{ steps.api_call.outputs.run_id }}"
+          curl -sS \
+            -H "Authorization: Bearer ${API_KEY}" \
+            "${API_URL}/api/v1/runs/${run_id}" | jq '.'
+
+      - name: Fetch run logs (last 50 lines)
+        if: steps.api_call.outputs.run_id
+        env:
+          API_URL: ${{ secrets.AGDD_API_URL }}
+          API_KEY: ${{ secrets.AGDD_API_KEY }}
+        run: |
+          run_id="${{ steps.api_call.outputs.run_id }}"
+          curl -sS \
+            -H "Authorization: Bearer ${API_KEY}" \
+            "${API_URL}/api/v1/runs/${run_id}/logs?tail=50"
+
+# Example: Scheduled agent execution
+#
+# on:
+#   schedule:
+#     # Run daily at 9am UTC
+#     - cron: '0 9 * * *'
+#
+# jobs:
+#   scheduled-agent:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: astral-sh/setup-uv@v3
+#       - run: uv python install 3.12
+#       - run: uv sync
+#       - run: |
+#           echo '{"scheduled": true}' | uv run agdd agent run daily-report-mag
+
+# Example: PR comment trigger
+#
+# on:
+#   issue_comment:
+#     types: [created]
+#
+# jobs:
+#   handle-comment:
+#     if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-agent')
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: astral-sh/setup-uv@v3
+#       - run: uv python install 3.12
+#       - run: uv sync
+#       - name: Extract command and run
+#         run: |
+#           # Parse comment body for agent slug and payload
+#           # This is a simplified example - production should use robust parsing
+#           comment="${{ github.event.comment.body }}"
+#           if echo "$comment" | grep -q "/run-agent"; then
+#             agent_slug=$(echo "$comment" | sed -n 's#/run-agent \([a-z0-9-]*\).*#\1#p')
+#             echo '{"triggered_by": "comment"}' | uv run agdd agent run "$agent_slug"
+#           fi

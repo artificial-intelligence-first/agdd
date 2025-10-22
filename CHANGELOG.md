@@ -29,6 +29,17 @@
   - API server startup script (`scripts/run-api-server.sh`)
   - Example curl commands (`examples/api/curl_examples.sh`)
   - Integration tests for API endpoints
+- **GitHub Integration (Phase 2)**
+  - GitHub webhook endpoint (`/api/v1/github/webhook`) with signature verification
+  - Comment parser for `@agent-slug {json}` command syntax
+  - Support for issue comments, PR review comments, and PR descriptions
+  - Automatic agent execution triggered by GitHub comments
+  - Result posting back to GitHub as comments (success/error formatting)
+  - Event handlers for `issue_comment`, `pull_request_review_comment`, `pull_request`
+  - Webhook setup script (`scripts/setup-github-webhook.sh`)
+  - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
+  - Comprehensive integration tests with signature verification
+  - Health check endpoint (`/api/v1/github/health`)
 ### Changed
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
