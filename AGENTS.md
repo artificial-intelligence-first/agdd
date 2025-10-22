@@ -9,7 +9,7 @@ modifying code.
   Install or refresh dependencies with `uv sync`, and include development tools
   when needed via `uv sync --extra dev`.
 - Test the agent orchestration system early:
-  `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
+  `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
   ensures the registry, agent runner, contracts, and skills integrate correctly.
 - Flow Runner integration is optional but recommended when working on runner
   boundaries:
@@ -86,7 +86,7 @@ uv run -m pytest tests/integration/ -v
 
 - Test agent orchestration after changes:
   ```bash
-  echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag
+  echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag
   ```
 
 - Check observability artifacts:
@@ -97,9 +97,9 @@ uv run -m pytest tests/integration/ -v
 
 - When Flow Runner is installed:
   ```bash
-  uv run python -m agdd.cli flow available
-  uv run python -m agdd.cli flow summarize [--output <path>]
-  uv run python -m agdd.cli flow gate <summary.json> --policy policies/flow_governance.yaml
+  uv run agdd flow available
+  uv run agdd flow summarize [--output <path>]
+  uv run agdd flow gate <summary.json> --policy policies/flow_governance.yaml
   ```
 
 ### Adding Tests

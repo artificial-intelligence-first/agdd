@@ -130,10 +130,10 @@ uv run -m pytest -q  # verify installation
 ```bash
 # Execute a MAG (Main Agent) with a candidate profile
 echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
-  uv run python -m agdd.cli agent run offer-orchestrator-mag
+  uv run agdd agent run offer-orchestrator-mag
 
 # Or from a file
-uv run python -m agdd.cli agent run offer-orchestrator-mag \
+uv run agdd agent run offer-orchestrator-mag \
   --json examples/agents/candidate_profile.json
 ```
 
@@ -144,10 +144,10 @@ uv run python -m agdd.cli agent run offer-orchestrator-mag \
 ```bash
 # Execute MAG (Main Agent)
 echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
-  uv run python -m agdd.cli agent run offer-orchestrator-mag
+  uv run agdd agent run offer-orchestrator-mag
 
 # From file
-uv run python -m agdd.cli agent run offer-orchestrator-mag \
+uv run agdd agent run offer-orchestrator-mag \
   --json examples/agents/candidate_profile.json
 ```
 
@@ -157,26 +157,26 @@ Observability artifacts are generated in `.runs/agents/<RUN_ID>/`.
 
 ```bash
 # Check availability
-uv run python -m agdd.cli flow available
+uv run agdd flow available
 
 # Validate flow
-uv run python -m agdd.cli flow validate examples/flowrunner/prompt_flow.yaml
+uv run agdd flow validate examples/flowrunner/prompt_flow.yaml
 
 # Execute flow
-uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml
+uv run agdd flow run examples/flowrunner/prompt_flow.yaml
 ```
 
 ### Observability
 
 ```bash
 # Generate summary
-uv run python -m agdd.cli flow summarize
+uv run agdd flow summarize
 
 # Custom directory
-uv run python -m agdd.cli flow summarize --base /path/to/.runs
+uv run agdd flow summarize --base /path/to/.runs
 
 # Output to file
-uv run python -m agdd.cli flow summarize --output flow_summary.json
+uv run agdd flow summarize --output flow_summary.json
 ```
 
 Summary metrics include execution stats, errors, MCP calls, per-step performance, and per-model resource usage.
@@ -185,7 +185,7 @@ Summary metrics include execution stats, errors, MCP calls, per-step performance
 
 ```bash
 # Enforce quality thresholds
-uv run python -m agdd.cli flow gate flow_summary.json \
+uv run agdd flow gate flow_summary.json \
   --policy policies/flow_governance.yaml
 ```
 
