@@ -1,8 +1,7 @@
 """Unit tests for agdd.registry module"""
 
 import pytest
-from pathlib import Path
-from agdd.registry import Registry, AgentDescriptor, SkillDescriptor
+from agdd.registry import Registry
 
 
 class TestRegistry:

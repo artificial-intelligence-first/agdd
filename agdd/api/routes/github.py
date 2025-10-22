@@ -1,4 +1,5 @@
 """GitHub webhook API endpoints."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -12,12 +13,16 @@ from agdd.integrations.github.webhook import (
 )
 
 from ..config import Settings, get_settings
+from ..rate_limit import rate_limit_dependency
 from ..security import verify_github_signature
 
 router = APIRouter(tags=["github"])
 
 
-@router.post("/github/webhook")
+@router.post(
+    "/github/webhook",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def webhook(
     request: Request,
     x_github_event: str | None = Header(default=None),
@@ -59,7 +64,10 @@ async def webhook(
         ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"code": "invalid_signature", "message": "Webhook signature verification failed"},
+                detail={
+                    "code": "invalid_signature",
+                    "message": "Webhook signature verification failed",
+                },
             )
 
     # Parse JSON payload
@@ -85,7 +93,10 @@ async def webhook(
     return {"status": "ok"}
 
 
-@router.get("/github/health")
+@router.get(
+    "/github/health",
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def health() -> dict[str, str]:
     """
     Health check endpoint for GitHub integration.

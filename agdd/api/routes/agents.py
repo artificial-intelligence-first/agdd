@@ -1,4 +1,5 @@
 """Agent execution API endpoints."""
+
 from __future__ import annotations
 
 import time
@@ -7,7 +8,7 @@ from typing import Any
 
 import yaml
 from anyio import to_thread
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from agdd.registry import get_registry
 from agdd.runners.agent_runner import invoke_mag
@@ -21,7 +22,9 @@ from ..security import require_api_key
 router = APIRouter(tags=["agents"])
 
 
-@router.get("/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)])
+@router.get(
+    "/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)]
+)
 async def list_agents(
     _: None = Depends(require_api_key),
     settings: Settings = Depends(get_settings),
@@ -71,7 +74,11 @@ async def list_agents(
     return items
 
 
-@router.post("/agents/{slug}/run", response_model=AgentRunResponse, dependencies=[Depends(rate_limit_dependency)])
+@router.post(
+    "/agents/{slug}/run",
+    response_model=AgentRunResponse,
+    dependencies=[Depends(rate_limit_dependency)],
+)
 async def run_agent(
     slug: str,
     req: AgentRunRequest,

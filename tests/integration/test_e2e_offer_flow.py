@@ -1,8 +1,7 @@
 """End-to-end integration tests for offer generation flow"""
 
-import pytest
-import tempfile
 import json
+import tempfile
 from pathlib import Path
 from agdd.runners.agent_runner import invoke_mag
 
@@ -17,7 +16,7 @@ class TestE2EOfferFlow:
             "level": "Senior",
             "location": "San Francisco, CA",
             "experience_years": 8,
-            "notes": "Strong distributed systems background"
+            "notes": "Strong distributed systems background",
         }
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -81,12 +80,7 @@ class TestE2EOfferFlow:
 
     def test_location_variations(self):
         """Test different geographic locations"""
-        locations = [
-            "San Francisco, CA",
-            "New York, NY",
-            "Austin, TX",
-            "Remote - US"
-        ]
+        locations = ["San Francisco, CA", "New York, NY", "Austin, TX", "Remote - US"]
 
         outputs = []
         for location in locations:
@@ -94,7 +88,7 @@ class TestE2EOfferFlow:
                 "role": "Software Engineer",
                 "level": "Mid",
                 "location": location,
-                "experience_years": 5
+                "experience_years": 5,
             }
             output = invoke_mag("offer-orchestrator-mag", payload)
             outputs.append((location, output))
@@ -105,8 +99,12 @@ class TestE2EOfferFlow:
             assert output["offer"]["base_salary"]["amount"] > 0
 
         # SF should have highest salary
-        sf_salary = next(o["offer"]["base_salary"]["amount"] for loc, o in outputs if "San Francisco" in loc)
-        remote_salary = next(o["offer"]["base_salary"]["amount"] for loc, o in outputs if "Remote" in loc)
+        sf_salary = next(
+            o["offer"]["base_salary"]["amount"] for loc, o in outputs if "San Francisco" in loc
+        )
+        remote_salary = next(
+            o["offer"]["base_salary"]["amount"] for loc, o in outputs if "Remote" in loc
+        )
         assert sf_salary > remote_salary
 
     def test_skills_integration(self):
@@ -114,7 +112,7 @@ class TestE2EOfferFlow:
         payload = {"role": "Engineer", "level": "Mid", "experience_years": 5}
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            output = invoke_mag("offer-orchestrator-mag", payload, base_dir=Path(tmpdir))
+            invoke_mag("offer-orchestrator-mag", payload, base_dir=Path(tmpdir))
 
             # Check logs for skill invocations
             sag_dirs = list(Path(tmpdir).glob("sag-*"))
@@ -144,7 +142,7 @@ class TestE2EOfferFlow:
         payload = {"role": "Engineer", "level": "Mid"}
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            output = invoke_mag("offer-orchestrator-mag", payload, base_dir=Path(tmpdir))
+            invoke_mag("offer-orchestrator-mag", payload, base_dir=Path(tmpdir))
 
             # Check MAG artifacts
             mag_dirs = list(Path(tmpdir).glob("mag-*"))

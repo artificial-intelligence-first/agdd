@@ -1,4 +1,5 @@
 """Pydantic models for API request/response schemas."""
+
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -40,8 +41,12 @@ class RunSummary(BaseModel):
 
     run_id: str = Field(..., description="Unique run identifier")
     slug: str | None = Field(default=None, description="Agent slug")
-    summary: dict[str, Any] | None = Field(default=None, description="Summary data from summary.json")
-    metrics: dict[str, Any] | None = Field(default=None, description="Metrics data from metrics.json")
+    summary: dict[str, Any] | None = Field(
+        default=None, description="Summary data from summary.json"
+    )
+    metrics: dict[str, Any] | None = Field(
+        default=None, description="Metrics data from metrics.json"
+    )
     has_logs: bool = Field(..., description="Whether logs.jsonl exists")
 
 
@@ -51,6 +56,8 @@ class ApiError(BaseModel):
     code: Literal[
         "agent_not_found",
         "invalid_payload",
+        "invalid_run_id",
+        "invalid_signature",
         "execution_failed",
         "not_found",
         "unauthorized",
