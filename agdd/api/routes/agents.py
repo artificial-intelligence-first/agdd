@@ -9,6 +9,7 @@ import yaml
 from anyio import to_thread
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from agdd.registry import get_registry
 from agdd.runners.agent_runner import invoke_mag
 
 from ..config import Settings, get_settings
@@ -27,14 +28,21 @@ async def list_agents(
     """
     List all registered agents by scanning agents/main/ and agents/sub/ directories.
 
+    Uses Registry's base_path to resolve agent directories relative to the package,
+    ensuring the listing works regardless of CWD.
+
     Returns:
         List of agent metadata from agent.yaml files
     """
     items: list[AgentInfo] = []
 
+    # Use Registry's base_path (same as Registry uses) to ensure consistency
+    registry = get_registry()
+    base_path = registry.base_path
+
     # Scan both main and sub agent directories
     for agent_type in ["main", "sub"]:
-        agents_dir = Path(f"agents/{agent_type}")
+        agents_dir = base_path / "agents" / agent_type
         if not agents_dir.exists():
             continue
 
