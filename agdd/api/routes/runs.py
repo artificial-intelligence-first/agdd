@@ -33,12 +33,25 @@ async def get_run(
         Run summary with metadata, metrics, and log availability
 
     Raises:
-        HTTPException: 404 if run not found
+        HTTPException: 400 if run_id is invalid, 404 if run not found
     """
     base = Path(settings.RUNS_BASE_DIR)
-    summary = read_summary(base, run_id)
-    metrics = read_metrics(base, run_id)
-    logs_exist = (base / run_id / "logs.jsonl").exists()
+
+    try:
+        summary = read_summary(base, run_id)
+        metrics = read_metrics(base, run_id)
+        # Use open_logs_file to check existence safely (with validation)
+        try:
+            open_logs_file(base, run_id)
+            logs_exist = True
+        except FileNotFoundError:
+            logs_exist = False
+    except ValueError as e:
+        # run_id validation failed (directory traversal attempt)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "invalid_run_id", "message": str(e)},
+        ) from e
 
     if not (summary or metrics or logs_exist):
         raise HTTPException(
@@ -75,12 +88,18 @@ async def get_logs(
         Streaming response with logs (text/event-stream if follow=True, application/x-ndjson otherwise)
 
     Raises:
-        HTTPException: 404 if logs not found
+        HTTPException: 400 if run_id is invalid, 404 if logs not found
     """
     base = Path(settings.RUNS_BASE_DIR)
 
     try:
         log_path = open_logs_file(base, run_id)
+    except ValueError as e:
+        # run_id validation failed (directory traversal attempt)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "invalid_run_id", "message": str(e)},
+        ) from e
     except FileNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -2,8 +2,66 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
+
+
+# Valid run_id pattern: alphanumeric + hyphens, reasonable length
+# Prevents directory traversal attacks (../, absolute paths, etc.)
+_RUN_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9-]{0,127}$")
+
+
+def validate_run_id(run_id: str) -> None:
+    """
+    Validate run_id to prevent directory traversal attacks.
+
+    Args:
+        run_id: Run identifier to validate
+
+    Raises:
+        ValueError: If run_id contains invalid characters or patterns
+    """
+    if not _RUN_ID_PATTERN.match(run_id):
+        raise ValueError(
+            f"Invalid run_id: must be alphanumeric with hyphens, max 128 chars. Got: {run_id!r}"
+        )
+
+    # Additional safety: reject path separators and relative path components
+    if "/" in run_id or "\\" in run_id or ".." in run_id:
+        raise ValueError(f"Invalid run_id: contains path separators or relative components: {run_id!r}")
+
+
+def _safe_run_path(base_dir: Path, run_id: str) -> Path:
+    """
+    Safely construct run directory path and verify it's within base_dir.
+
+    Args:
+        base_dir: Base directory containing agent runs
+        run_id: Run identifier (will be validated)
+
+    Returns:
+        Path to run directory
+
+    Raises:
+        ValueError: If run_id is invalid or resolved path is outside base_dir
+    """
+    # Validate run_id format
+    validate_run_id(run_id)
+
+    # Construct path
+    run_path = (base_dir / run_id).resolve()
+    base_dir_resolved = base_dir.resolve()
+
+    # Verify the resolved path is a direct child of base_dir
+    # This prevents directory traversal even if validation is bypassed
+    if run_path.parent != base_dir_resolved:
+        raise ValueError(
+            f"Security violation: run_id resolves outside base directory. "
+            f"run_id={run_id!r}, base={base_dir_resolved}, resolved={run_path}"
+        )
+
+    return run_path
 
 
 def snapshot_runs(base_dir: Path) -> set[Path]:
@@ -83,13 +141,39 @@ def find_new_run_id(
 
 
 def read_summary(base_dir: Path, run_id: str) -> dict[str, Any] | None:
-    """Read summary.json for a given run_id."""
-    return _read_json(base_dir / run_id / "summary.json")
+    """
+    Read summary.json for a given run_id.
+
+    Args:
+        base_dir: Base directory containing agent runs
+        run_id: Run identifier (validated for security)
+
+    Returns:
+        Parsed summary.json contents or None if not found/invalid
+
+    Raises:
+        ValueError: If run_id is malformed or attempts directory traversal
+    """
+    run_path = _safe_run_path(base_dir, run_id)
+    return _read_json(run_path / "summary.json")
 
 
 def read_metrics(base_dir: Path, run_id: str) -> dict[str, Any] | None:
-    """Read metrics.json for a given run_id."""
-    return _read_json(base_dir / run_id / "metrics.json")
+    """
+    Read metrics.json for a given run_id.
+
+    Args:
+        base_dir: Base directory containing agent runs
+        run_id: Run identifier (validated for security)
+
+    Returns:
+        Parsed metrics.json contents or None if not found/invalid
+
+    Raises:
+        ValueError: If run_id is malformed or attempts directory traversal
+    """
+    run_path = _safe_run_path(base_dir, run_id)
+    return _read_json(run_path / "metrics.json")
 
 
 def open_logs_file(base_dir: Path, run_id: str) -> Path:
@@ -98,15 +182,17 @@ def open_logs_file(base_dir: Path, run_id: str) -> Path:
 
     Args:
         base_dir: Base directory containing agent runs
-        run_id: Run identifier
+        run_id: Run identifier (validated for security)
 
     Returns:
         Path to logs.jsonl file
 
     Raises:
+        ValueError: If run_id is malformed or attempts directory traversal
         FileNotFoundError: If logs.jsonl does not exist
     """
-    log_path = base_dir / run_id / "logs.jsonl"
+    run_path = _safe_run_path(base_dir, run_id)
+    log_path = run_path / "logs.jsonl"
     if not log_path.exists():
         raise FileNotFoundError(f"Logs not found: {log_path}")
     return log_path
