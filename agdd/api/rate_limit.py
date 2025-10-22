@@ -9,7 +9,7 @@ from collections import defaultdict
 from threading import Lock
 from typing import Any
 
-from fastapi import HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 
 from .config import Settings, get_settings
 
@@ -177,7 +177,7 @@ def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | 
     return _rate_limiter
 
 
-async def rate_limit_dependency(request: Request, settings: Settings = get_settings()) -> None:
+async def rate_limit_dependency(request: Request, settings: Settings = Depends(get_settings)) -> None:
     """
     FastAPI dependency for rate limiting.
 
