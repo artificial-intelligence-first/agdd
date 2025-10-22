@@ -49,7 +49,11 @@ print_warning() {
 echo "AGDD HTTP API Examples"
 echo "======================"
 echo "API URL: $API_URL$API_PREFIX"
-echo "Auth: ${API_KEY:+Enabled}${API_KEY:-Disabled}"
+if [ -n "$API_KEY" ]; then
+  echo "Auth: Enabled"
+else
+  echo "Auth: Disabled"
+fi
 echo ""
 
 # ============================================================================

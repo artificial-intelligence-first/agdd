@@ -140,8 +140,11 @@ class RedisRateLimiter:
                         "message": f"Rate limit exceeded. Maximum {self.qps} requests per second.",
                     },
                 )
+        except HTTPException:
+            # Re-raise rate limit exceeded (don't swallow it)
+            raise
         except Exception as e:
-            # If Redis fails, allow request (fail open)
+            # If Redis connection fails, allow request (fail open)
             # Log error in production
             pass
 
