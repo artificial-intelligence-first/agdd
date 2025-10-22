@@ -54,10 +54,10 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 ## Validation and Acceptance
 - [ ] `uv run -m pytest -q`
 - [ ] `uv run python tools/check_docs.py`
-- [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run python -m agdd.cli agent run offer-orchestrator-mag`
-- [ ] `uv run python -m agdd.cli flow available`
-- [ ] `uv run python -m agdd.cli flow summarize --output /tmp/summary.json`
-- [ ] `uv run python -m agdd.cli flow gate /tmp/summary.json`
+- [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
+- [ ] `uv run agdd flow available`
+- [ ] `uv run agdd flow summarize --output /tmp/summary.json`
+- [ ] `uv run agdd flow gate /tmp/summary.json`
 - [ ] `uv build` (smoke test packaging when bundled resources change)
 
 ## Idempotence and Recovery
