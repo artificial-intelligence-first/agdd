@@ -16,6 +16,9 @@ from typing import Any, Callable, Dict, Optional, cast
 
 from agdd.registry import Registry, get_registry
 
+# Milliseconds per second for duration calculations
+MS_PER_SECOND = 1000
+
 AgentCallable = Callable[..., Dict[str, Any]]
 SkillCallable = Callable[[Dict[str, Any]], Dict[str, Any]]
 
@@ -160,7 +163,7 @@ class AgentRunner:
                 runner=self,  # Allow MAG to delegate to SAG
                 obs=obs,
             )
-            duration_ms = int((time.time() - t0) * 1000)
+            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
 
             obs.metric("duration_ms", duration_ms)
             obs.log("end", {"status": "success", "duration_ms": duration_ms})
@@ -216,7 +219,7 @@ class AgentRunner:
                     # Execute
                     t0 = time.time()
                     output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
-                    duration_ms = int((time.time() - t0) * 1000)
+                    duration_ms = int((time.time() - t0) * MS_PER_SECOND)
 
                     obs.metric("duration_ms", duration_ms)
                     obs.log(
@@ -239,7 +242,7 @@ class AgentRunner:
                         {"attempt": attempt + 1, "error": str(e), "type": type(e).__name__},
                     )
                     if attempt < max_attempts - 1 and backoff_ms > 0:
-                        time.sleep(backoff_ms / 1000.0)
+                        time.sleep(backoff_ms / MS_PER_SECOND)
 
             # All attempts failed
             obs.log("error", {"error": str(last_error), "attempts": max_attempts})

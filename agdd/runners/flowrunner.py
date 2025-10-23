@@ -10,6 +10,9 @@ from typing import Mapping, Optional
 
 from .base import Runner, RunnerInfo, RunResult, ValidationResult
 
+# Default timeout for flowctl subprocess execution (5 minutes)
+FLOWRUNNER_TIMEOUT_SECONDS = 300
+
 
 class FlowRunner(Runner):
     """Adapter around the external `flowctl` CLI."""
@@ -45,11 +48,11 @@ class FlowRunner(Runner):
             )
         try:
             return subprocess.run(
-                args, capture_output=True, text=True, env=merged_env, timeout=300
+                args, capture_output=True, text=True, env=merged_env, timeout=FLOWRUNNER_TIMEOUT_SECONDS
             )
         except subprocess.TimeoutExpired as exc:
             return subprocess.CompletedProcess(
-                args=args, returncode=1, stdout="", stderr=f"Process timeout after 300s: {exc}"
+                args=args, returncode=1, stdout="", stderr=f"Process timeout after {FLOWRUNNER_TIMEOUT_SECONDS}s: {exc}"
             )
         except FileNotFoundError as exc:
             return subprocess.CompletedProcess(

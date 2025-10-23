@@ -236,8 +236,9 @@ def _summary_success(summary: dict[str, Any]) -> bool:
         if not failures:
             return True
         return False
+    # If failures is None or False, treat as success
     if failures in (None, False):
-        pass
+        return True
 
     status_fields = (
         summary.get("status"),

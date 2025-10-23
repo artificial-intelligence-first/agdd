@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -11,6 +12,8 @@ from agdd.integrations.github.webhook import (
     handle_pull_request,
     handle_pull_request_review_comment,
 )
+
+logger = logging.getLogger(__name__)
 
 from ..config import Settings, get_settings
 from ..rate_limit import rate_limit_dependency
@@ -87,8 +90,8 @@ async def webhook(
     elif x_github_event == "pull_request":
         await handle_pull_request(payload, settings)
     else:
-        # Ignore unsupported event types (no error)
-        pass
+        # Silently ignore unsupported event types
+        logger.debug(f"Ignoring unsupported GitHub event type: {x_github_event}")
 
     return {"status": "ok"}
 
