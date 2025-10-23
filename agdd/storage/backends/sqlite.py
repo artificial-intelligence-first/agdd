@@ -13,7 +13,7 @@ import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
 
@@ -386,13 +386,13 @@ class SQLiteStorageBackend(StorageBackend):
             for row in rows
         ]
 
-    def get_events(  # type: ignore[override]
+    async def get_events(
         self,
         run_id: str,
         event_type: Optional[str] = None,
         level: Optional[str] = None,
         limit: Optional[int] = None,
-    ) -> Iterator[Dict[str, Any]]:
+    ) -> AsyncIterator[Dict[str, Any]]:
         """Stream events for a run"""
         assert self._conn is not None
 

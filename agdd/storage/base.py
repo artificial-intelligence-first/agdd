@@ -184,10 +184,14 @@ class StorageBackend(ABC):
             run_id: Run identifier
             event_type: Filter by event type
             level: Filter by log level
-            limit: Maximum number of events to return
+            limit: Optional maximum number of events to return
 
-        Yields:
-            Event dicts in chronological order
+        Returns:
+            Async iterator of event dicts in chronological order
+
+        Usage:
+            async for event in storage.get_events(run_id):
+                process(event)
         """
         ...
 

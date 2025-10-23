@@ -76,7 +76,7 @@ async def test_append_and_get_events(storage):
 
     # Retrieve events
     events = []
-    for event in storage.get_events(run_id):
+    async for event in storage.get_events(run_id):
         events.append(event)
 
     assert len(events) == 2

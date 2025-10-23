@@ -173,8 +173,8 @@ async def example():
     # Get specific run
     run = await storage.get_run("mag-a1b2c3d4")
 
-    # Stream events (synchronous iterator)
-    for event in storage.get_events("mag-a1b2c3d4"):
+    # Stream events (asynchronous iterator)
+    async for event in storage.get_events("mag-a1b2c3d4"):
         print(event)
 
     # Full-text search
