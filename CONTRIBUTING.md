@@ -253,7 +253,7 @@ All PRs must pass the CI pipeline:
 - **General Questions:** Open a GitHub Discussion
 - **Bug Reports:** Open a GitHub Issue with reproduction steps
 - **Feature Requests:** Open a GitHub Issue for discussion
-- **Security Issues:** Email security@example.org (see SECURITY.md)
+- **Security Issues:** Use GitHub's private vulnerability reporting (see SECURITY.md)
 
 ### Getting Help
 
@@ -264,7 +264,7 @@ All PRs must pass the CI pipeline:
 
 ## Code of Conduct
 
-This project adheres to the Contributor Covenant Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to conduct@example.org.
+This project adheres to the Contributor Covenant Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior through GitHub Discussions or by contacting repository maintainers.
 
 See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for details.
 

@@ -6,9 +6,20 @@ If you discover a security vulnerability within the AGDD framework, please repor
 
 **DO NOT** open a public GitHub issue for security vulnerabilities.
 
-Instead, please send a detailed report to:
+Instead, please use one of the following methods:
 
-**Email:** security@example.org
+### Option 1: GitHub Private Vulnerability Reporting (Recommended)
+
+Use GitHub's private vulnerability reporting feature:
+1. Go to the [Security tab](https://github.com/artificial-intelligence-first/agdd/security/advisories/new) of this repository
+2. Click "Report a vulnerability"
+3. Fill in the details of the vulnerability
+
+### Option 2: GitHub Security Advisories
+
+If private reporting is not available, you can report through:
+- **GitHub Discussions**: Create a private security discussion thread
+- **Repository Issues**: Contact repository maintainers to request a private disclosure channel
 
 Include the following in your report:
 - Description of the vulnerability
@@ -108,8 +119,8 @@ We aim to handle all security reports within 30 days of initial disclosure.
 
 ## Contact
 
-For security-related questions or concerns, please contact:
-
-**Email:** security@example.org
+For security-related questions or concerns:
+- Use the vulnerability reporting methods described above
+- Or open a GitHub Discussion for security-related questions (non-vulnerability)
 
 For general support and non-security issues, please use GitHub Issues.
