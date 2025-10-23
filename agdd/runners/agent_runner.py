@@ -7,7 +7,9 @@ dependency resolution, and metrics collection.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -117,10 +119,26 @@ class SkillRuntime:
 class AgentRunner:
     """Runner for MAG and SAG agents"""
 
-    def __init__(self, registry: Optional[Registry] = None, base_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        registry: Optional[Registry] = None,
+        base_dir: Optional[Path] = None,
+        use_storage: Optional[bool] = None,
+    ):
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         self.skills = SkillRuntime(registry=self.registry)
+
+        # Determine if we should use new storage layer
+        # Priority: explicit parameter > env var > default (False for backward compat)
+        if use_storage is None:
+            use_storage = os.getenv("AGDD_USE_STORAGE", "false").lower() in (
+                "true",
+                "1",
+                "yes",
+            )
+        self.use_storage = use_storage
+        self._storage_backend = None
 
     def invoke_mag(self, slug: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
