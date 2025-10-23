@@ -181,16 +181,16 @@ AGDD provides templates for quickly creating new MAG and SAG agents:
 
 ```bash
 # Copy MAG template
-cp -r agents/_template/mag-template agents/main/your-orchestrator-mag
+cp -r catalog/agents/_template/mag-template catalog/agents/main/your-orchestrator-mag
 
 # Copy SAG template
-cp -r agents/_template/sag-template agents/sub/your-advisor-sag
+cp -r catalog/agents/_template/sag-template catalog/agents/sub/your-advisor-sag
 
 # Customize the templates:
 # 1. Edit agent.yaml (slug, name, description, contracts)
 # 2. Update README.md with your agent's purpose
 # 3. Modify code/orchestrator.py (MAG) or code/advisor.py (SAG)
-# 4. Create contract schemas in contracts/
+# 4. Create contract schemas in catalog/contracts/
 # 5. Add tests in tests/agents/
 ```
 
@@ -358,7 +358,7 @@ See [docs/storage.md](./docs/storage.md) for complete documentation.
 ```bash
 # Enforce quality thresholds
 uv run agdd flow gate flow_summary.json \
-  --policy policies/flow_governance.yaml
+  --policy catalog/policies/flow_governance.yaml
 ```
 
 
