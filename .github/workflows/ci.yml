@@ -26,10 +26,10 @@ jobs:
         run: uv sync --locked --extra dev
 
       - name: Documentation guard
-        run: uv run python tools/check_docs.py
+        run: uv run python ops/tools/check_docs.py
 
       - name: Verify vendor assets
-        run: uv run python tools/verify_vendor.py
+        run: uv run python ops/tools/verify_vendor.py
 
       - name: Test suite
         run: uv run -m pytest -q

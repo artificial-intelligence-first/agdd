@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def ensure_files_exist(paths: list[str]) -> list[str]:
@@ -22,12 +22,12 @@ def validate_changelog(path: Path) -> list[str]:
     errors: list[str] = []
 
     if "## [Unreleased]" not in text:
-        errors.append("CHANGELOG.md must contain an [Unreleased] section")
+        errors.append("docs/development/changelog.md must contain an [Unreleased] section")
 
     release_pattern = re.compile(r"^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$", re.MULTILINE)
     matches = list(release_pattern.finditer(text))
     if not matches:
-        errors.append("CHANGELOG.md must contain at least one dated release entry")
+        errors.append("docs/development/changelog.md must contain at least one dated release entry")
         return errors
 
     for idx, match in enumerate(matches):
@@ -47,16 +47,16 @@ if __name__ == "__main__":
     problem_reports.extend(
         ensure_files_exist(
             [
-                "AGENTS.md",
-                "SSOT.md",
-                "PLANS.md",
+                "docs/guides/agent-development.md",
+                "docs/reference/ssot.md",
+                "docs/development/roadmap.md",
                 "README.md",
-                "CHANGELOG.md",
-                "RUNNERS.md",
+                "docs/development/changelog.md",
+                "docs/guides/runner-integration.md",
             ]
         )
     )
-    problem_reports.extend(validate_changelog(ROOT / "CHANGELOG.md"))
+    problem_reports.extend(validate_changelog(ROOT / "docs" / "development" / "changelog.md"))
 
     if problem_reports:
         for issue in problem_reports:

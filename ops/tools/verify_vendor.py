@@ -23,7 +23,7 @@ class VendoredFile:
         return True, ""
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 VENDORED_FILES = (
     VendoredFile(
         path=ROOT / "src" / "agdd" / "assets" / "contracts" / "agent.schema.json",
