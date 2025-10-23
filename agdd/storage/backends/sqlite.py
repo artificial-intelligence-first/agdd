@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -497,7 +497,7 @@ class SQLiteStorageBackend(StorageBackend):
         cutoff = datetime.now(timezone.utc).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
-        cutoff = cutoff.replace(day=cutoff.day - hot_days)
+        cutoff = cutoff - timedelta(days=hot_days)
         cutoff_iso = cutoff.isoformat()
 
         # Count runs to be deleted

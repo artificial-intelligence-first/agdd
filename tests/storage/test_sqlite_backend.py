@@ -195,3 +195,25 @@ async def test_vacuum(storage):
     # Actual vacuum
     result = await storage.vacuum(hot_days=0, dry_run=False)
     assert result["dry_run"] is False
+
+
+@pytest.mark.asyncio
+async def test_vacuum_month_boundary(storage):
+    """Test vacuum with hot_days that crosses month boundary."""
+    # Create a test run
+    await storage.create_run(
+        run_id="test-run-month",
+        agent_slug="test-agent",
+        status="succeeded",
+    )
+
+    # Test with hot_days=30 (should handle month boundaries correctly)
+    result = await storage.vacuum(hot_days=30, dry_run=True)
+    assert result["dry_run"] is True
+    assert "cutoff" in result
+    # Should not raise ValueError even if current day < hot_days
+
+    # Test with hot_days=7 on early days of month
+    result = await storage.vacuum(hot_days=7, dry_run=True)
+    assert result["dry_run"] is True
+    assert "cutoff" in result
