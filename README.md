@@ -121,25 +121,35 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 
 ```
 agdd/
-├── agdd/                       # Core Python package
-│   ├── cli.py                  # CLI entry point
-│   ├── api/                    # HTTP API (FastAPI)
-│   ├── registry.py             # Agent/skill resolution
-│   ├── runners/                # Execution engines
-│   ├── governance/             # Policy enforcement
-│   └── assets/                 # Bundled resources
-├── agents/                     # Agent implementations
-│   ├── _template/              # MAG/SAG templates
-│   ├── main/                   # Main Agents (MAG)
-│   └── sub/                    # Sub-Agents (SAG)
-├── skills/                     # Reusable skill implementations
-├── registry/                   # Configuration
-│   ├── agents.yaml             # Task routing
-│   └── skills.yaml             # Skill definitions
-├── contracts/                  # JSON Schemas
-├── policies/                   # Governance policies
-├── scripts/                    # Automation scripts
-├── tools/                      # Development utilities
+├── src/                        # Source code (Python src/ layout)
+│   ├── agdd/                   # Core Python package
+│   │   ├── cli.py              # CLI entry point
+│   │   ├── api/                # HTTP API (FastAPI)
+│   │   ├── registry.py         # Agent/skill resolution
+│   │   ├── runners/            # Execution engines
+│   │   ├── governance/         # Policy enforcement
+│   │   ├── storage/            # Data persistence layer
+│   │   └── assets/             # Bundled resources
+│   └── observability/          # Observability utilities
+├── catalog/                    # User-editable assets
+│   ├── agents/                 # Agent implementations
+│   │   ├── _template/          # MAG/SAG templates
+│   │   ├── main/               # Main Agents (MAG)
+│   │   └── sub/                # Sub-Agents (SAG)
+│   ├── skills/                 # Reusable skill implementations
+│   ├── contracts/              # JSON Schema contracts
+│   ├── policies/               # Governance policies
+│   └── registry/               # Configuration (agents.yaml, skills.yaml)
+├── docs/                       # Documentation
+│   ├── guides/                 # User guides
+│   ├── reference/              # Reference docs
+│   ├── development/            # Developer docs
+│   └── policies/               # Project policies
+├── ops/                        # Operational assets
+│   ├── ci/                     # CI scripts
+│   ├── scripts/                # Automation scripts
+│   └── tools/                  # Development utilities
+├── examples/                   # Example configurations
 └── tests/                      # Test suite
 ```
 
@@ -276,7 +286,7 @@ Interactive documentation is available at:
 - ReDoc: <http://localhost:8000/redoc>
 - OpenAPI schema: <http://localhost:8000/api/v1/openapi.json>
 
-See [API.md](./API.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
+See [API.md](./docs/guides/api-usage.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
 
 ### GitHub Integration
 
@@ -293,7 +303,7 @@ GITHUB_WEBHOOK_SECRET=my-secret \
 ./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
 ```
 
-Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./GITHUB.md).
+Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./docs/guides/github-integration.md).
 
 ### Flow Runner
 
@@ -349,7 +359,7 @@ uv run agdd data vacuum --hot-days 7
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
 - **Migration tool**: Import legacy `.runs/agents/` data for analysis
 
-**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./AGENTS.md)).
+**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./docs/guides/agent-development.md)).
 
 See [docs/storage.md](./docs/storage.md) for complete documentation.
 
@@ -421,16 +431,16 @@ Hooks run automatically on `git commit` and check:
 
 ## Contributing
 
-Contributions are welcome. Please refer to [AGENTS.md](./AGENTS.md) for the complete development workflow and PR policy.
+Contributions are welcome. Please refer to [AGENTS.md](./docs/guides/agent-development.md) for the complete development workflow and PR policy.
 
 ### Requirements
 
 - Pass all automated tests and validation checks
 - Follow documentation standards
 - Update relevant documentation files
-- Record terminology changes in `SSOT.md`
+- Record terminology changes in `docs/reference/ssot.md`
 - Add tests for new features
-- Update `CHANGELOG.md`
+- Update `docs/development/changelog.md`
 
 ### Code Quality
 
