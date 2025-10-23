@@ -1,4 +1,4 @@
-$schema: ../../contracts/flow.schema.json
+$schema: ../../catalog/contracts/flow.schema.json
 version: 1
 run:
   output_dir: .runs/${RUN_ID}
