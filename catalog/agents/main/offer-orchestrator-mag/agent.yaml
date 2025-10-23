@@ -2,7 +2,7 @@ version: 0.1.0
 slug: offer-orchestrator-mag
 name: OfferOrchestratorMAG
 role: main
-entrypoint: agents/main/offer-orchestrator-mag/code/orchestrator.py:run
+entrypoint: catalog/agents/main/offer-orchestrator-mag/code/orchestrator.py:run
 depends_on:
   sub_agents:
     - agdd://sub.compensation-advisor-sag@>=0.1.0
@@ -10,8 +10,8 @@ depends_on:
     - agdd://skill.task-decomposition@>=0.1.0
     - agdd://skill.result-aggregation@>=0.1.0
 contracts:
-  input_schema: contracts/candidate_profile.schema.json
-  output_schema: contracts/offer_packet.schema.json
+  input_schema: catalog/contracts/candidate_profile.schema.json
+  output_schema: catalog/contracts/offer_packet.schema.json
 risk_class: low
 budgets:
   tokens: 200000

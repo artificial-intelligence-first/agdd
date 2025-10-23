@@ -4,7 +4,7 @@ role: "main"
 version: "0.1.0"
 description: "Main agent for orchestrating [describe your task]"
 
-entrypoint: "agents/main/your-orchestrator-mag/code/orchestrator.py:run"
+entrypoint: "catalog/agents/main/your-orchestrator-mag/code/orchestrator.py:run"
 
 depends_on:
   sub_agents:
@@ -14,8 +14,8 @@ depends_on:
     - "skill.result-aggregation"
 
 contracts:
-  input_schema: "contracts/your_input.schema.json"
-  output_schema: "contracts/your_output.schema.json"
+  input_schema: "catalog/contracts/your_input.schema.json"
+  output_schema: "catalog/contracts/your_output.schema.json"
 
 risk_class: "low"
 

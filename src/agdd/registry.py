@@ -1,8 +1,8 @@
 """
 Registry loader for agents and skills.
 
-Loads agent descriptors from agents/*/agent.yaml and skill definitions
-from registry/skills.yaml. Provides resolution of entrypoints and dependencies.
+Loads agent descriptors from catalog/agents/*/agent.yaml and skill definitions
+from catalog/registry/skills.yaml. Provides resolution of entrypoints and dependencies.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ class AgentDescriptor:
 
 @dataclass
 class SkillDescriptor:
-    """Skill metadata loaded from registry/skills.yaml"""
+    """Skill metadata loaded from catalog/registry/skills.yaml"""
 
     id: str
     version: str
@@ -50,10 +50,10 @@ class Registry:
     """Central registry for agents and skills"""
 
     def __init__(self, base_path: Optional[Path] = None):
-        # Default to package directory (parent of agdd module) rather than CWD
+        # Default to project root (2 levels up from agdd module in src/ layout)
         # so registry works regardless of where the process is run from
         if base_path is None:
-            base_path = Path(__file__).resolve().parents[1]
+            base_path = Path(__file__).resolve().parents[2]  # src/agdd/ -> src/ -> root
         self.base_path = base_path
         self._agent_cache: Dict[str, AgentDescriptor] = {}
         self._skill_cache: Dict[str, SkillDescriptor] = {}
@@ -111,10 +111,10 @@ class Registry:
         if slug in self._agent_cache:
             return self._agent_cache[slug]
 
-        # Search in agents/main/ and agents/sub/
+        # Search in catalog/agents/main/ and catalog/agents/sub/
         for role_dir in ["main", "sub"]:
             agent_yaml_path = (
-                self.base_path / "agents" / role_dir / slug / "agent.yaml"
+                self.base_path / "catalog" / "agents" / role_dir / slug / "agent.yaml"
             )
             if agent_yaml_path.exists():
                 with open(agent_yaml_path, "r", encoding="utf-8") as f:
@@ -143,7 +143,9 @@ class Registry:
                 self._agent_cache[slug] = descriptor
                 return descriptor
 
-        raise FileNotFoundError(f"Agent '{slug}' not found in agents/main/ or agents/sub/")
+        raise FileNotFoundError(
+            f"Agent '{slug}' not found in catalog/agents/main/ or catalog/agents/sub/"
+        )
 
     def load_skill(self, skill_id: str) -> SkillDescriptor:
         """
@@ -162,7 +164,7 @@ class Registry:
         if skill_id in self._skill_cache:
             return self._skill_cache[skill_id]
 
-        registry_path = self.base_path / "registry" / "skills.yaml"
+        registry_path = self.base_path / "catalog" / "registry" / "skills.yaml"
         if not registry_path.exists():
             raise FileNotFoundError(f"Skills registry not found at {registry_path}")
 
@@ -248,7 +250,7 @@ class Registry:
         Raises:
             ValueError: If task not found
         """
-        registry_path = self.base_path / "registry" / "agents.yaml"
+        registry_path = self.base_path / "catalog" / "registry" / "agents.yaml"
         if not registry_path.exists():
             raise FileNotFoundError(f"Agent registry not found at {registry_path}")
 
