@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.verify_vendor import VendoredFile
+from ops.tools.verify_vendor import VendoredFile
 
 
 def test_vendored_file_hash_matches(tmp_path: Path) -> None:
