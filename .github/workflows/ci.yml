@@ -136,3 +136,40 @@ jobs:
           cd .mag
           make validate
           make test
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: .python-version
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Security scanning with bandit
+        run: |
+          uv pip install bandit[toml]
+          uv run bandit -r agdd/ -f json -o bandit-report.json || true
+          uv run bandit -r agdd/ -ll -f screen
+        continue-on-error: true
+
+      - name: Dependency audit
+        run: |
+          uv pip install pip-audit
+          uv run pip-audit --skip-editable
+        continue-on-error: true
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: bandit-report.json
+          retention-days: 30
