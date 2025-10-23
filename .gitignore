@@ -32,8 +32,8 @@ htmlcov/
 .DS_Store
 .mcp/.env.mcp
 
-# Generated scripts (created by setup-flowrunner.sh)
-scripts/flowrunner-env.sh
+# Generated scripts (created by ops/scripts/setup-flowrunner.sh)
+ops/scripts/flowrunner-env.sh
 
 # External tools
 flow-runner/

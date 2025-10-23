@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `agdd data vacuum` - Clean up old data with retention policies
     - `agdd data archive` - Archive to external storage (future implementation)
   - Configuration management for storage settings (backend type, database path, lifecycle policies)
-  - Migration script (`scripts/migrate_to_storage.py`) to import legacy `.runs/agents/` data
+  - Migration script (`ops/scripts/migrate_to_storage.py`) to import legacy `.runs/agents/` data
   - Comprehensive documentation (`docs/storage.md`) with usage examples and best practices
   - Test suite for SQLite backend with async support
   - Support for multiple event types: log, mcp.call, metric, delegation, artifact
@@ -29,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation guardrail extension to ensure README/PLANS/SSOT/AGENTS/CHANGELOG are present
 - Runner abstraction (`agdd.runners`) with Flow Runner adapter, CLI entry points, and mirrored Flow Runner assets
 - Flow Runner observability summary tooling (`observability/summarize_runs.py`) and Typer CLI integration
-- Governance artifacts (`contracts/flow_summary.schema.json`, `policies/flow_governance.yaml`) and CLI command (`agdd flow gate`)
-- Vendor verification script (`tools/verify_vendor.py`) and runner documentation (`RUNNERS.md`)
+- Governance artifacts (`catalog/contracts/flow_summary.schema.json`, `catalog/policies/flow_governance.yaml`) and CLI command (`agdd flow gate`)
+- Vendor verification script (`ops/tools/verify_vendor.py`) and runner documentation (`docs/guides/runner-integration.md`)
 - **MAG/SAG Orchestration System v0.1**
   - Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG execution with observability
   - OfferOrchestratorMAG and CompensationAdvisorSAG reference implementations
@@ -40,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive observability: logs.jsonl, metrics.json, summary.json with SLO definitions
   - Three-layer testing strategy (unit/agent/integration) with 63 tests
 - **Development Productivity Tools**
-  - Agent templates (`agents/_template/mag-template/`, `agents/_template/sag-template/`) for rapid development
-  - Flow Runner automated setup script (`scripts/setup-flowrunner.sh`) with Makefile integration
+  - Agent templates (`catalog/agents/_template/mag-template/`, `catalog/agents/_template/sag-template/`) for rapid development
+  - Flow Runner automated setup script (`ops/scripts/setup-flowrunner.sh`) with Makefile integration
   - Development automation via `Makefile` with 15+ common tasks
 - **HTTP API (Phase 1)**
   - FastAPI-powered RESTful API (`agdd.api`) for agent execution
@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Run tracking system to identify agent runs from filesystem artifacts
   - Rate limiting (in-memory token bucket + optional Redis for distributed deployments)
   - Configurable QPS limits via `AGDD_RATE_LIMIT_QPS` environment variable
-  - API server startup script (`scripts/run-api-server.sh`)
+  - API server startup script (`ops/scripts/run-api-server.sh`)
   - Comprehensive curl examples (`examples/api/curl_examples.sh`) with error handling
   - Integration tests for API endpoints (118 total tests)
 - **GitHub Integration (Phase 2)**
@@ -62,17 +62,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic agent execution triggered by GitHub comments
   - Result posting back to GitHub as comments (success/error formatting)
   - Event handlers for `issue_comment`, `pull_request_review_comment`, `pull_request`
-  - Webhook setup script (`scripts/setup-github-webhook.sh`)
+  - Webhook setup script (`ops/scripts/setup-github-webhook.sh`)
   - GitHub Actions workflow examples (`examples/api/github_actions.yml`)
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
-  - Comprehensive documentation (`API.md`, `GITHUB.md`) and `.env.example` template
+  - Comprehensive documentation (`docs/guides/api-usage.md`, `docs/guides/github-integration.md`) and `.env.example` template
 
 ### Changed
 - **Repository Cleanup**: Removed deprecated agent directories (`offer-orchestrator`, `compensation-advisor`) in favor of standardized `-mag`/`-sag` naming convention
-- **Registry Updates**: Updated `registry/agents.yaml` to reference only current agent implementations
+- **Registry Updates**: Updated `catalog/registry/agents.yaml` to reference only current agent implementations
 - **Build Artifacts**: Cleaned up Python cache files (`__pycache__`, `*.pyc`) and build artifacts (`.egg-info`)
-- Hardened typing across registries, runners, governance gate, and observability helpers, enabling `mypy --strict` to pass for `agdd`, `tests`, and `tools`
+- Hardened typing across registries, runners, governance gate, and observability helpers, enabling `mypy --strict` to pass for `agdd`, `tests`, and `ops/tools`
 - Added type stub dependencies (`types-PyYAML`, `types-jsonschema`, `types-aiofiles`, `types-redis`) and tightened fixtures/tests to remove `Any` leakage in rate limiting and orchestration flows
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
@@ -95,9 +95,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Legacy agent directories without standardized naming conventions
 - Temporary verification report (`VERIFICATION_REPORT.md`)
 - Python cache files and build artifacts
-- Legacy skill-based agent system (`registry/agents/hello.yaml`, `agdd validate`, `agdd run <agent_id>` commands)
-- Obsolete `tools/lint_registry.py` (functionality replaced by contract validation in tests)
-- Manual Flow Runner setup script `tools/flowrunner_env.sh` (replaced by automated `scripts/setup-flowrunner.sh`)
+- Legacy skill-based agent system (`catalog/registry/agents/hello.yaml`, `agdd validate`, `agdd run <agent_id>` commands)
+- Obsolete `ops/tools/lint_registry.py` (functionality replaced by contract validation in tests)
+- Manual Flow Runner setup script `ops/tools/flowrunner_env.sh` (replaced by automated `ops/scripts/setup-flowrunner.sh`)
 
 ### Fixed
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2025-10-20
 ### Added
-- Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)
+- Initial skeleton (catalog/registry/agents.yaml, catalog/skills/_template/SKILL.md, catalog/contracts/, .mcp/servers/)
 ### Changed
 - None
 ### Fixed

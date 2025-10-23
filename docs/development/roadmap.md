@@ -38,8 +38,8 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Context and Orientation
 - Repository: `agdd` (feature lineage: `feat/bootstrap-agdd`).
-- Core directories: `agdd/`, `registry/`, `contracts/`, `observability/`, `policies/`, `tools/`.
-- Supporting documentation: `AGENTS.md`, `README.md`, `SSOT.md`, `CHANGELOG.md`.
+- Core directories: `src/agdd/`, `catalog/`, `ops/`, `docs/`.
+- Supporting documentation: `docs/guides/agent-development.md`, `README.md`, `docs/reference/ssot.md`, `docs/development/changelog.md`.
 
 ## Plan of Work
 1. **Stabilize Governance Spine** – Formalize adapter upgrade guidance and extend policy coverage.
@@ -47,14 +47,14 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 3. **Harden Documentation Loop** – Ensure ExecPlan practices feed back into contributor onboarding materials.
 
 ## Concrete Steps
-1. Draft adapter upgrade guide covering Temporal and LangGraph prototypes; store under `docs/` with cross-references from `AGENTS.md`.
-2. Flow Runner setup is now automated via `scripts/setup-flowrunner.sh` (run with `make setup-flowrunner`).
+1. Draft adapter upgrade guide covering Temporal and LangGraph prototypes; store under `docs/` with cross-references from `docs/guides/agent-development.md`.
+2. Flow Runner setup is now automated via `ops/scripts/setup-flowrunner.sh` (run with `make setup-flowrunner`).
 3. Extend policy validation scripts to lint skill manifests and enforce security posture; add pytest coverage in `tests/governance/`.
 4. Update contributor documentation to reference ExecPlan lifecycle and validation expectations.
 
 ## Validation and Acceptance
 - [ ] `uv run -m pytest -q`
-- [ ] `uv run python tools/check_docs.py`
+- [ ] `uv run python ops/tools/check_docs.py`
 - [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
 - [ ] `uv run agdd flow available`
 - [ ] `uv run agdd flow summarize --output /tmp/summary.json`
@@ -63,23 +63,23 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Idempotence and Recovery
 - Flow Runner asset sync scripts must be rerunnable; guard file operations with existence checks.
-- Governance policy updates should include rollback instructions (`git checkout -- policies/flow_governance.yaml`).
+- Governance policy updates should include rollback instructions (`git checkout -- catalog/policies/flow_governance.yaml`).
 - Maintain disposable virtual environments for packaging smoke tests to avoid contaminating the primary dev environment.
 
 ## Artifacts and Notes
-- Policy definitions: `policies/flow_governance.yaml`.
-- Governance tooling: `observability/summarize_runs.py`, CLI command `agdd flow gate`.
-- Runner scripts: `scripts/setup-flowrunner.sh` (generates `scripts/flowrunner-env.sh`).
-- Agent templates: `agents/_template/mag-template/` and `agents/_template/sag-template/`.
+- Policy definitions: `catalog/policies/flow_governance.yaml`.
+- Governance tooling: `src/observability/summarize_runs.py`, CLI command `agdd flow gate`.
+- Runner scripts: `ops/scripts/setup-flowrunner.sh` (generates `ops/scripts/flowrunner-env.sh`).
+- Agent templates: `catalog/agents/_template/mag-template/` and `catalog/agents/_template/sag-template/`.
 - Development automation: `Makefile` with common tasks.
 - Historical progress captured in this ExecPlan; future PRs must reference relevant sections.
 
 ## Interfaces and Dependencies
 - Flow Runner CLI (`agdd.cli.flow`) for workflow execution.
 - Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG orchestration.
-- Agent registry (`registry/agents.yaml`) and skill registry (`registry/skills.yaml`).
-- Agent descriptors in `agents/{main,sub}/<agent-slug>/agent.yaml`.
-- JSON Schema contracts in `contracts/` consumed by agents and skills.
+- Agent registry (`catalog/registry/agents.yaml`) and skill registry (`catalog/registry/skills.yaml`).
+- Agent descriptors in `catalog/agents/{main,sub}/<agent-slug>/agent.yaml`.
+- JSON Schema contracts in `catalog/contracts/` consumed by agents and skills.
 - CI workflows executing governance checks and packaging validation.
 
 ## MAG/SAG Roadmap
