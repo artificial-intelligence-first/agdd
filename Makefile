@@ -68,10 +68,10 @@ test-coverage:
 
 # Quality Checks
 docs-check:
-	uv run python tools/check_docs.py
+	uv run python ops/tools/check_docs.py
 
 vendor-check:
-	uv run python tools/verify_vendor.py
+	uv run python ops/tools/verify_vendor.py
 
 # Agent Execution Examples
 agent-run:
@@ -85,24 +85,24 @@ flow-run:
 		echo "Error: Flow Runner not installed. Run 'make setup-flowrunner' first."; \
 		exit 1; \
 	fi
-	@source scripts/flowrunner-env.sh && \
+	@source ops/scripts/flowrunner-env.sh && \
 		uv run agdd flow run examples/flowrunner/prompt_flow.yaml
 
 # Flow Runner Setup
 setup-flowrunner:
 	@echo "Setting up Flow Runner..."
-	@./scripts/setup-flowrunner.sh
+	@./ops/scripts/setup-flowrunner.sh
 
 clean-flowrunner:
 	@echo "Removing Flow Runner installation..."
 	@rm -rf .flow-runner
-	@rm -f scripts/flowrunner-env.sh
+	@rm -f ops/scripts/flowrunner-env.sh
 	@echo "Flow Runner removed."
 
 # HTTP API
 api-server:
 	@echo "Starting HTTP API server..."
-	@./scripts/run-api-server.sh
+	@./ops/scripts/run-api-server.sh
 
 api-test:
 	@echo "Running API integration tests..."
