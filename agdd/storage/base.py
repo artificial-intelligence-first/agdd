@@ -8,10 +8,10 @@ time-series optimization, and lifecycle management.
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Protocol
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 
 @dataclass
@@ -34,9 +34,9 @@ class StorageCapabilities:
     streaming: bool = False  # Can stream events in real-time
 
 
-class StorageBackend(Protocol):
+class StorageBackend(ABC):
     """
-    Protocol for pluggable storage backends.
+    Abstract base class for pluggable storage backends.
 
     Implementations can range from SQLite (dev) to PostgreSQL/TimescaleDB (prod)
     to ClickHouse (analytics) while maintaining a consistent interface.
@@ -170,7 +170,7 @@ class StorageBackend(Protocol):
         ...
 
     @abstractmethod
-    async def get_events(
+    def get_events(
         self,
         run_id: str,
         event_type: Optional[str] = None,

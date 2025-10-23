@@ -8,11 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 from agdd.storage.backends.sqlite import SQLiteStorageBackend
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def storage():
     """Create a temporary SQLite storage backend for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -76,7 +77,7 @@ async def test_append_and_get_events(storage):
 
     # Retrieve events
     events = []
-    async for event in storage.get_events(run_id):
+    for event in storage.get_events(run_id):
         events.append(event)
 
     assert len(events) == 2
@@ -135,6 +136,10 @@ async def test_search_text(storage):
         timestamp=datetime.now(timezone.utc),
         message="Another message about successful completion",
     )
+
+    # Skip if FTS5 not available
+    if not storage.enable_fts:
+        pytest.skip("FTS5 not available in this SQLite build")
 
     # Search for "errors"
     results = await storage.search_text("errors", limit=10)

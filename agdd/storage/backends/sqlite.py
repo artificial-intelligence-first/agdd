@@ -13,12 +13,12 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
 
 
-class SQLiteStorageBackend:
+class SQLiteStorageBackend(StorageBackend):
     """
     SQLite-based storage backend with FTS5 full-text search.
 
@@ -386,13 +386,13 @@ class SQLiteStorageBackend:
             for row in rows
         ]
 
-    async def get_events(
+    def get_events(  # type: ignore[override]
         self,
         run_id: str,
         event_type: Optional[str] = None,
         level: Optional[str] = None,
         limit: Optional[int] = None,
-    ) -> AsyncIterator[Dict[str, Any]]:
+    ) -> Iterator[Dict[str, Any]]:
         """Stream events for a run"""
         assert self._conn is not None
 
