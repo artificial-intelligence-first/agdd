@@ -57,10 +57,10 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Entry Points                              │
 │                                                                     │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐    │
-│   │     CLI      │    │   HTTP API   │    │ GitHub Webhooks  │    │
-│   │  (agdd.cli)  │    │  (agdd.api)  │    │  (integrations)  │    │
-│   └──────┬───────┘    └──────┬───────┘    └────────┬─────────┘    │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐      │
+│   │     CLI      │    │   HTTP API   │    │ GitHub Webhooks  │      │
+│   │  (agdd.cli)  │    │  (agdd.api)  │    │  (integrations)  │      │
+│   └──────┬───────┘    └───────┬──────┘    └──────────┬───────┘      │
 └──────────┼────────────────────┼──────────────────────┼──────────────┘
            │                    │                      │
            └────────────────────┼──────────────────────┘
@@ -68,40 +68,40 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Orchestration & Execution                        │
 │                                                                     │
-│   ┌─────────────────────────┐         ┌─────────────────────────┐  │
-│   │    Agent Runner         │         │    Flow Runner          │  │
-│   │  (MAG/SAG Orchestration)│◀────────│  (Optional Plugin)      │  │
-│   │   - invoke_mag()        │         │   - flowctl adapter     │  │
-│   │   - invoke_sag()        │         │   - dry-run support     │  │
-│   │   - delegation          │         │                         │  │
-│   └──────────┬──────────────┘         └─────────────────────────┘  │
+│   ┌─────────────────────────┐         ┌─────────────────────────┐   │
+│   │    Agent Runner         │         │    Flow Runner          │   │
+│   │  (MAG/SAG Orchestration)│◀────────│  (Optional Plugin)      │   │
+│   │   - invoke_mag()        │         │   - flowctl adapter     │   │
+│   │   - invoke_sag()        │         │   - dry-run support     │   │
+│   │   - delegation          │         │                         │   │
+│   └──────────┬──────────────┘         └─────────────────────────┘   │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Core Components                              │
 │                                                                     │
-│   ┌─────────────┐     ┌──────────────┐     ┌──────────────────┐   │
-│   │  Registry   │────▶│   Skills     │     │   Contracts      │   │
-│   │  - agents   │     │  - reusable  │     │  - JSON Schema   │   │
-│   │  - skills   │     │  - composable│     │  - validation    │   │
-│   │  - routing  │     │              │     │                  │   │
-│   └─────────────┘     └──────────────┘     └──────────────────┘   │
+│   ┌─────────────┐     ┌──────────────┐     ┌──────────────────┐     │
+│   │  Registry   │────▶│   Skills     │     │   Contracts      │     │
+│   │  - agents   │     │  - reusable  │     │  - JSON Schema   │     │
+│   │  - skills   │     │  - composable│     │  - validation    │     │
+│   │  - routing  │     │              │     │                  │     │
+│   └─────────────┘     └──────────────┘     └──────────────────┘     │
 └─────────────────────────────────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   Storage & Observability Layer                     │
 │                                                                     │
-│   ┌──────────────────────┐              ┌────────────────────────┐ │
-│   │   Storage Layer      │              │   Observability        │ │
-│   │  - SQLite (default)  │              │  - ObservabilityLogger │ │
-│   │  - PostgreSQL/       │              │  - Metrics & traces    │ │
-│   │    TimescaleDB       │              │  - Cost tracking       │ │
-│   │  - Event envelope    │              │  - Run summaries       │ │
-│   │  - FTS5 search       │              │                        │ │
-│   └──────────┬───────────┘              └───────────┬────────────┘ │
-└──────────────┼──────────────────────────────────────┼──────────────┘
+│   ┌──────────────────────┐              ┌────────────────────────┐  │
+│   │   Storage Layer      │              │   Observability        │  │
+│   │  - SQLite (default)  │              │  - ObservabilityLogger │  │
+│   │  - PostgreSQL/       │              │  - Metrics & traces    │  │
+│   │    TimescaleDB       │              │  - Cost tracking       │  │
+│   │  - Event envelope    │              │  - Run summaries       │  │
+│   │  - FTS5 search       │              │                        │  │
+│   └──────────┬───────────┘              └───────────┬────────────┘  │
+└──────────────┼──────────────────────────────────────┼───────────────┘
                │                                      │
                └──────────────────┬───────────────────┘
                                   ▼
