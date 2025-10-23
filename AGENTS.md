@@ -234,3 +234,28 @@ See [agents/AGENTS.md](agents/AGENTS.md) for complete development workflow, cont
 - Review third-party dependencies during updates and run
   `uv run python tools/verify_vendor.py` after refreshing vendored artifacts to
   detect tampering.
+
+## Documentation Conventions
+
+This project follows AI-first documentation standards. See the following files for specific guidance:
+
+- **SSOT.md** - Single Source of Truth for canonical definitions, policies, and terminology
+  - Defines glossary terms (Agent, Skill, Contract, Registry, etc.)
+  - Establishes project-wide policies and versioning conventions
+  - When conflicts arise in documentation, SSOT.md is authoritative
+
+- **CHANGELOG.md** - Version history following [Keep a Changelog](https://keepachangelog.com/) format
+  - Update the `[Unreleased]` section as you complete work
+  - Categorize changes: Added, Changed, Removed, Fixed, Security
+  - Focus on user-facing changes, not implementation details
+
+- **PLANS.md** - Active ExecPlan for tracking complex multi-step initiatives
+  - Review current To-do items and Progress before starting work
+  - Update Progress, Surprises & Discoveries, and Decision Log in real-time
+  - Reference this plan when making architectural decisions
+
+**Integration**: When making changes, ensure consistency across all documentation:
+1. Update canonical definitions in SSOT.md first
+2. Add user-facing changes to CHANGELOG.md under `[Unreleased]`
+3. Update PLANS.md progress and decisions for complex initiatives
+4. Follow the procedures in this AGENTS.md file for testing and PRs
