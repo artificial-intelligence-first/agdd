@@ -366,6 +366,28 @@ uv run python tools/check_docs.py
 uv run python tools/verify_vendor.py
 ```
 
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to ensure code quality:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+Hooks run automatically on `git commit` and check:
+- Ruff linting and formatting
+- Type checking (mypy)
+- YAML/JSON/TOML validation
+- Trailing whitespace
+- Private key detection
+
 ## Contributing
 
 Contributions are welcome. Please refer to [AGENTS.md](./AGENTS.md) for the complete development workflow and PR policy.
