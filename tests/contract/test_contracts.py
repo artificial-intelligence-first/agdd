@@ -5,7 +5,7 @@ from typing import Any
 
 import jsonschema
 
-base = pathlib.Path("contracts")
+base = pathlib.Path("catalog/contracts")
 
 
 def load(name: str) -> dict[str, Any]:
