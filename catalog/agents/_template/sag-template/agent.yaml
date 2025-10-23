@@ -4,15 +4,15 @@ role: "sub"
 version: "0.1.0"
 description: "Sub-agent for [describe specialized task]"
 
-entrypoint: "agents/sub/your-advisor-sag/code/advisor.py:run"
+entrypoint: "catalog/agents/sub/your-advisor-sag/code/advisor.py:run"
 
 depends_on:
   skills:
     - "skill.your-domain-skill"
 
 contracts:
-  input_schema: "contracts/your_advisor_input.schema.json"
-  output_schema: "contracts/your_advisor_output.schema.json"
+  input_schema: "catalog/contracts/your_advisor_input.schema.json"
+  output_schema: "catalog/contracts/your_advisor_output.schema.json"
 
 risk_class: "low"
 

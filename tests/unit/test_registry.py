@@ -55,7 +55,7 @@ class TestRegistry:
         """Test resolving entrypoint to callable"""
         registry = Registry()
         callable_fn = registry.resolve_entrypoint(
-            "skills/salary-band-lookup/impl/salary_band_lookup.py:run"
+            "catalog/skills/salary-band-lookup/impl/salary_band_lookup.py:run"
         )
 
         assert callable(callable_fn)
