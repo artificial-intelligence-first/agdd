@@ -5,7 +5,7 @@ import fnmatch
 import json
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 from jsonschema import validate as jsonschema_validate
@@ -26,7 +26,7 @@ _DEFAULT_POLICY_TEXT = (
 
 
 def _ratio(numerator: float | int | None, denominator: float | int | None) -> float | None:
-    if denominator in (None, 0):
+    if denominator is None or denominator == 0:
         return None
     if numerator is None:
         return None
@@ -40,8 +40,10 @@ def _match_pattern(value: str, pattern: str) -> bool:
 
 def _load_summary(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"Summary at {path} must be a JSON object")
     jsonschema_validate(instance=data, schema=_FLOW_SUMMARY_SCHEMA)
-    return data
+    return cast(dict[str, Any], data)
 
 
 def _load_policy(path: Path | None) -> dict[str, Any]:
@@ -49,7 +51,15 @@ def _load_policy(path: Path | None) -> dict[str, Any]:
         text = _DEFAULT_POLICY_TEXT
     else:
         text = Path(path).read_text(encoding="utf-8")
-    return yaml.safe_load(text) or {}
+    data = yaml.safe_load(text)
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError("Policy data must be a mapping")
+    typed_data: dict[str, Any] = {}
+    for raw_key, value in data.items():
+        typed_data[str(raw_key)] = value
+    return typed_data
 
 
 def evaluate(summary_path: Path, policy_path: Path | None = None) -> list[str]:

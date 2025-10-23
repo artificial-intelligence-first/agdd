@@ -9,7 +9,7 @@ from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogg
 class TestObservabilityLogger:
     """Test suite for ObservabilityLogger"""
 
-    def test_log_and_metric(self):
+    def test_log_and_metric(self) -> None:
         """Test logging and metrics capture"""
         with tempfile.TemporaryDirectory() as tmpdir:
             obs = ObservabilityLogger("test-run-123", base_dir=Path(tmpdir))
@@ -34,13 +34,13 @@ class TestObservabilityLogger:
 class TestSkillRuntime:
     """Test suite for SkillRuntime"""
 
-    def test_exists(self):
+    def test_exists(self) -> None:
         """Test skill existence check"""
         runtime = SkillRuntime()
         assert runtime.exists("skill.salary-band-lookup")
         assert not runtime.exists("skill.nonexistent")
 
-    def test_invoke(self):
+    def test_invoke(self) -> None:
         """Test skill invocation"""
         runtime = SkillRuntime()
         result = runtime.invoke(
@@ -57,7 +57,7 @@ class TestSkillRuntime:
 class TestAgentRunner:
     """Test suite for AgentRunner"""
 
-    def test_invoke_sag(self):
+    def test_invoke_sag(self) -> None:
         """Test SAG invocation"""
         with tempfile.TemporaryDirectory() as tmpdir:
             runner = AgentRunner(base_dir=Path(tmpdir))
@@ -84,7 +84,7 @@ class TestAgentRunner:
             assert "base_salary" in result.output["offer"]
             assert "duration_ms" in result.metrics
 
-    def test_invoke_mag(self):
+    def test_invoke_mag(self) -> None:
         """Test MAG invocation"""
         with tempfile.TemporaryDirectory() as tmpdir:
             runner = AgentRunner(base_dir=Path(tmpdir))
@@ -104,7 +104,7 @@ class TestAgentRunner:
             assert "run_id" in output["metadata"]
             assert "timestamp" in output["metadata"]
 
-    def test_sag_retry_on_failure(self):
+    def test_sag_retry_on_failure(self) -> None:
         """Test SAG retry policy"""
         # This test would require mocking to force failures
         # For now, we test that the retry config is respected
@@ -122,7 +122,7 @@ class TestAgentRunner:
             # Should succeed on first attempt
             assert result.metrics["attempts"] == 1
 
-    def test_observability_artifacts(self):
+    def test_observability_artifacts(self) -> None:
         """Test that observability artifacts are created"""
         with tempfile.TemporaryDirectory() as tmpdir:
             runner = AgentRunner(base_dir=Path(tmpdir))

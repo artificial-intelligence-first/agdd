@@ -81,8 +81,12 @@ def snapshot_runs(base_dir: Path) -> set[Path]:
 def _read_json(path: Path) -> dict[str, Any] | None:
     """Read JSON file, returning None on any error."""
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    if isinstance(data, dict):
+        return data
+    else:
         return None
 
 

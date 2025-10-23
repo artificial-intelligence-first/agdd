@@ -11,7 +11,8 @@ import importlib.util
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Mapping, Sequence
+from typing import Any, Callable, Dict, List, Optional, cast
 
 import yaml
 
@@ -57,6 +58,42 @@ class Registry:
         self._agent_cache: Dict[str, AgentDescriptor] = {}
         self._skill_cache: Dict[str, SkillDescriptor] = {}
 
+    @staticmethod
+    def _ensure_dict(value: Any) -> Dict[str, Any]:
+        if isinstance(value, Mapping):
+            return {str(key): val for key, val in value.items()}
+        return {}
+
+    @staticmethod
+    def _parse_contracts(value: Any) -> Dict[str, str]:
+        if not isinstance(value, Mapping):
+            return {}
+        result: Dict[str, str] = {}
+        for key, raw in value.items():
+            if isinstance(key, str) and isinstance(raw, str):
+                result[key] = raw
+        return result
+
+    @staticmethod
+    def _parse_depends_on(value: Any) -> Dict[str, List[str]]:
+        if not isinstance(value, Mapping):
+            return {}
+        result: Dict[str, List[str]] = {}
+        for key, raw in value.items():
+            if not isinstance(key, str):
+                continue
+            items: List[str] = []
+            if isinstance(raw, Sequence) and not isinstance(raw, (str, bytes)):
+                items = [str(item) for item in raw if isinstance(item, str)]
+            result[key] = items
+        return result
+
+    @staticmethod
+    def _parse_permissions(value: Any) -> List[str]:
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            return [str(item) for item in value if isinstance(item, str)]
+        return []
+
     def load_agent(self, slug: str) -> AgentDescriptor:
         """
         Load agent descriptor from agents/{role}/{slug}/agent.yaml
@@ -81,21 +118,27 @@ class Registry:
             )
             if agent_yaml_path.exists():
                 with open(agent_yaml_path, "r", encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
+                    raw = yaml.safe_load(f)
+
+                if raw is None:
+                    raw = {}
+                if not isinstance(raw, Mapping):
+                    raise ValueError(f"Agent descriptor at {agent_yaml_path} must be a mapping")
+                data = dict(raw)
 
                 descriptor = AgentDescriptor(
-                    slug=data.get("slug", slug),
-                    name=data.get("name", slug),
-                    role=data.get("role", role_dir),
-                    version=data.get("version", "0.0.0"),
-                    entrypoint=data.get("entrypoint", ""),
-                    depends_on=data.get("depends_on", {}),
-                    contracts=data.get("contracts", {}),
-                    risk_class=data.get("risk_class", "low"),
-                    budgets=data.get("budgets", {}),
-                    observability=data.get("observability", {}),
-                    evaluation=data.get("evaluation", {}),
-                    raw=data,
+                    slug=str(data.get("slug", slug)),
+                    name=str(data.get("name", slug)),
+                    role=str(data.get("role", role_dir)),
+                    version=str(data.get("version", "0.0.0")),
+                    entrypoint=str(data.get("entrypoint", "")),
+                    depends_on=self._parse_depends_on(data.get("depends_on", {})),
+                    contracts=self._parse_contracts(data.get("contracts", {})),
+                    risk_class=str(data.get("risk_class", "low")),
+                    budgets=self._ensure_dict(data.get("budgets", {})),
+                    observability=self._ensure_dict(data.get("observability", {})),
+                    evaluation=self._ensure_dict(data.get("evaluation", {})),
+                    raw=dict(data),
                 )
                 self._agent_cache[slug] = descriptor
                 return descriptor
@@ -124,24 +167,34 @@ class Registry:
             raise FileNotFoundError(f"Skills registry not found at {registry_path}")
 
         with open(registry_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            raw = yaml.safe_load(f)
 
-        skills = data.get("skills", [])
+        if raw is None:
+            raw = {}
+        if not isinstance(raw, Mapping):
+            raise ValueError(f"Skills registry at {registry_path} must be a mapping")
+
+        skills = raw.get("skills", [])
+        if not isinstance(skills, Sequence):
+            raise ValueError(f"'skills' must be a sequence in {registry_path}")
+
         for skill_data in skills:
+            if not isinstance(skill_data, Mapping):
+                continue
             if skill_data.get("id") == skill_id:
                 descriptor = SkillDescriptor(
-                    id=skill_data.get("id", skill_id),
-                    version=skill_data.get("version", "0.0.0"),
-                    entrypoint=skill_data.get("entrypoint", ""),
-                    permissions=skill_data.get("permissions", []),
-                    raw=skill_data,
+                    id=str(skill_data.get("id", skill_id)),
+                    version=str(skill_data.get("version", "0.0.0")),
+                    entrypoint=str(skill_data.get("entrypoint", "")),
+                    permissions=self._parse_permissions(skill_data.get("permissions", [])),
+                    raw=dict(skill_data),
                 )
                 self._skill_cache[skill_id] = descriptor
                 return descriptor
 
         raise ValueError(f"Skill '{skill_id}' not found in {registry_path}")
 
-    def resolve_entrypoint(self, entrypoint: str) -> Callable:
+    def resolve_entrypoint(self, entrypoint: str) -> Callable[..., Any]:
         """
         Resolve entrypoint string to callable function.
 
@@ -177,7 +230,10 @@ class Registry:
         if not hasattr(module, callable_name):
             raise AttributeError(f"Function '{callable_name}' not found in {module_path}")
 
-        return getattr(module, callable_name)
+        attr = getattr(module, callable_name)
+        if not callable(attr):
+            raise TypeError(f"Entrypoint '{callable_name}' in {module_path} is not callable")
+        return cast(Callable[..., Any], attr)
 
     def resolve_task(self, task_id: str) -> str:
         """
@@ -197,12 +253,22 @@ class Registry:
             raise FileNotFoundError(f"Agent registry not found at {registry_path}")
 
         with open(registry_path, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            raw = yaml.safe_load(f)
 
-        tasks = data.get("tasks", [])
+        if raw is None:
+            raw = {}
+        if not isinstance(raw, Mapping):
+            raise ValueError(f"Agent registry at {registry_path} must be a mapping")
+
+        tasks = raw.get("tasks", [])
         for task_data in tasks:
+            if not isinstance(task_data, Mapping):
+                continue
             if task_data.get("id") == task_id:
-                default_agent = task_data.get("default", "")
+                default_agent_raw = task_data.get("default", "")
+                if not isinstance(default_agent_raw, str):
+                    raise ValueError(f"Task '{task_id}' default reference must be a string")
+                default_agent = default_agent_raw
                 # Parse "agdd://main.offer-orchestrator-mag@>=0.1.0" -> "offer-orchestrator-mag"
                 if default_agent.startswith("agdd://"):
                     agent_ref = default_agent.replace("agdd://", "").split("@")[0]

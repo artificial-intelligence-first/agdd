@@ -43,7 +43,13 @@
   - Comprehensive integration tests with signature verification
   - Health check endpoint (`/api/v1/github/health`)
   - Comprehensive documentation (`API.md`, `GITHUB.md`) and `.env.example` template
+
 ### Changed
+- **Repository Cleanup**: Removed deprecated agent directories (`offer-orchestrator`, `compensation-advisor`) in favor of standardized `-mag`/`-sag` naming convention
+- **Registry Updates**: Updated `registry/agents.yaml` to reference only current agent implementations
+- **Build Artifacts**: Cleaned up Python cache files (`__pycache__`, `*.pyc`) and build artifacts (`.egg-info`)
+- Hardened typing across registries, runners, governance gate, and observability helpers, enabling `mypy --strict` to pass for `agdd`, `tests`, and `tools`
+- Added type stub dependencies (`types-PyYAML`, `types-jsonschema`, `types-aiofiles`, `types-redis`) and tightened fixtures/tests to remove `Any` leakage in rate limiting and orchestration flows
 - Updated documentation to ensure English-only, publication-ready guidance
 - Refined project metadata and removed sample runtime scaffolding
 - Unified naming to AG-Driven Development (AGDD) across all public documents
@@ -60,10 +66,15 @@
 - Flow summary aggregator treats empty failure logs as success and recognises success status variants
 - CLI usage simplified from `uv run python -m agdd.cli` to `uv run agdd` across all documentation
 - All documentation updated to reference automated scripts and Makefile instead of manual procedures
+
 ### Removed
+- Legacy agent directories without standardized naming conventions
+- Temporary verification report (`VERIFICATION_REPORT.md`)
+- Python cache files and build artifacts
 - Legacy skill-based agent system (`registry/agents/hello.yaml`, `agdd validate`, `agdd run <agent_id>` commands)
 - Obsolete `tools/lint_registry.py` (functionality replaced by contract validation in tests)
 - Manual Flow Runner setup script `tools/flowrunner_env.sh` (replaced by automated `scripts/setup-flowrunner.sh`)
+
 ### Fixed
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor
@@ -78,6 +89,7 @@
   - Example scripts avoid printing API keys during demonstrations
   - Removed unused imports and variables (ruff clean)
   - Fixed .env.example to comment out empty values (prevents Pydantic validation errors)
+
 ## [0.1.0] - 2025-10-20
 ### Added
 - Initial skeleton (registry/agents.yaml, skills/_template/SKILL.md, contracts/, .mcp/servers/)

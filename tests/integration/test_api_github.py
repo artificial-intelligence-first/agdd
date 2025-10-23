@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -26,7 +27,7 @@ def test_settings(tmp_path: Path) -> Settings:
 
 
 @pytest.fixture
-def client_with_github(test_settings: Settings) -> TestClient:
+def client_with_github(test_settings: Settings) -> Iterator[TestClient]:
     """Create test client with GitHub settings."""
 
     def override_settings() -> Settings:
