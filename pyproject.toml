@@ -45,6 +45,7 @@ agdd = "agdd.cli:app"
 include-package-data = true
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["agdd*", "observability*"]
 
 [tool.setuptools.package-data]
