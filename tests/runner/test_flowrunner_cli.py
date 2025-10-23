@@ -60,7 +60,7 @@ def test_flow_validate_example_succeeds() -> None:
 
 def test_flow_validate_with_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     # ensure schema flag propagates by pointing to existing contract file
-    schema = ROOT / "contracts" / "flow.schema.json"
+    schema = ROOT / "catalog" / "contracts" / "flow.schema.json"
     assert schema.exists()
     cp = _run_cli("flow", "validate", str(EXAMPLE), "--schema", str(schema))
     assert cp.returncode in {0, 1}
