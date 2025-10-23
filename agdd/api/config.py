@@ -37,9 +37,34 @@ class Settings(BaseSettings):
         "Cannot be True when CORS_ORIGINS includes '*'.",
     )
 
-    # Observability
+    # Observability (Legacy file-based)
     RUNS_BASE_DIR: str = Field(
-        default=".runs/agents", description="Base directory for agent run artifacts"
+        default=".runs/agents", description="Base directory for agent run artifacts (legacy)"
+    )
+
+    # Storage (New unified storage layer)
+    STORAGE_BACKEND: str = Field(
+        default="sqlite", description="Storage backend: sqlite, postgres, timescale"
+    )
+    STORAGE_DB_PATH: str = Field(
+        default=".agdd/storage.db", description="SQLite database path (sqlite backend only)"
+    )
+    STORAGE_ENABLE_FTS: bool = Field(
+        default=True, description="Enable FTS5 full-text search (sqlite backend only)"
+    )
+    STORAGE_DSN: str | None = Field(
+        default=None, description="Database connection string (postgres/timescale backends)"
+    )
+
+    # Data lifecycle
+    STORAGE_HOT_DAYS: int = Field(
+        default=7, description="Keep data in hot storage for this many days"
+    )
+    STORAGE_ARCHIVE_ENABLED: bool = Field(
+        default=False, description="Enable automatic archival to cold storage"
+    )
+    STORAGE_ARCHIVE_DESTINATION: str | None = Field(
+        default=None, description="Archive destination URI (e.g., s3://bucket/prefix)"
     )
 
     # Rate limiting

@@ -1,5 +1,22 @@
 ## [Unreleased]
 ### Added
+- **Pluggable Storage Layer (Phase 1)**
+  - Storage abstraction layer (`agdd.storage`) with capability-based backend interface
+  - Event envelope data model with strongly-typed common fields + flexible JSON payloads
+  - SQLite backend (`SQLiteStorageBackend`) with FTS5 full-text search support
+  - CLI commands for data management:
+    - `agdd data init` - Initialize storage backend
+    - `agdd data query` - Query runs and events
+    - `agdd data search` - Full-text search across events (requires FTS5)
+    - `agdd data vacuum` - Clean up old data with retention policies
+    - `agdd data archive` - Archive to external storage (future implementation)
+  - Configuration management for storage settings (backend type, database path, lifecycle policies)
+  - Migration script (`scripts/migrate_to_storage.py`) to import legacy `.runs/agents/` data
+  - Comprehensive documentation (`docs/storage.md`) with usage examples and best practices
+  - Test suite for SQLite backend with async support
+  - Support for multiple event types: log, mcp.call, metric, delegation, artifact
+  - Prepared for future backends: PostgreSQL/TimescaleDB, ClickHouse
+  - **Note**: Storage layer is for CLI/API data management; agents continue using `ObservabilityLogger`
 - Framework repository structure, documentation, and CI guardrails for AG-Driven Development (AGDD)
 - AI-first walking skeleton (Typer CLI, echo skill, agent descriptor, contract schema, and pytest coverage)
 - Documentation guardrail extension to ensure README/PLANS/SSOT/AGENTS/CHANGELOG are present

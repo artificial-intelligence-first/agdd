@@ -117,7 +117,11 @@ class SkillRuntime:
 class AgentRunner:
     """Runner for MAG and SAG agents"""
 
-    def __init__(self, registry: Optional[Registry] = None, base_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        registry: Optional[Registry] = None,
+        base_dir: Optional[Path] = None,
+    ):
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         self.skills = SkillRuntime(registry=self.registry)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import pathlib
 from typing import Optional
@@ -14,6 +15,7 @@ from observability.summarize_runs import summarize as summarize_runs
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
 agent_app = typer.Typer(help="Agent orchestration commands")
+data_app = typer.Typer(help="Data management commands")
 
 
 @flow_app.command("available")
@@ -139,8 +141,137 @@ def agent_run(
         raise typer.Exit(2)
 
 
+@data_app.command("init")
+def data_init(
+    backend: str = typer.Option("sqlite", "--backend", help="Storage backend: sqlite, postgres"),
+    db_path: str = typer.Option(".agdd/storage.db", "--db-path", help="Database path (sqlite only)"),
+    enable_fts: bool = typer.Option(True, "--fts/--no-fts", help="Enable FTS5 full-text search"),
+) -> None:
+    """Initialize storage backend"""
+    from agdd.api.config import Settings
+    from agdd.storage import create_storage_backend
+
+    settings = Settings(
+        STORAGE_BACKEND=backend,
+        STORAGE_DB_PATH=db_path,
+        STORAGE_ENABLE_FTS=enable_fts,
+    )
+
+    async def _init() -> None:
+        storage = await create_storage_backend(settings)
+        typer.echo(f"Storage initialized: {backend}")
+        typer.echo(f"  Capabilities: {storage.capabilities}")
+        await storage.close()
+
+    asyncio.run(_init())
+
+
+@data_app.command("vacuum")
+def data_vacuum(
+    hot_days: int = typer.Option(7, "--hot-days", help="Keep data newer than this many days"),
+    max_disk_mb: Optional[int] = typer.Option(
+        None, "--max-disk", help="Target maximum disk usage in MB"
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Only report what would be deleted"),
+) -> None:
+    """Clean up old data based on retention policy"""
+    from agdd.storage import get_storage_backend
+
+    async def _vacuum() -> None:
+        storage = await get_storage_backend()
+        try:
+            result = await storage.vacuum(
+                hot_days=hot_days, max_disk_mb=max_disk_mb, dry_run=dry_run
+            )
+            typer.echo(json.dumps(result, indent=2))
+        finally:
+            await storage.close()
+
+    asyncio.run(_vacuum())
+
+
+@data_app.command("archive")
+def data_archive(
+    destination: str = typer.Argument(..., help="Archive destination URI (e.g., s3://bucket/prefix)"),
+    since_days: int = typer.Option(7, "--since", help="Archive data older than this many days"),
+    format: str = typer.Option("parquet", "--format", help="Archive format: parquet, ndjson"),
+) -> None:
+    """Archive old data to external storage (S3, MinIO, etc.)"""
+    from agdd.storage import get_storage_backend
+
+    async def _archive() -> None:
+        storage = await get_storage_backend()
+        try:
+            result = await storage.archive(
+                destination=destination, since_days=since_days, format=format
+            )
+            typer.echo(json.dumps(result, indent=2))
+        finally:
+            await storage.close()
+
+    asyncio.run(_archive())
+
+
+@data_app.command("query")
+def data_query(
+    run_id: Optional[str] = typer.Option(None, "--run-id", help="Filter by run ID"),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Filter by agent slug"),
+    status: Optional[str] = typer.Option(None, "--status", help="Filter by status"),
+    limit: int = typer.Option(10, "--limit", help="Maximum number of results"),
+) -> None:
+    """Query runs and events from storage"""
+    from agdd.storage import get_storage_backend
+
+    async def _query() -> None:
+        storage = await get_storage_backend()
+        try:
+            if run_id:
+                # Get specific run
+                run = await storage.get_run(run_id)
+                if run:
+                    typer.echo(json.dumps(run, indent=2))
+                else:
+                    typer.echo(f"Run not found: {run_id}", err=True)
+                    raise typer.Exit(1)
+            else:
+                # List runs
+                runs = await storage.list_runs(agent_slug=agent, status=status, limit=limit)
+                typer.echo(json.dumps(runs, indent=2))
+        finally:
+            await storage.close()
+
+    asyncio.run(_query())
+
+
+@data_app.command("search")
+def data_search(
+    query: str = typer.Argument(..., help="Search query"),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Filter by agent slug"),
+    limit: int = typer.Option(100, "--limit", help="Maximum number of results"),
+) -> None:
+    """Full-text search across event messages (requires FTS5)"""
+    from agdd.storage import get_storage_backend
+
+    async def _search() -> None:
+        storage = await get_storage_backend()
+        try:
+            if not storage.capabilities.search_text:
+                typer.echo(
+                    "Error: Full-text search not supported by this backend", err=True
+                )
+                raise typer.Exit(1)
+
+            results = await storage.search_text(query=query, agent_slug=agent, limit=limit)
+            typer.echo(json.dumps(results, indent=2))
+        finally:
+            await storage.close()
+
+    asyncio.run(_search())
+
+
 app.add_typer(flow_app, name="flow")
 app.add_typer(agent_app, name="agent")
+app.add_typer(data_app, name="data")
 
 
 if __name__ == "__main__":

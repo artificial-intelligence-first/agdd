@@ -292,6 +292,36 @@ uv run agdd flow summarize --output flow_summary.json
 
 Summary metrics include execution stats, errors, MCP calls, per-step performance, and per-model resource usage.
 
+### Data Management (New Storage Layer)
+
+AGDD includes a pluggable storage layer for querying and analyzing agent execution data:
+
+```bash
+# Initialize storage (SQLite by default)
+uv run agdd data init
+
+# Query runs
+uv run agdd data query --agent offer-orchestrator-mag --limit 20
+uv run agdd data query --run-id mag-a1b2c3d4
+
+# Full-text search across events (requires FTS5)
+uv run agdd data search "error rate limit"
+
+# Clean up old data
+uv run agdd data vacuum --hot-days 7 --dry-run
+uv run agdd data vacuum --hot-days 7
+```
+
+**Key Features:**
+- **SQLite backend** (default): Zero-config local storage with FTS5 full-text search
+- **PostgreSQL/TimescaleDB** (future): Production-ready with automatic lifecycle management
+- **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
+- **Migration tool**: Import legacy `.runs/agents/` data for analysis
+
+**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./AGENTS.md)).
+
+See [docs/storage.md](./docs/storage.md) for complete documentation.
+
 ### Governance
 
 ```bash
@@ -305,6 +335,7 @@ uv run agdd flow gate flow_summary.json \
 
 - [AGENTS.md](./AGENTS.md) - Development playbook and workflow guide
 - [API.md](./API.md) - HTTP API reference and authentication guide
+- [docs/storage.md](./docs/storage.md) - Storage layer and data management
 - [SSOT.md](./SSOT.md) - Terminology and policies reference
 - [PLANS.md](./PLANS.md) - Roadmap and execution plans
 - [RUNNERS.md](./RUNNERS.md) - Runner capabilities and integration
