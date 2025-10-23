@@ -364,24 +364,24 @@ uv run agdd flow gate flow_summary.json \
 
 ## Documentation
 
-- [AGENTS.md](./AGENTS.md) - Development playbook and workflow guide
-- [API.md](./API.md) - HTTP API reference and authentication guide
+- [docs/guides/agent-development.md](./docs/guides/agent-development.md) - Development playbook and workflow guide
+- [docs/guides/api-usage.md](./docs/guides/api-usage.md) - HTTP API reference and authentication guide
 - [docs/storage.md](./docs/storage.md) - Storage layer and data management
-- [SSOT.md](./SSOT.md) - Terminology and policies reference
-- [PLANS.md](./PLANS.md) - Roadmap and execution plans
-- [RUNNERS.md](./RUNNERS.md) - Runner capabilities and integration
-- [GITHUB.md](./GITHUB.md) - GitHub webhook integration guide
-- [CHANGELOG.md](./CHANGELOG.md) - Version history
+- [docs/reference/ssot.md](./docs/reference/ssot.md) - Terminology and policies reference
+- [docs/development/roadmap.md](./docs/development/roadmap.md) - Roadmap and execution plans
+- [docs/guides/runner-integration.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
+- [docs/guides/github-integration.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
+- [docs/development/changelog.md](./docs/development/changelog.md) - Version history
 
 ## Development
 
 ### Workflow
 
-1. Review `SSOT.md` for terminology and policies
-2. Update `PLANS.md` before making changes
-3. Implement changes following `AGENTS.md` guidelines
+1. Review `docs/reference/ssot.md` for terminology and policies
+2. Update `docs/development/roadmap.md` before making changes
+3. Implement changes following `docs/guides/agent-development.md` guidelines
 4. Run validation checks
-5. Update `CHANGELOG.md`
+5. Update `docs/development/changelog.md`
 6. Submit pull request
 
 ### Validation
@@ -391,10 +391,10 @@ uv run agdd flow gate flow_summary.json \
 uv run -m pytest -q
 
 # Check documentation
-uv run python tools/check_docs.py
+uv run python ops/tools/check_docs.py
 
 # Verify vendor assets
-uv run python tools/verify_vendor.py
+uv run python ops/tools/verify_vendor.py
 ```
 
 ### Pre-commit Hooks
