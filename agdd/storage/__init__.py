@@ -21,7 +21,6 @@ from agdd.storage.models import (
     MetricEvent,
     Run,
 )
-from agdd.storage.observability import StorageObservabilityLogger
 
 __all__ = [
     "StorageBackend",
@@ -33,7 +32,6 @@ __all__ = [
     "DelegationEvent",
     "MetricEvent",
     "ArtifactEvent",
-    "StorageObservabilityLogger",
     "create_storage_backend",
     "get_storage_backend",
     "close_storage_backend",

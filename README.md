@@ -294,7 +294,7 @@ Summary metrics include execution stats, errors, MCP calls, per-step performance
 
 ### Data Management (New Storage Layer)
 
-AGDD now includes a pluggable storage layer for scalable data management:
+AGDD includes a pluggable storage layer for querying and analyzing agent execution data:
 
 ```bash
 # Initialize storage (SQLite by default)
@@ -304,7 +304,7 @@ uv run agdd data init
 uv run agdd data query --agent offer-orchestrator-mag --limit 20
 uv run agdd data query --run-id mag-a1b2c3d4
 
-# Full-text search across events
+# Full-text search across events (requires FTS5)
 uv run agdd data search "error rate limit"
 
 # Clean up old data
@@ -316,7 +316,9 @@ uv run agdd data vacuum --hot-days 7
 - **SQLite backend** (default): Zero-config local storage with FTS5 full-text search
 - **PostgreSQL/TimescaleDB** (future): Production-ready with automatic lifecycle management
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
-- **Migration tool**: Import legacy `.runs/agents/` data to new storage
+- **Migration tool**: Import legacy `.runs/agents/` data for analysis
+
+**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./AGENTS.md)).
 
 See [docs/storage.md](./docs/storage.md) for complete documentation.
 
