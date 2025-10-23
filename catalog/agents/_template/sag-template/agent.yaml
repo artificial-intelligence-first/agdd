@@ -1,0 +1,35 @@
+slug: "your-advisor-sag"
+name: "YourAdvisorSAG"
+role: "sub"
+version: "0.1.0"
+description: "Sub-agent for [describe specialized task]"
+
+entrypoint: "catalog/agents/sub/your-advisor-sag/code/advisor.py:run"
+
+depends_on:
+  skills:
+    - "skill.your-domain-skill"
+
+contracts:
+  input_schema: "catalog/contracts/your_advisor_input.schema.json"
+  output_schema: "catalog/contracts/your_advisor_output.schema.json"
+
+risk_class: "low"
+
+budgets:
+  max_tokens: 50000
+  max_cost_usd: 0.50
+  timeout_seconds: 10
+
+observability:
+  log_level: "info"
+  metrics:
+    - "latency_ms"
+    - "tokens"
+
+evaluation:
+  success_criteria:
+    - "output conforms to schema"
+  performance_targets:
+    p95_latency_ms: 2000
+    success_rate: 0.98

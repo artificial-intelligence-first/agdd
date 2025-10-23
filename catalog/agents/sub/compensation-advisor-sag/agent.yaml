@@ -1,0 +1,18 @@
+version: 0.1.0
+slug: compensation-advisor-sag
+name: CompensationAdvisorSAG
+role: sub
+entrypoint: catalog/agents/sub/compensation-advisor-sag/code/advisor.py:run
+depends_on:
+  skills:
+    - agdd://skill.salary-band-lookup@>=0.1.0
+contracts:
+  input_schema: catalog/contracts/comp_advisor_input.schema.json
+  output_schema: catalog/contracts/comp_advisor_output.schema.json
+evaluation:
+  retry_policy:
+    max_attempts: 2
+    backoff_ms: 500
+observability:
+  logs: true
+  metrics: true

@@ -121,25 +121,35 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 
 ```
 agdd/
-├── agdd/                       # Core Python package
-│   ├── cli.py                  # CLI entry point
-│   ├── api/                    # HTTP API (FastAPI)
-│   ├── registry.py             # Agent/skill resolution
-│   ├── runners/                # Execution engines
-│   ├── governance/             # Policy enforcement
-│   └── assets/                 # Bundled resources
-├── agents/                     # Agent implementations
-│   ├── _template/              # MAG/SAG templates
-│   ├── main/                   # Main Agents (MAG)
-│   └── sub/                    # Sub-Agents (SAG)
-├── skills/                     # Reusable skill implementations
-├── registry/                   # Configuration
-│   ├── agents.yaml             # Task routing
-│   └── skills.yaml             # Skill definitions
-├── contracts/                  # JSON Schemas
-├── policies/                   # Governance policies
-├── scripts/                    # Automation scripts
-├── tools/                      # Development utilities
+├── src/                        # Source code (Python src/ layout)
+│   ├── agdd/                   # Core Python package
+│   │   ├── cli.py              # CLI entry point
+│   │   ├── api/                # HTTP API (FastAPI)
+│   │   ├── registry.py         # Agent/skill resolution
+│   │   ├── runners/            # Execution engines
+│   │   ├── governance/         # Policy enforcement
+│   │   ├── storage/            # Data persistence layer
+│   │   └── assets/             # Bundled resources
+│   └── observability/          # Observability utilities
+├── catalog/                    # User-editable assets
+│   ├── agents/                 # Agent implementations
+│   │   ├── _template/          # MAG/SAG templates
+│   │   ├── main/               # Main Agents (MAG)
+│   │   └── sub/                # Sub-Agents (SAG)
+│   ├── skills/                 # Reusable skill implementations
+│   ├── contracts/              # JSON Schema contracts
+│   ├── policies/               # Governance policies
+│   └── registry/               # Configuration (agents.yaml, skills.yaml)
+├── docs/                       # Documentation
+│   ├── guides/                 # User guides
+│   ├── reference/              # Reference docs
+│   ├── development/            # Developer docs
+│   └── policies/               # Project policies
+├── ops/                        # Operational assets
+│   ├── ci/                     # CI scripts
+│   ├── scripts/                # Automation scripts
+│   └── tools/                  # Development utilities
+├── examples/                   # Example configurations
 └── tests/                      # Test suite
 ```
 
@@ -276,7 +286,7 @@ Interactive documentation is available at:
 - ReDoc: <http://localhost:8000/redoc>
 - OpenAPI schema: <http://localhost:8000/api/v1/openapi.json>
 
-See [API.md](./API.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
+See [API.md](./docs/guides/api-usage.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
 
 ### GitHub Integration
 
@@ -293,7 +303,7 @@ GITHUB_WEBHOOK_SECRET=my-secret \
 ./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
 ```
 
-Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./GITHUB.md).
+Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./docs/guides/github-integration.md).
 
 ### Flow Runner
 
@@ -349,7 +359,7 @@ uv run agdd data vacuum --hot-days 7
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
 - **Migration tool**: Import legacy `.runs/agents/` data for analysis
 
-**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./AGENTS.md)).
+**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./docs/guides/agent-development.md)).
 
 See [docs/storage.md](./docs/storage.md) for complete documentation.
 
@@ -364,24 +374,24 @@ uv run agdd flow gate flow_summary.json \
 
 ## Documentation
 
-- [AGENTS.md](./AGENTS.md) - Development playbook and workflow guide
-- [API.md](./API.md) - HTTP API reference and authentication guide
+- [docs/guides/agent-development.md](./docs/guides/agent-development.md) - Development playbook and workflow guide
+- [docs/guides/api-usage.md](./docs/guides/api-usage.md) - HTTP API reference and authentication guide
 - [docs/storage.md](./docs/storage.md) - Storage layer and data management
-- [SSOT.md](./SSOT.md) - Terminology and policies reference
-- [PLANS.md](./PLANS.md) - Roadmap and execution plans
-- [RUNNERS.md](./RUNNERS.md) - Runner capabilities and integration
-- [GITHUB.md](./GITHUB.md) - GitHub webhook integration guide
-- [CHANGELOG.md](./CHANGELOG.md) - Version history
+- [docs/reference/ssot.md](./docs/reference/ssot.md) - Terminology and policies reference
+- [docs/development/roadmap.md](./docs/development/roadmap.md) - Roadmap and execution plans
+- [docs/guides/runner-integration.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
+- [docs/guides/github-integration.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
+- [docs/development/changelog.md](./docs/development/changelog.md) - Version history
 
 ## Development
 
 ### Workflow
 
-1. Review `SSOT.md` for terminology and policies
-2. Update `PLANS.md` before making changes
-3. Implement changes following `AGENTS.md` guidelines
+1. Review `docs/reference/ssot.md` for terminology and policies
+2. Update `docs/development/roadmap.md` before making changes
+3. Implement changes following `docs/guides/agent-development.md` guidelines
 4. Run validation checks
-5. Update `CHANGELOG.md`
+5. Update `docs/development/changelog.md`
 6. Submit pull request
 
 ### Validation
@@ -391,10 +401,10 @@ uv run agdd flow gate flow_summary.json \
 uv run -m pytest -q
 
 # Check documentation
-uv run python tools/check_docs.py
+uv run python ops/tools/check_docs.py
 
 # Verify vendor assets
-uv run python tools/verify_vendor.py
+uv run python ops/tools/verify_vendor.py
 ```
 
 ### Pre-commit Hooks
@@ -421,16 +431,16 @@ Hooks run automatically on `git commit` and check:
 
 ## Contributing
 
-Contributions are welcome. Please refer to [AGENTS.md](./AGENTS.md) for the complete development workflow and PR policy.
+Contributions are welcome. Please refer to [AGENTS.md](./docs/guides/agent-development.md) for the complete development workflow and PR policy.
 
 ### Requirements
 
 - Pass all automated tests and validation checks
 - Follow documentation standards
 - Update relevant documentation files
-- Record terminology changes in `SSOT.md`
+- Record terminology changes in `docs/reference/ssot.md`
 - Add tests for new features
-- Update `CHANGELOG.md`
+- Update `docs/development/changelog.md`
 
 ### Code Quality
 

@@ -26,10 +26,10 @@ jobs:
         run: uv sync --locked --extra dev
 
       - name: Documentation guard
-        run: uv run python tools/check_docs.py
+        run: uv run python ops/tools/check_docs.py
 
       - name: Verify vendor assets
-        run: uv run python tools/verify_vendor.py
+        run: uv run python ops/tools/verify_vendor.py
 
       - name: Test suite
         run: uv run -m pytest -q
@@ -40,9 +40,8 @@ jobs:
       - name: Verify wheel assets
         run: |
           uv venv .venv_build
-          . .venv_build/bin/activate
-          pip install dist/*.whl
-          python - <<'PY'
+          uv pip install --python .venv_build/bin/python dist/*.whl
+          .venv_build/bin/python - <<'PY'
           from importlib.resources import files
           assert (files('agdd.assets.contracts') / 'agent.schema.json').is_file(), 'missing agent schema'
           assert (files('agdd.assets.policies') / 'flow_governance.yaml').is_file(), 'missing governance policy'
@@ -94,7 +93,7 @@ jobs:
 
       - name: Governance gate
         continue-on-error: true  # Allow failure until Flow Runner sample is fixed
-        run: uv run python -m agdd.cli flow gate flow_summary.json --policy agdd/assets/policies/flow_governance.yaml
+        run: uv run python -m agdd.cli flow gate flow_summary.json --policy src/agdd/assets/policies/flow_governance.yaml
 
       - name: Upload flow summary
         uses: actions/upload-artifact@v4
@@ -156,8 +155,8 @@ jobs:
       - name: Security scanning with bandit
         run: |
           uv pip install bandit[toml]
-          uv run bandit -r agdd/ -f json -o bandit-report.json || true
-          uv run bandit -r agdd/ -ll -f screen
+          uv run bandit -r src/agdd/ -f json -o bandit-report.json || true
+          uv run bandit -r src/agdd/ -ll -f screen
         continue-on-error: true
 
       - name: Dependency audit
