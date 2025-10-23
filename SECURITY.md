@@ -69,11 +69,20 @@ When deploying the AGDD framework, please be aware of the following security con
 
 ### Rate Limiting
 
-- **Recommended:** Enable rate limiting to prevent abuse
-- Configure via `AGDD_RATE_LIMIT_QPS` environment variable
-- For distributed deployments, use Redis-backed rate limiting
+- **Production Recommended:** Enable rate limiting to prevent abuse
+- **Default:** Rate limiting is **disabled** (`AGDD_RATE_LIMIT_QPS=None`)
+- **To Enable:** Set `AGDD_RATE_LIMIT_QPS` environment variable (e.g., `10` for 10 queries per second)
+- For distributed deployments, use Redis-backed rate limiting via `AGDD_REDIS_URL`
 - Monitor rate limit violations and adjust as needed
-- Default: 10 queries per second per API key
+
+**Example:**
+```bash
+# Enable rate limiting at 10 QPS
+export AGDD_RATE_LIMIT_QPS=10
+
+# For distributed deployments
+export AGDD_REDIS_URL=redis://localhost:6379
+```
 
 ### Data Security
 
@@ -102,8 +111,10 @@ When deploying the AGDD framework, please be aware of the following security con
 ## Known Security Limitations
 
 - The framework stores execution artifacts on the filesystem without encryption by default
-- Token bucket rate limiting is in-memory by default (use Redis for distributed deployments)
-- No built-in user authentication/authorization (relies on API key authentication)
+- Rate limiting is **disabled by default** and must be explicitly enabled via `AGDD_RATE_LIMIT_QPS`
+  - When enabled, token bucket rate limiting is in-memory by default
+  - Use Redis (`AGDD_REDIS_URL`) for distributed deployments
+- No built-in user authentication/authorization (relies on optional API key authentication)
 
 ## Disclosure Policy
 
