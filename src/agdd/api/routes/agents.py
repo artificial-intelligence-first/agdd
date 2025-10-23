@@ -46,7 +46,7 @@ async def list_agents(
 
     # Scan both main and sub agent directories
     for agent_type in ["main", "sub"]:
-        agents_dir = base_path / "agents" / agent_type
+        agents_dir = base_path / "catalog" / "agents" / agent_type
         if not agents_dir.exists():
             continue
 
