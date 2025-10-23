@@ -374,14 +374,14 @@ uv run agdd flow gate flow_summary.json \
 
 ## Documentation
 
-- [AGENTS.md](./docs/guides/agent-development.md) - Development playbook and workflow guide
-- [API.md](./docs/guides/api-usage.md) - HTTP API reference and authentication guide
+- [docs/guides/agent-development.md](./docs/guides/agent-development.md) - Development playbook and workflow guide
+- [docs/guides/api-usage.md](./docs/guides/api-usage.md) - HTTP API reference and authentication guide
 - [docs/storage.md](./docs/storage.md) - Storage layer and data management
-- [SSOT.md](./docs/reference/ssot.md) - Terminology and policies reference
-- [PLANS.md](./docs/development/roadmap.md) - Roadmap and execution plans
-- [RUNNERS.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
-- [GITHUB.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
-- [CHANGELOG.md](./docs/development/changelog.md) - Version history
+- [docs/reference/ssot.md](./docs/reference/ssot.md) - Terminology and policies reference
+- [docs/development/roadmap.md](./docs/development/roadmap.md) - Roadmap and execution plans
+- [docs/guides/runner-integration.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
+- [docs/guides/github-integration.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
+- [docs/development/changelog.md](./docs/development/changelog.md) - Version history
 
 ## Development
 
@@ -401,10 +401,10 @@ uv run agdd flow gate flow_summary.json \
 uv run -m pytest -q
 
 # Check documentation
-uv run python tools/check_docs.py
+uv run python ops/tools/check_docs.py
 
 # Verify vendor assets
-uv run python tools/verify_vendor.py
+uv run python ops/tools/verify_vendor.py
 ```
 
 ### Pre-commit Hooks
