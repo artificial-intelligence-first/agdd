@@ -109,7 +109,7 @@ def format_error_comment(slug: str, error: Exception) -> str:
     comment += f"**Error**: `{error_type}`\n\n"
     comment += f"```\n{error_msg}\n```\n\n"
     comment += "**Troubleshooting**:\n"
-    comment += "- Verify the agent slug exists in `registry/agents.yaml`\n"
+    comment += "- Verify the agent slug exists in `catalog/registry/agents.yaml`\n"
     comment += "- Check that the JSON payload matches the agent's input schema\n"
     comment += "- Review agent implementation for runtime errors\n"
 

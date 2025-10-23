@@ -30,7 +30,7 @@ async def list_agents(
     settings: Settings = Depends(get_settings),
 ) -> list[AgentInfo]:
     """
-    List all registered agents by scanning agents/main/ and agents/sub/ directories.
+    List all registered agents by scanning catalog/agents/main/ and catalog/agents/sub/.
 
     Uses Registry's base_path to resolve agent directories relative to the package,
     ensuring the listing works regardless of CWD.
@@ -46,7 +46,7 @@ async def list_agents(
 
     # Scan both main and sub agent directories
     for agent_type in ["main", "sub"]:
-        agents_dir = base_path / "agents" / agent_type
+        agents_dir = base_path / "catalog" / "agents" / agent_type
         if not agents_dir.exists():
             continue
 

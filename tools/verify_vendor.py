@@ -39,7 +39,7 @@ VENDORED_FILES = (
     ),
     VendoredFile(
         path=ROOT / "examples" / "flowrunner" / "prompt_flow.yaml",
-        digest="bae697ff9ebf582af28579eb0443c8b1c80b4cbe6590d735d8cf5f1ca7be3f7b",
+        digest="986c0a672f2d8e259a3857b1b876ae71fd92ea00a6f21e592f8edeea21898fe5",
     ),
 )
 

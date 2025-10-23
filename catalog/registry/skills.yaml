@@ -1,0 +1,23 @@
+skills:
+  - id: "skill.doc-gen"
+    version: "0.1.0"
+    location: "catalog/skills/doc-gen"
+    entrypoint: "catalog/skills/doc-gen/impl/doc_gen.py:run"
+    permissions:
+      - "mcp:pg-readonly"
+  - id: "skill.salary-band-lookup"
+    version: "0.1.0"
+    location: "catalog/skills/salary-band-lookup"
+    entrypoint: "catalog/skills/salary-band-lookup/impl/salary_band_lookup.py:run"
+    permissions:
+      - "mcp:pg-readonly"
+  - id: "skill.task-decomposition"
+    version: "0.1.0"
+    location: "catalog/skills/task-decomposition"
+    entrypoint: "catalog/skills/task-decomposition/impl/task_decomposition.py:run"
+    permissions: []
+  - id: "skill.result-aggregation"
+    version: "0.1.0"
+    location: "catalog/skills/result-aggregation"
+    entrypoint: "catalog/skills/result-aggregation/impl/result_aggregation.py:run"
+    permissions: []
