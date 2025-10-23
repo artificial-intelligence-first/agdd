@@ -34,7 +34,7 @@ class InMemoryRateLimiter:
             qps: Queries per second allowed
         """
         self.qps = qps
-        self.buckets: dict[str, dict[str, Any]] = defaultdict(
+        self.buckets: dict[str, dict[str, float]] = defaultdict(
             lambda: {"tokens": float(qps), "last_update": time.time()}
         )
         self.lock = Lock()
@@ -88,10 +88,10 @@ class RedisRateLimiter:
         """
         self.qps = qps
         self.redis_url = redis_url
-        self._redis = None
+        self._redis: Any = None
 
     @property
-    def redis(self):
+    def redis(self) -> Any:
         """Lazy-load Redis client."""
         if self._redis is None:
             try:

@@ -6,7 +6,7 @@ from agdd.runners.agent_runner import AgentRunner
 class TestOfferOrchestratorMAG:
     """Test suite for OfferOrchestratorMAG"""
 
-    def test_basic_orchestration(self):
+    def test_basic_orchestration(self) -> None:
         """Test basic offer packet generation"""
         runner = AgentRunner()
 
@@ -23,7 +23,7 @@ class TestOfferOrchestratorMAG:
         assert "metadata" in output
         assert output["metadata"]["generated_by"] == "OfferOrchestratorMAG"
 
-    def test_metadata_presence(self):
+    def test_metadata_presence(self) -> None:
         """Test that metadata is properly populated"""
         runner = AgentRunner()
 
@@ -44,7 +44,7 @@ class TestOfferOrchestratorMAG:
         assert metadata["task_count"] >= 1
         assert metadata["successful_tasks"] >= 1
 
-    def test_sag_delegation(self):
+    def test_sag_delegation(self) -> None:
         """Test that MAG successfully delegates to SAG"""
         runner = AgentRunner()
 
@@ -66,7 +66,7 @@ class TestOfferOrchestratorMAG:
         assert offer["role"] == "Senior Engineer"
         assert offer["base_salary"]["amount"] > 0
 
-    def test_output_schema_compliance(self):
+    def test_output_schema_compliance(self) -> None:
         """Test that output conforms to offer_packet schema"""
         runner = AgentRunner()
 
@@ -84,7 +84,7 @@ class TestOfferOrchestratorMAG:
         assert "base_salary" in offer
         assert "band" in offer
 
-    def test_complex_candidate_profile(self):
+    def test_complex_candidate_profile(self) -> None:
         """Test with fully populated candidate profile"""
         runner = AgentRunner()
 
@@ -105,7 +105,7 @@ class TestOfferOrchestratorMAG:
         assert offer["base_salary"]["amount"] >= 200000
         assert offer["sign_on_bonus"]["amount"] >= 50000
 
-    def test_minimal_candidate_profile(self):
+    def test_minimal_candidate_profile(self) -> None:
         """Test with minimal required fields"""
         runner = AgentRunner()
 

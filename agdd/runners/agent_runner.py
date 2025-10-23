@@ -12,9 +12,12 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional, cast
 
-from agdd.registry import get_registry
+from agdd.registry import Registry, get_registry
+
+AgentCallable = Callable[..., Dict[str, Any]]
+SkillCallable = Callable[[Dict[str, Any]], Dict[str, Any]]
 
 
 @dataclass
@@ -47,10 +50,10 @@ class ObservabilityLogger:
         self.base_dir = base_dir or Path.cwd() / ".runs" / "agents"
         self.run_dir = self.base_dir / run_id
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.logs = []
-        self.metrics = {}
+        self.logs: list[dict[str, Any]] = []
+        self.metrics: dict[str, list[dict[str, Any]]] = {}
 
-    def log(self, event: str, data: Dict[str, Any]):
+    def log(self, event: str, data: Dict[str, Any]) -> None:
         """Log an event"""
         entry = {
             "run_id": self.run_id,
@@ -64,7 +67,7 @@ class ObservabilityLogger:
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def metric(self, key: str, value: Any):
+    def metric(self, key: str, value: Any) -> None:
         """Record a metric"""
         if key not in self.metrics:
             self.metrics[key] = []
@@ -74,7 +77,7 @@ class ObservabilityLogger:
         with open(metrics_file, "w", encoding="utf-8") as f:
             json.dump(self.metrics, f, ensure_ascii=False, indent=2)
 
-    def finalize(self):
+    def finalize(self) -> None:
         """Write final summary"""
         summary_file = self.run_dir / "summary.json"
         summary = {
@@ -93,7 +96,7 @@ class ObservabilityLogger:
 class SkillRuntime:
     """Skill execution runtime - delegates to skill implementations"""
 
-    def __init__(self, registry=None):
+    def __init__(self, registry: Optional[Registry] = None):
         self.registry = registry or get_registry()
 
     def exists(self, skill_id: str) -> bool:
@@ -107,15 +110,15 @@ class SkillRuntime:
     def invoke(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a skill and return result"""
         skill_desc = self.registry.load_skill(skill_id)
-        callable_fn = self.registry.resolve_entrypoint(skill_desc.entrypoint)
+        callable_fn = cast(SkillCallable, self.registry.resolve_entrypoint(skill_desc.entrypoint))
         return callable_fn(payload)
 
 
 class AgentRunner:
     """Runner for MAG and SAG agents"""
 
-    def __init__(self, registry=None, base_dir: Optional[Path] = None):
-        self.registry = registry or get_registry()
+    def __init__(self, registry: Optional[Registry] = None, base_dir: Optional[Path] = None):
+        self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         self.skills = SkillRuntime(registry=self.registry)
 
@@ -142,11 +145,11 @@ class AgentRunner:
             obs.log("start", {"agent": agent.name, "slug": slug})
 
             # Resolve entrypoint
-            run_fn = self.registry.resolve_entrypoint(agent.entrypoint)
+            run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(agent.entrypoint))
 
             # Execute with dependencies injected
             t0 = time.time()
-            output = run_fn(
+            output: Dict[str, Any] = run_fn(
                 payload,
                 registry=self.registry,
                 skills=self.skills,
@@ -204,11 +207,11 @@ class AgentRunner:
             for attempt in range(max_attempts):
                 try:
                     # Resolve entrypoint
-                    run_fn = self.registry.resolve_entrypoint(agent.entrypoint)
+                    run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(agent.entrypoint))
 
                     # Execute
                     t0 = time.time()
-                    output = run_fn(delegation.input, skills=self.skills, obs=obs)
+                    output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
                     duration_ms = int((time.time() - t0) * 1000)
 
                     obs.metric("duration_ms", duration_ms)

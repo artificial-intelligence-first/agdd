@@ -9,7 +9,7 @@ from agdd.runners.agent_runner import invoke_mag
 class TestE2EOfferFlow:
     """End-to-end test suite for complete offer generation workflow"""
 
-    def test_full_offer_generation_pipeline(self):
+    def test_full_offer_generation_pipeline(self) -> None:
         """Test complete pipeline from candidate profile to offer packet"""
         payload = {
             "role": "Senior Software Engineer",
@@ -54,7 +54,7 @@ class TestE2EOfferFlow:
             sag_dirs = list(Path(tmpdir).glob("sag-*"))
             assert len(sag_dirs) > 0
 
-    def test_multiple_candidates_different_levels(self):
+    def test_multiple_candidates_different_levels(self) -> None:
         """Test processing multiple candidates with varying seniority"""
         candidates = [
             {"role": "Junior Engineer", "level": "Junior", "experience_years": 1},
@@ -78,7 +78,7 @@ class TestE2EOfferFlow:
         # Each level should generally have higher salary than previous
         assert salaries[0] < salaries[1] < salaries[2] < salaries[3]
 
-    def test_location_variations(self):
+    def test_location_variations(self) -> None:
         """Test different geographic locations"""
         locations = ["San Francisco, CA", "New York, NY", "Austin, TX", "Remote - US"]
 
@@ -107,7 +107,7 @@ class TestE2EOfferFlow:
         )
         assert sf_salary > remote_salary
 
-    def test_skills_integration(self):
+    def test_skills_integration(self) -> None:
         """Test that skills are properly invoked during orchestration"""
         payload = {"role": "Engineer", "level": "Mid", "experience_years": 5}
 
@@ -125,7 +125,7 @@ class TestE2EOfferFlow:
             # Should see skill_invoked event
             assert "skill_invoked" in log_events or "start" in log_events
 
-    def test_error_resilience(self):
+    def test_error_resilience(self) -> None:
         """Test that system handles edge cases gracefully"""
         # Empty experience
         payload1 = {"role": "Engineer", "experience_years": 0}
@@ -137,7 +137,7 @@ class TestE2EOfferFlow:
         output2 = invoke_mag("offer-orchestrator-mag", payload2)
         assert output2["metadata"]["successful_tasks"] >= 1
 
-    def test_observability_completeness(self):
+    def test_observability_completeness(self) -> None:
         """Test that all observability artifacts are created and well-formed"""
         payload = {"role": "Engineer", "level": "Mid"}
 

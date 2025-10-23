@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -28,7 +29,7 @@ def test_runs_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def client_with_runs_dir(test_runs_dir: Path) -> TestClient:
+def client_with_runs_dir(test_runs_dir: Path) -> Iterator[TestClient]:
     """Create test client with custom runs directory."""
     def override_settings() -> Settings:
         s = Settings()

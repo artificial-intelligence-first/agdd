@@ -6,7 +6,7 @@ from agdd.runners.agent_runner import AgentRunner, Delegation
 class TestCompensationAdvisorSAG:
     """Test suite for CompensationAdvisorSAG"""
 
-    def test_basic_compensation_generation(self):
+    def test_basic_compensation_generation(self) -> None:
         """Test basic compensation offer generation"""
         runner = AgentRunner()
 
@@ -37,7 +37,7 @@ class TestCompensationAdvisorSAG:
         assert "band" in offer
         assert offer["band"]["min"] < offer["band"]["max"]
 
-    def test_senior_level_compensation(self):
+    def test_senior_level_compensation(self) -> None:
         """Test that senior roles get appropriate compensation"""
         runner = AgentRunner()
 
@@ -63,7 +63,7 @@ class TestCompensationAdvisorSAG:
         # Base salary should be in senior range
         assert offer["base_salary"]["amount"] >= 150000
 
-    def test_location_adjustment(self):
+    def test_location_adjustment(self) -> None:
         """Test that location affects compensation"""
         runner = AgentRunner()
 
@@ -106,7 +106,7 @@ class TestCompensationAdvisorSAG:
             > result_other.output["offer"]["base_salary"]["amount"]
         )
 
-    def test_experience_affects_salary(self):
+    def test_experience_affects_salary(self) -> None:
         """Test that experience affects salary positioning in band"""
         runner = AgentRunner()
 
@@ -149,7 +149,7 @@ class TestCompensationAdvisorSAG:
             > result_junior.output["offer"]["base_salary"]["amount"]
         )
 
-    def test_output_schema_compliance(self):
+    def test_output_schema_compliance(self) -> None:
         """Test that output conforms to comp_advisor_output schema"""
         runner = AgentRunner()
 

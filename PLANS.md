@@ -19,6 +19,7 @@ Anchor the AG-Driven Development (AGDD) repository around a resilient, AI-first 
 - [ ] Capture validation guidance in `CHANGELOG.md` and `SSOT.md` as features graduate from this plan.
 
 ## Progress
+- [2025-10-23 02:30 UTC] Hardened typing and fixtures across runners, registry, governance gate, and API tests; added stub packages so `mypy --strict` succeeds alongside pytest/ruff checks.
 - [2025-10-21 07:40 UTC] Refactored ExecPlan to the ExecPlans template, migrated historical accomplishments, and identified remaining governance hardening tasks.
 - [2025-10-20 15:30 UTC] Walking skeleton validated end-to-end (registry lookup → schema validation → Flow Runner invocation) with automation tests and documentation updates.
 - [2025-10-20 13:45 UTC] Flow Runner adapter, CLI entry points, and mirrored assets integrated with packaging configuration and smoke-test guidance.

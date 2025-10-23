@@ -47,9 +47,12 @@ class RunMetrics:
 
 def _load_json(path: Path) -> dict[str, Any] | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
         return None
+    if isinstance(data, dict):
+        return data
+    return None
 
 
 def _extract_model(record: dict[str, Any]) -> str:

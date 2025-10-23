@@ -1,14 +1,18 @@
 """Validate all contract JSON Schemas are well-formed"""
 import json
 import pathlib
+from typing import Any
 
 import jsonschema
 
 base = pathlib.Path("contracts")
 
 
-def load(name: str) -> dict:
-    return json.loads((base / name).read_text())
+def load(name: str) -> dict[str, Any]:
+    data = json.loads((base / name).read_text())
+    if not isinstance(data, dict):
+        raise AssertionError(f"{name} must contain a JSON object schema")
+    return data
 
 
 def test_candidate_profile_schema_valid() -> None:

@@ -99,5 +99,6 @@ def test_rate_limiter_error_message() -> None:
         limiter.check_rate_limit("test-key")
 
     detail = exc_info.value.detail
+    assert isinstance(detail, dict)
     assert detail["code"] == "rate_limit_exceeded"
     assert "2 requests per second" in detail["message"]
