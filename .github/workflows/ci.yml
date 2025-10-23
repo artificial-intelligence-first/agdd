@@ -40,9 +40,8 @@ jobs:
       - name: Verify wheel assets
         run: |
           uv venv .venv_build
-          . .venv_build/bin/activate
-          pip install dist/*.whl
-          python - <<'PY'
+          .venv_build/bin/pip install dist/*.whl
+          .venv_build/bin/python - <<'PY'
           from importlib.resources import files
           assert (files('agdd.assets.contracts') / 'agent.schema.json').is_file(), 'missing agent schema'
           assert (files('agdd.assets.policies') / 'flow_governance.yaml').is_file(), 'missing governance policy'
