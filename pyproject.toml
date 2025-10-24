@@ -40,6 +40,12 @@ redis = [
 postgres = [
     "asyncpg>=0.29.0",
 ]
+faiss = [
+    "faiss-cpu>=1.8.0",
+]
+cache = [
+    "numpy>=1.24.0",
+]
 observability = [
     "opentelemetry-api>=1.27.0",
     "opentelemetry-sdk>=1.27.0",
