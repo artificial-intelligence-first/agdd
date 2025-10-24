@@ -59,15 +59,28 @@ Provides secure file operations with configurable access controls.
 
 ```yaml
 # .mcp/servers/filesystem.yaml
-name: filesystem
-version: "@modelcontextprotocol/server-filesystem@2025.8.21"
+server_id: filesystem
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-filesystem@2025.8.21"
+  - "."  # Repository root
+description: Secure file operations with configurable access controls
 scopes:
   - read:files
   - write:files
-config:
-  root: "."
-  rate_limit: 60  # requests per minute
+limits:
+  rate_per_min: 60
+  timeout_s: 30
 ```
+
+**Configuration Details:**
+- **server_id**: Unique identifier for the server
+- **command**: Execution command (npx for Node.js packages)
+- **args**: Package name with pinned version and repository path
+- **limits.rate_per_min**: Maximum requests per minute
+- **limits.timeout_s**: Request timeout in seconds
 
 **Available Tools:**
 - `read_file(path)`: Read file contents
@@ -88,14 +101,21 @@ Tools for Git repository operations.
 
 ```yaml
 # .mcp/servers/git.yaml
-name: git
-version: "@modelcontextprotocol/server-git@1.0.0"
+server_id: git
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-git@1.0.0"
+  - --repository
+  - "."  # Repository root
+description: Tools to read, search, and manipulate Git repositories
 scopes:
   - read:git
   - write:git
-config:
-  root: "."
-  rate_limit: 30
+limits:
+  rate_per_min: 30
+  timeout_s: 60
 ```
 
 **Available Tools:**
@@ -117,13 +137,19 @@ Knowledge graph-based persistent memory.
 
 ```yaml
 # .mcp/servers/memory.yaml
-name: memory
-version: "@modelcontextprotocol/server-memory@2025.9.25"
+server_id: memory
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-memory@2025.9.25"
+description: Knowledge graph-based persistent memory system
 scopes:
   - read:memory
   - write:memory
-config:
-  rate_limit: 120
+limits:
+  rate_per_min: 120
+  timeout_s: 20
 ```
 
 **Available Tools:**
@@ -145,12 +171,18 @@ Web content fetching and conversion.
 
 ```yaml
 # .mcp/servers/fetch.yaml
-name: fetch
-version: "@modelcontextprotocol/server-fetch@1.0.0"
+server_id: fetch
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-fetch@1.0.0"
+description: Web content fetching and conversion for efficient LLM usage
 scopes:
   - read:web
-config:
-  rate_limit: 30
+limits:
+  rate_per_min: 30
+  timeout_s: 30
 ```
 
 **Available Tools:**
@@ -170,13 +202,24 @@ Read-only database access.
 
 ```yaml
 # .mcp/servers/pg-readonly.yaml
-name: pg-readonly
-version: "@modelcontextprotocol/server-postgres@1.0.0"
+server_id: pg-readonly
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-postgres@1.0.0"
+  - ${PG_RO_URL}  # Connection string from environment
+description: Read-only PostgreSQL database access
 scopes:
   - read:tables
-config:
-  connection_string_env: PG_RO_URL
-  rate_limit: 120
+limits:
+  rate_per_min: 120
+  timeout_s: 30
+```
+
+**Environment Setup:**
+```bash
+export PG_RO_URL="postgresql://readonly:password@localhost/agdd"
 ```
 
 **Available Tools:**
@@ -307,15 +350,26 @@ Create a new MCP server configuration:
 
 ```yaml
 # .mcp/servers/custom-api.yaml
-name: custom-api
-version: "@myorg/mcp-server-custom@1.0.0"
+server_id: custom-api
+type: mcp
+command: npx
+args:
+  - -y
+  - "@myorg/mcp-server-custom@1.0.0"
+  - --api-key
+  - ${CUSTOM_API_KEY}
+description: Custom API integration
 scopes:
   - read:api
   - write:api
-config:
-  api_base_url: "https://api.example.com"
-  api_key_env: CUSTOM_API_KEY
-  rate_limit: 60
+limits:
+  rate_per_min: 60
+  timeout_s: 30
+```
+
+**Environment Variables:**
+```bash
+export CUSTOM_API_KEY="your-api-key"
 ```
 
 ### Implementing Server Logic
@@ -396,13 +450,21 @@ echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | \
 
 ### Per-Server Limits
 
-Rate limits are defined per server:
+Rate limits are defined in the `limits` section of each server configuration:
 
 ```yaml
 # .mcp/servers/filesystem.yaml
-config:
-  rate_limit: 60  # 60 requests per minute
+limits:
+  rate_per_min: 60      # Maximum 60 requests per minute
+  timeout_s: 30         # 30 second timeout per request
 ```
+
+**Configured Limits:**
+- Filesystem: 60 requests/min, 30s timeout
+- Git: 30 requests/min, 60s timeout
+- Memory: 120 requests/min, 20s timeout
+- Fetch: 30 requests/min, 30s timeout
+- PostgreSQL: 120 requests/min, 30s timeout
 
 ### Handling Rate Limits
 
@@ -458,22 +520,31 @@ scopes:
   - read:files  # Only what's needed
 ```
 
-### 2. Path Restrictions
+### Path Restrictions
 
 Restrict filesystem access:
 
 ```yaml
 # .mcp/servers/filesystem.yaml
-config:
-  root: "."  # Repository root only
-  allowed_paths:
-    - "docs/"
-    - "catalog/"
-  denied_paths:
-    - ".git/"
-    - ".env"
-    - "secrets/"
+server_id: filesystem
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-filesystem@2025.8.21"
+  - "./docs"  # Restrict to docs directory only
+description: Filesystem access restricted to documentation
+scopes:
+  - read:files  # Read-only, no write scope
+limits:
+  rate_per_min: 60
+  timeout_s: 30
 ```
+
+**Security Notes:**
+- The path argument restricts server access to specified directory
+- Omitting `write:files` scope makes it read-only
+- Server cannot access parent directories (e.g., `../`)
 
 ### 3. Environment Variable Protection
 
@@ -481,8 +552,19 @@ Use environment variables for secrets:
 
 ```yaml
 # .mcp/servers/pg-readonly.yaml
-config:
-  connection_string_env: PG_RO_URL  # Not hardcoded!
+server_id: pg-readonly
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-postgres@1.0.0"
+  - ${PG_RO_URL}  # Environment variable, not hardcoded!
+description: Read-only database access
+scopes:
+  - read:tables
+limits:
+  rate_per_min: 120
+  timeout_s: 30
 ```
 
 ```bash
@@ -496,9 +578,18 @@ Prefer read-only servers for safety:
 
 ```yaml
 # Read-only database access
-name: pg-readonly
+server_id: pg-readonly
+type: mcp
+command: npx
+args:
+  - -y
+  - "@modelcontextprotocol/server-postgres@1.0.0"
+  - ${PG_RO_URL}
 scopes:
   - read:tables  # No write scope!
+limits:
+  rate_per_min: 120
+  timeout_s: 30
 ```
 
 ### 5. Audit Logging
