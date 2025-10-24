@@ -271,13 +271,14 @@ def summarize(base: Path | None = None) -> Dict[str, Any]:
         }
 
     runs = [path for path in root.iterdir() if path.is_dir()]
-    total_runs = len(runs)
+    total_runs = 0
     metrics = RunMetrics()
 
     for run_dir in runs:
         run_summary = _load_json(run_dir / "summary.json")
         if run_summary is None:
             continue
+        total_runs += 1
 
         run_failed = _accumulate_metrics(run_dir, metrics)
         summary_success = _summary_success(run_summary)

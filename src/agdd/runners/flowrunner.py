@@ -20,8 +20,21 @@ class FlowRunner(Runner):
     def __init__(self, exe: str = "flowctl") -> None:
         self.exe = exe
 
+    def _resolve_executable(self) -> Optional[str]:
+        """Locate the Flow Runner executable, falling back to the repo stub."""
+        discovered = shutil.which(self.exe)
+        if discovered:
+            return discovered
+
+        # Try local stub within the repository (bin/flowctl)
+        repo_root = Path(__file__).resolve().parents[3]
+        candidate = repo_root / "bin" / self.exe
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return str(candidate)
+        return None
+
     def is_available(self) -> bool:
-        return shutil.which(self.exe) is not None
+        return self._resolve_executable() is not None
 
     def info(self) -> RunnerInfo:
         try:
@@ -60,16 +73,17 @@ class FlowRunner(Runner):
             )
 
     def validate(self, flow_path: Path, schema: Optional[Path] = None) -> ValidationResult:
-        if not self.is_available():
+        exe_path = self._resolve_executable()
+        if exe_path is None:
             return ValidationResult(
                 ok=False, stderr="flowctl is not installed. See Flow Runner setup instructions."
             )
 
         if schema is not None:
-            args = [self.exe, "validate", str(flow_path), "--schema", str(schema)]
+            args = [exe_path, "validate", str(flow_path), "--schema", str(schema)]
         else:
             args = [
-                self.exe,
+                exe_path,
                 "run",
                 str(flow_path),
                 "--dry-run",
@@ -88,12 +102,13 @@ class FlowRunner(Runner):
         continue_from: Optional[str] = None,
         env: Optional[Mapping[str, str]] = None,
     ) -> RunResult:
-        if not self.is_available():
+        exe_path = self._resolve_executable()
+        if exe_path is None:
             return RunResult(
                 ok=False, stderr="flowctl is not installed. See Flow Runner setup instructions."
             )
 
-        args = [self.exe, "run", str(flow_path)]
+        args = [exe_path, "run", str(flow_path)]
         if dry_run:
             args.append("--dry-run")
         if only:
