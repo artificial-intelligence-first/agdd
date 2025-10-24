@@ -359,13 +359,27 @@ class FAISSCache(SemanticCache):
 
     def clear(self) -> None:
         """Clear all entries from the cache."""
-        self.index.reset()
         self._metadata.clear()
         self._key_to_id.clear()
         self._next_id = 0
         self._training_buffer.clear()
+
         if self.config.faiss_index_type == "IVFFlat":
+            # Recreate untrained IVFFlat index (after training, index is wrapped with IndexIDMap2,
+            # which doesn't have train() method, so we need to recreate the base index)
+            import faiss
+
+            quantizer = faiss.IndexFlatIP(self.dimension)
+            self.index = faiss.IndexIVFFlat(
+                quantizer,
+                self.dimension,
+                self.config.faiss_nlist,
+                faiss.METRIC_INNER_PRODUCT,
+            )
             self._trained = False
+        else:
+            # Flat index can be reset (already wrapped with IndexIDMap2, no training needed)
+            self.index.reset()
 
     def size(self) -> int:
         """Get the number of unique entries in the cache.

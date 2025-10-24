@@ -456,3 +456,53 @@ class TestIVFFlatTraining:
         query = np.random.rand(128).astype(np.float32)
         results = cache.search(query, k=5, threshold=0.0)
         assert len(results) <= 5
+
+    def test_ivfflat_clear_and_retrain(self) -> None:
+        """Test that IVFFlat cache can be cleared and retrained successfully.
+
+        This test verifies that clear() properly recreates an untrained IVFFlat
+        index, allowing the cache to be retrained after being cleared.
+        """
+        pytest.importorskip("faiss")
+
+        config = CacheConfig(
+            backend=CacheBackend.FAISS,
+            dimension=128,
+            faiss_index_type="IVFFlat",
+            faiss_nlist=10,
+        )
+        cache = create_cache(config)
+
+        # Add entries to trigger training
+        for i in range(15):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i})
+
+        # Verify training occurred
+        from agdd.optimization.cache import FAISSCache
+
+        assert isinstance(cache, FAISSCache)
+        assert cache._trained, "Cache should be trained after 15 entries"
+        assert cache.size() == 15
+
+        # Clear the cache
+        cache.clear()
+
+        # Verify cache is cleared and reset to untrained state
+        assert cache.size() == 0
+        assert not cache._trained, "Cache should be untrained after clear"
+
+        # Add entries again to trigger retraining
+        # This should not raise AttributeError: 'IndexIDMap2' object has no attribute 'train'
+        for i in range(15):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i})
+
+        # Verify retraining occurred successfully
+        assert cache._trained, "Cache should be retrained after adding 15 entries"
+        assert cache.size() == 15
+
+        # Verify search works after retraining
+        query = np.random.rand(128).astype(np.float32)
+        results = cache.search(query, k=5, threshold=0.0)
+        assert len(results) <= 5
