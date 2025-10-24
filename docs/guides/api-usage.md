@@ -1,3 +1,11 @@
+---
+title: AGDD HTTP API Reference
+last_synced: 2025-10-24
+description: Complete reference for AGDD FastAPI endpoints, authentication, and observability
+change_log:
+  - 2025-10-24: Added front-matter and SSE/NDJSON contract specifications
+---
+
 # AGDD HTTP API Reference
 
 The AG-Driven Development (AGDD) HTTP API exposes agent orchestration, run observability, and GitHub automation over FastAPI. This document provides an end-to-end reference for configuration, authentication, endpoints, and troubleshooting.
@@ -144,7 +152,60 @@ Streams newline-delimited logs.
   - `tail` (int): Return only the last N lines
   - `follow` (bool): When true, respond with `text/event-stream` and keep streaming new log lines (Server-Sent Events)
 
-When `follow=false`, the response media type is `application/x-ndjson`.
+#### Response Formats
+
+**NDJSON Mode** (`follow=false`, Content-Type: `application/x-ndjson`):
+- Each line is a complete JSON object followed by `\n`
+- Streams entire file or last N lines if `tail` specified
+- Connection closes after all data sent
+- Example:
+  ```ndjson
+  {"run_id":"mag-123","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
+  {"run_id":"mag-123","event":"delegation","timestamp":1698765432.5,"data":{"sag":"advisor"},"span_id":"span-def","parent_span_id":"span-abc"}
+  ```
+
+**SSE Mode** (`follow=true`, Content-Type: `text/event-stream`):
+- Server-Sent Events format: `data: {json}\n\n`
+- Optionally sends last N lines first if `tail` specified
+- Polls for new log entries every 500ms
+- Connection remains open for real-time streaming
+- Client should handle reconnection on disconnect
+- Example:
+  ```
+  data: {"run_id":"mag-123","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
+
+  data: {"run_id":"mag-123","event":"progress","timestamp":1698765433.2,"data":{"step":1},"span_id":"span-abc"}
+
+  ```
+
+#### Log Entry Schema
+
+Each log entry is a JSON object with the following fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `run_id` | string | Yes | Unique run identifier |
+| `event` | string | Yes | Event type (e.g., `start`, `delegation`, `finish`, `error`) |
+| `timestamp` | float | Yes | Unix timestamp (seconds since epoch) |
+| `data` | object | Yes | Event-specific payload |
+| `span_id` | string | Yes | OpenTelemetry span identifier |
+| `parent_span_id` | string | No | Parent span ID for nested operations |
+
+Common event types:
+- `start` - Execution started
+- `delegation` - Task delegated to SAG
+- `tool_call` - External tool invoked
+- `finish` - Execution completed
+- `error` - Error occurred
+
+#### Backward Compatibility
+
+The log entry schema is considered **stable**. Changes follow semantic versioning:
+- **Adding optional fields**: Minor version bump
+- **Removing or renaming fields**: Major version bump
+- **Changing field types**: Major version bump
+
+Clients should ignore unknown fields for forward compatibility.
 
 ### `POST /github/webhook`
 

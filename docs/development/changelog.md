@@ -1,4 +1,15 @@
+---
+title: Changelog
+last_synced: 2025-10-24
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/CHANGELOG.md
+description: Version history following Keep a Changelog format
+change_log:
+  - 2025-10-24: Added front-matter and SSOT changelog reference
+---
+
 # Changelog
+
+**Note:** For cross-project changes and governance updates, refer to the [central CHANGELOG in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/CHANGELOG.md).
 
 All notable changes to this project will be documented in this file.
 

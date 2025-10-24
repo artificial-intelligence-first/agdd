@@ -1,3 +1,11 @@
+---
+title: Model Context Protocol (MCP) Integration
+last_synced: 2025-10-24
+description: Integration of MCP servers for external tools, data sources, and standardized interfaces
+change_log:
+  - 2025-10-24: Added front-matter and MCP architecture overview
+---
+
 # Model Context Protocol (MCP) Integration
 
 This guide covers the integration of Model Context Protocol (MCP) servers with AGDD agents, enabling access to external tools, data sources, and services through a standardized interface.

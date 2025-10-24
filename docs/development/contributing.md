@@ -1,3 +1,11 @@
+---
+title: Contributing to AGDD
+last_synced: 2025-10-24
+description: Contribution guidelines, development setup, and PR process
+change_log:
+  - 2025-10-24: Added front-matter and structured contribution guidelines
+---
+
 # Contributing to AGDD
 
 Thank you for your interest in contributing to the AG-Driven Development (AGDD) framework!

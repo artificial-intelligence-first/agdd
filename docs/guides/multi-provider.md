@@ -1,3 +1,11 @@
+---
+title: Multi-Provider LLM Support
+last_synced: 2025-10-24
+description: Multiple LLM provider support with flexible configuration and model selection strategies
+change_log:
+  - 2025-10-24: Added front-matter and provider configuration overview
+---
+
 # Multi-Provider LLM Support
 
 AGDD supports multiple LLM providers through flexible configuration and runtime model selection. This guide covers provider integration, model selection strategies, and best practices.

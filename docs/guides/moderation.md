@@ -1,3 +1,11 @@
+---
+title: Content Moderation Guide
+last_synced: 2025-10-24
+description: OpenAI omni-moderation integration for input/output content safety
+change_log:
+  - 2025-10-24: Added front-matter and multimodal support details
+---
+
 # Content Moderation Guide
 
 AGDD integrates OpenAI's omni-moderation-latest model to ensure safe content generation before and after LLM interactions.

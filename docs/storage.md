@@ -1,3 +1,11 @@
+---
+title: AGDD Storage Layer
+last_synced: 2025-10-24
+description: Pluggable data management system for agent execution data and observability
+change_log:
+  - 2025-10-24: Added front-matter and architecture overview
+---
+
 # AGDD Storage Layer
 
 The AGDD storage layer provides a pluggable, scalable data management system for querying and analyzing agent execution data.

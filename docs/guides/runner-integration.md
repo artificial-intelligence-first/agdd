@@ -1,3 +1,11 @@
+---
+title: Runner Integration Guide
+last_synced: 2025-10-24
+description: Expectations and interface requirements for runner adapters
+change_log:
+  - 2025-10-24: Added front-matter and structured runner requirements
+---
+
 # Runner Integration Guide
 
 This document captures the expectations for runner adapters that integrate with AG-Driven Development (AGDD).

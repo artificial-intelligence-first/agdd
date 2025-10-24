@@ -1,4 +1,15 @@
+---
+title: AG-Driven Development (AGDD) Framework Hardening ExecPlan
+last_synced: 2025-10-24
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/PLANS.md
+description: Living document tracking governance, release, and documentation hardening
+change_log:
+  - 2025-10-24: Added front-matter and SSOT PLANS reference
+---
+
 # AG-Driven Development (AGDD) Framework Hardening ExecPlan
+
+**Note:** For canonical ExecPlan format and planning guidelines, refer to [PLANS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/PLANS.md).
 
 This ExecPlan is a living document. Keep Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective current as work proceeds.
 

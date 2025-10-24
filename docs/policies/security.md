@@ -1,3 +1,11 @@
+---
+title: Security Policy
+last_synced: 2025-10-24
+description: Security considerations, vulnerability reporting, and production deployment guidelines
+change_log:
+  - 2025-10-24: Added front-matter and rate limiting production recommendations
+---
+
 # Security Policy
 
 ## Reporting a Vulnerability

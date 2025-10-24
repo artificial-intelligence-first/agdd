@@ -1,4 +1,15 @@
+---
+title: Agent Development Guide
+last_synced: 2025-10-24
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md
+description: Operational guidance for AGDD agent development, testing, and deployment
+change_log:
+  - 2025-10-24: Added SSOT reference and front-matter
+---
+
 # Agent Development Guide
+
+**Note:** For canonical agent design principles and patterns, refer to [AGENTS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md). This guide focuses on AGDD-specific implementation details.
 
 Operational guidance for the AG-Driven Development (AGDD) repository. The
 instructions below supersede general documentation when you are running or

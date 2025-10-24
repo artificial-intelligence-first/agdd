@@ -1,3 +1,11 @@
+---
+title: GitHub Integration Guide
+last_synced: 2025-10-24
+description: GitHub webhook integration for agent execution from PR/issue comments
+change_log:
+  - 2025-10-24: Added front-matter and webhook setup instructions
+---
+
 # GitHub Integration Guide
 
 AGDD ships with a GitHub webhook bridge that executes agents from pull request or issue comments and posts the results back to the originating thread. This guide explains the end-to-end setup, supported commands, and troubleshooting steps.
