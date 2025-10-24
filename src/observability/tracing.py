@@ -22,14 +22,14 @@ from typing import Any, Dict, Iterator, Optional
 
 # OpenTelemetry imports (with fallback if not installed)
 try:
-    from opentelemetry import trace, metrics  # type: ignore[import-not-found]
-    from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found]
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter  # type: ignore[import-not-found]
-    from opentelemetry.sdk.metrics import MeterProvider  # type: ignore[import-not-found]
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter  # type: ignore[import-not-found]
-    from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found]
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore[import-not-found]
-    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter  # type: ignore[import-not-found]
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 
     OTEL_AVAILABLE = True
 except ImportError:
@@ -37,7 +37,7 @@ except ImportError:
 
 # Langfuse imports (with fallback if not installed)
 try:
-    from langfuse import Langfuse  # type: ignore[import-not-found]
+    from langfuse import Langfuse
     from langfuse.decorators import observe  # type: ignore[import-not-found]
 
     LANGFUSE_AVAILABLE = True
@@ -257,14 +257,14 @@ class ObservabilityManager:
             if OTEL_AVAILABLE:
                 # Flush any pending spans/metrics
                 if self.config.enable_tracing:
-                    provider = trace.get_tracer_provider()
-                    if hasattr(provider, "shutdown"):
-                        provider.shutdown()
+                    tracer_provider = trace.get_tracer_provider()
+                    if hasattr(tracer_provider, "shutdown"):
+                        tracer_provider.shutdown()
 
                 if self.config.enable_metrics:
-                    provider = metrics.get_meter_provider()
-                    if hasattr(provider, "shutdown"):
-                        provider.shutdown()
+                    meter_provider = metrics.get_meter_provider()
+                    if hasattr(meter_provider, "shutdown"):
+                        meter_provider.shutdown()
 
             self._initialized = False
             logger.info("Observability shutdown complete")
