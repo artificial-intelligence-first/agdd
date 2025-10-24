@@ -14,16 +14,16 @@ Environment Variables:
 
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
-from agdd.providers.base import BaseProvider
+from agdd.providers.base import LLMResponse
 
 
 class GoogleSDKAdapter(ABC):
     """Abstract adapter interface for Google SDK implementations."""
 
     @abstractmethod
-    async def generate_content(self, prompt: str, **kwargs: Any) -> Any:
+    def generate_content(self, prompt: str, **kwargs: Any) -> Any:
         """Generate content using the SDK.
 
         Args:
@@ -53,6 +53,21 @@ class GoogleSDKAdapter(ABC):
         """
         pass
 
+    @abstractmethod
+    def extract_usage(self, response: Any) -> tuple[int, int]:
+        """Extract token usage from SDK response.
+
+        Args:
+            response: Raw SDK response object
+
+        Returns:
+            Tuple of (input_tokens, output_tokens)
+
+        Raises:
+            Exception: If usage extraction fails
+        """
+        pass
+
 
 class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
     """Adapter for google-generativeai SDK (legacy)."""
@@ -75,7 +90,7 @@ class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
         genai.configure(api_key=api_key)
         self._model = genai.GenerativeModel(model_name)
 
-    async def generate_content(self, prompt: str, **kwargs: Any) -> Any:
+    def generate_content(self, prompt: str, **kwargs: Any) -> Any:
         """Generate content using google-generativeai SDK.
 
         Args:
@@ -85,8 +100,8 @@ class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
         Returns:
             GenerateContentResponse object
         """
-        # google-generativeai uses generate_content_async for async
-        response = await self._model.generate_content_async(prompt, **kwargs)
+        # google-generativeai uses synchronous generate_content
+        response = self._model.generate_content(prompt, **kwargs)
         return response
 
     def extract_text(self, response: Any) -> str:
@@ -99,6 +114,24 @@ class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
             Generated text
         """
         return str(response.text)
+
+    def extract_usage(self, response: Any) -> tuple[int, int]:
+        """Extract token usage from GenerateContentResponse.
+
+        Args:
+            response: GenerateContentResponse object
+
+        Returns:
+            Tuple of (input_tokens, output_tokens)
+        """
+        # google-generativeai provides usage_metadata
+        if hasattr(response, "usage_metadata"):
+            usage = response.usage_metadata
+            return (
+                getattr(usage, "prompt_token_count", 0),
+                getattr(usage, "candidates_token_count", 0),
+            )
+        return (0, 0)
 
 
 class GoogleGenAIAdapter(GoogleSDKAdapter):
@@ -124,7 +157,7 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         self._model_name = model_name
         self._types = types
 
-    async def generate_content(self, prompt: str, **kwargs: Any) -> Any:
+    def generate_content(self, prompt: str, **kwargs: Any) -> Any:
         """Generate content using google-genai SDK.
 
         Args:
@@ -134,8 +167,8 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         Returns:
             GenerateContentResponse object
         """
-        # google-genai uses aio for async operations
-        response = await self._client.aio.models.generate_content(
+        # google-genai uses synchronous models.generate_content
+        response = self._client.models.generate_content(
             model=self._model_name, contents=prompt, **kwargs
         )
         return response
@@ -149,8 +182,26 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         Returns:
             Generated text
         """
-        # New SDK uses .text attribute
-        return str(response.text)
+        # New SDK uses .output_text attribute
+        return str(response.output_text)
+
+    def extract_usage(self, response: Any) -> tuple[int, int]:
+        """Extract token usage from GenerateContentResponse.
+
+        Args:
+            response: GenerateContentResponse object
+
+        Returns:
+            Tuple of (input_tokens, output_tokens)
+        """
+        # google-genai provides usage_metadata
+        if hasattr(response, "usage_metadata"):
+            usage = response.usage_metadata
+            return (
+                getattr(usage, "prompt_token_count", 0),
+                getattr(usage, "candidates_token_count", 0),
+            )
+        return (0, 0)
 
 
 def create_google_adapter(
@@ -180,7 +231,7 @@ def create_google_adapter(
         )
 
 
-class GoogleProvider(BaseProvider):
+class GoogleProvider:
     """Google Generative AI provider with adapter pattern.
 
     This provider supports both google-generativeai (legacy) and google-genai (new)
@@ -191,6 +242,14 @@ class GoogleProvider(BaseProvider):
         GOOGLE_API_KEY: Google API key (required)
         GOOGLE_MODEL_NAME: Model name (default: "gemini-1.5-pro")
     """
+
+    # Cost per 1M tokens (USD) for Gemini models
+    # Source: https://ai.google.dev/pricing
+    COST_PER_1M_TOKENS = {
+        "gemini-1.5-pro": {"input": 1.25, "output": 5.00},
+        "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
+        "gemini-2.0-flash-exp": {"input": 0.0, "output": 0.0},  # Free tier
+    }
 
     def __init__(
         self,
@@ -216,49 +275,102 @@ class GoogleProvider(BaseProvider):
             )
         self._api_key: str = resolved_api_key
 
-        self._sdk_type: str = sdk_type or os.getenv(
-            "GOOGLE_SDK_TYPE", "google-generativeai"
-        ) or "google-generativeai"
+        self._sdk_type: str = (
+            sdk_type or os.getenv("GOOGLE_SDK_TYPE", "google-generativeai") or "google-generativeai"
+        )
 
-        self._model_name: str = model_name or os.getenv(
-            "GOOGLE_MODEL_NAME", "gemini-1.5-pro"
-        ) or "gemini-1.5-pro"
+        self._model_name: str = (
+            model_name or os.getenv("GOOGLE_MODEL_NAME", "gemini-1.5-pro") or "gemini-1.5-pro"
+        )
 
         # Create adapter using factory
         self._adapter = create_google_adapter(
             sdk_type=self._sdk_type, api_key=self._api_key, model_name=self._model_name
         )
 
-    async def invoke(self, prompt: str, **kwargs: Any) -> str:
-        """Invoke the LLM with a prompt and return the response text.
+    def generate(
+        self,
+        prompt: str,
+        *,
+        model: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str | dict[str, Any]] = None,
+        response_format: Optional[dict[str, Any]] = None,
+        reasoning: Optional[dict[str, Any]] = None,
+        mcp_tools: Optional[list[dict[str, Any]]] = None,
+        **kwargs: Any,
+    ) -> LLMResponse:
+        """Generate a completion from the LLM.
 
         Args:
-            prompt: The input prompt to send to the LLM
-            **kwargs: Additional provider-specific parameters
+            prompt: The input prompt/message.
+            model: The model identifier to use.
+            max_tokens: Maximum tokens to generate.
+            temperature: Sampling temperature (0.0-2.0).
+            tools: Tool definitions for function calling.
+            tool_choice: Strategy for tool selection.
+            response_format: Desired response format (e.g., JSON schema).
+            reasoning: Reasoning configuration (e.g., extended thinking mode).
+            mcp_tools: MCP (Model Context Protocol) tool definitions.
+            **kwargs: Additional provider-specific parameters.
 
         Returns:
-            The generated text response from the LLM
-
-        Raises:
-            Exception: If the invocation fails
+            LLMResponse containing the completion and metadata.
         """
-        response = await self.generate_content_async(prompt, **kwargs)
-        return self._adapter.extract_text(response)
+        # Build generation config
+        generation_config = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+        }
 
-    async def generate_content_async(self, prompt: str, **kwargs: Any) -> Any:
-        """Generate content asynchronously using the provider's SDK.
+        # Generate content using adapter
+        response = self._adapter.generate_content(
+            prompt, generation_config=generation_config, **kwargs
+        )
+
+        # Extract text and usage
+        content = self._adapter.extract_text(response)
+        input_tokens, output_tokens = self._adapter.extract_usage(response)
+
+        return LLMResponse(
+            content=content,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            metadata={
+                "sdk_type": self._sdk_type,
+                "raw_response": response,
+            },
+        )
+
+    def get_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> float:
+        """Calculate the cost for a completion.
 
         Args:
-            prompt: The input prompt to send to the LLM
-            **kwargs: Additional provider-specific parameters
+            model: The model identifier.
+            input_tokens: Number of input tokens.
+            output_tokens: Number of output tokens.
 
         Returns:
-            The raw response object from the provider's SDK
-
-        Raises:
-            Exception: If content generation fails
+            Cost in USD.
         """
-        return await self._adapter.generate_content(prompt, **kwargs)
+        # Get cost rates for the model
+        cost_rates = self.COST_PER_1M_TOKENS.get(model)
+        if not cost_rates:
+            # Default to gemini-1.5-pro pricing if model not found
+            cost_rates = self.COST_PER_1M_TOKENS["gemini-1.5-pro"]
+
+        input_cost = (input_tokens / 1_000_000) * cost_rates["input"]
+        output_cost = (output_tokens / 1_000_000) * cost_rates["output"]
+
+        return input_cost + output_cost
 
     @property
     def sdk_type(self) -> str:

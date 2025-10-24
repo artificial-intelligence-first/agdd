@@ -1,7 +1,7 @@
 """Tests for Google Provider with adapter pattern."""
 
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,39 +25,60 @@ class TestGoogleGenerativeAIAdapter:
         # Mock response object
         mock_response = MagicMock()
         mock_response.text = "Generated text from legacy SDK"
+        mock_usage = MagicMock()
+        mock_usage.prompt_token_count = 10
+        mock_usage.candidates_token_count = 20
+        mock_response.usage_metadata = mock_usage
 
-        # Mock async method
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        # Mock method
+        mock_model.generate_content = MagicMock(return_value=mock_response)
         mock_genai.GenerativeModel.return_value = mock_model
 
         return mock_genai
 
-    @pytest.mark.asyncio
-    async def test_generate_content(self, mock_genai_module: MagicMock) -> None:
+    def test_generate_content(self, mock_genai_module: MagicMock) -> None:
         """Test content generation with google-generativeai SDK."""
         mock_google = MagicMock()
         mock_google.generativeai = mock_genai_module
-        with patch.dict("sys.modules", {"google": mock_google, "google.generativeai": mock_genai_module}):
+        with patch.dict(
+            "sys.modules", {"google": mock_google, "google.generativeai": mock_genai_module}
+        ):
             adapter = GoogleGenerativeAIAdapter(api_key="test-key", model_name="gemini-1.5-pro")
 
-            response = await adapter.generate_content("Test prompt")
+            response = adapter.generate_content("Test prompt")
 
             assert response.text == "Generated text from legacy SDK"
             mock_genai_module.configure.assert_called_once_with(api_key="test-key")
             mock_genai_module.GenerativeModel.assert_called_once_with("gemini-1.5-pro")
 
-    @pytest.mark.asyncio
-    async def test_extract_text(self, mock_genai_module: MagicMock) -> None:
+    def test_extract_text(self, mock_genai_module: MagicMock) -> None:
         """Test text extraction from response."""
         mock_google = MagicMock()
         mock_google.generativeai = mock_genai_module
-        with patch.dict("sys.modules", {"google": mock_google, "google.generativeai": mock_genai_module}):
+        with patch.dict(
+            "sys.modules", {"google": mock_google, "google.generativeai": mock_genai_module}
+        ):
             adapter = GoogleGenerativeAIAdapter(api_key="test-key")
 
-            response = await adapter.generate_content("Test prompt")
+            response = adapter.generate_content("Test prompt")
             text = adapter.extract_text(response)
 
             assert text == "Generated text from legacy SDK"
+
+    def test_extract_usage(self, mock_genai_module: MagicMock) -> None:
+        """Test usage extraction from response."""
+        mock_google = MagicMock()
+        mock_google.generativeai = mock_genai_module
+        with patch.dict(
+            "sys.modules", {"google": mock_google, "google.generativeai": mock_genai_module}
+        ):
+            adapter = GoogleGenerativeAIAdapter(api_key="test-key")
+
+            response = adapter.generate_content("Test prompt")
+            input_tokens, output_tokens = adapter.extract_usage(response)
+
+            assert input_tokens == 10
+            assert output_tokens == 20
 
     def test_import_error(self) -> None:
         """Test that ImportError is raised when package is not installed."""
@@ -78,18 +99,19 @@ class TestGoogleGenAIAdapter:
 
         # Mock response object
         mock_response = MagicMock()
-        mock_response.text = "Generated text from new SDK"
+        mock_response.output_text = "Generated text from new SDK"
+        mock_usage = MagicMock()
+        mock_usage.prompt_token_count = 15
+        mock_usage.candidates_token_count = 25
+        mock_response.usage_metadata = mock_usage
 
-        # Mock async method chain
-        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+        # Mock method chain
+        mock_client.models.generate_content = MagicMock(return_value=mock_response)
         mock_genai.Client.return_value = mock_client
 
         return mock_genai, mock_types
 
-    @pytest.mark.asyncio
-    async def test_generate_content(
-        self, mock_genai_module: tuple[MagicMock, MagicMock]
-    ) -> None:
+    def test_generate_content(self, mock_genai_module: tuple[MagicMock, MagicMock]) -> None:
         """Test content generation with google-genai SDK."""
         mock_genai, mock_types = mock_genai_module
         mock_google = MagicMock()
@@ -101,16 +123,15 @@ class TestGoogleGenAIAdapter:
         ):
             adapter = GoogleGenAIAdapter(api_key="test-key", model_name="gemini-1.5-pro")
 
-            response = await adapter.generate_content("Test prompt")
+            response = adapter.generate_content("Test prompt")
 
-            assert response.text == "Generated text from new SDK"
+            assert response.output_text == "Generated text from new SDK"
             mock_genai.Client.assert_called_once_with(api_key="test-key")
-            mock_genai.Client.return_value.aio.models.generate_content.assert_called_once_with(
+            mock_genai.Client.return_value.models.generate_content.assert_called_once_with(
                 model="gemini-1.5-pro", contents="Test prompt"
             )
 
-    @pytest.mark.asyncio
-    async def test_generate_content_with_kwargs(
+    def test_generate_content_with_kwargs(
         self, mock_genai_module: tuple[MagicMock, MagicMock]
     ) -> None:
         """Test content generation with additional kwargs."""
@@ -124,19 +145,18 @@ class TestGoogleGenAIAdapter:
         ):
             adapter = GoogleGenAIAdapter(api_key="test-key")
 
-            await adapter.generate_content("Test prompt", temperature=0.7, max_tokens=100)
-
-            mock_genai.Client.return_value.aio.models.generate_content.assert_called_once_with(
-                model="gemini-1.5-pro",
-                contents="Test prompt",
-                temperature=0.7,
-                max_tokens=100,
+            adapter.generate_content(
+                "Test prompt",
+                generation_config={"temperature": 0.7, "max_output_tokens": 100},
             )
 
-    @pytest.mark.asyncio
-    async def test_extract_text(
-        self, mock_genai_module: tuple[MagicMock, MagicMock]
-    ) -> None:
+            mock_genai.Client.return_value.models.generate_content.assert_called_once_with(
+                model="gemini-1.5-pro",
+                contents="Test prompt",
+                generation_config={"temperature": 0.7, "max_output_tokens": 100},
+            )
+
+    def test_extract_text(self, mock_genai_module: tuple[MagicMock, MagicMock]) -> None:
         """Test text extraction from response."""
         mock_genai, mock_types = mock_genai_module
         mock_google = MagicMock()
@@ -148,10 +168,28 @@ class TestGoogleGenAIAdapter:
         ):
             adapter = GoogleGenAIAdapter(api_key="test-key")
 
-            response = await adapter.generate_content("Test prompt")
+            response = adapter.generate_content("Test prompt")
             text = adapter.extract_text(response)
 
             assert text == "Generated text from new SDK"
+
+    def test_extract_usage(self, mock_genai_module: tuple[MagicMock, MagicMock]) -> None:
+        """Test usage extraction from response."""
+        mock_genai, mock_types = mock_genai_module
+        mock_google = MagicMock()
+        mock_google.genai = mock_genai
+
+        with patch.dict(
+            "sys.modules",
+            {"google": mock_google, "google.genai": mock_genai, "google.genai.types": mock_types},
+        ):
+            adapter = GoogleGenAIAdapter(api_key="test-key")
+
+            response = adapter.generate_content("Test prompt")
+            input_tokens, output_tokens = adapter.extract_usage(response)
+
+            assert input_tokens == 15
+            assert output_tokens == 25
 
     def test_import_error(self) -> None:
         """Test that ImportError is raised when package is not installed."""
@@ -168,18 +206,14 @@ class TestCreateGoogleAdapter:
         """Test factory creates google-generativeai adapter."""
         create_google_adapter("google-generativeai", "test-key", "gemini-1.5-pro")
 
-        mock_adapter_class.assert_called_once_with(
-            api_key="test-key", model_name="gemini-1.5-pro"
-        )
+        mock_adapter_class.assert_called_once_with(api_key="test-key", model_name="gemini-1.5-pro")
 
     @patch("agdd.providers.google.GoogleGenAIAdapter")
     def test_create_genai_adapter(self, mock_adapter_class: MagicMock) -> None:
         """Test factory creates google-genai adapter."""
         create_google_adapter("google-genai", "test-key", "gemini-1.5-pro")
 
-        mock_adapter_class.assert_called_once_with(
-            api_key="test-key", model_name="gemini-1.5-pro"
-        )
+        mock_adapter_class.assert_called_once_with(api_key="test-key", model_name="gemini-1.5-pro")
 
     def test_unknown_sdk_type(self) -> None:
         """Test factory raises error for unknown SDK type."""
@@ -194,8 +228,10 @@ class TestGoogleProvider:
     def mock_adapter(self) -> MagicMock:
         """Mock GoogleSDKAdapter."""
         adapter = MagicMock()
-        adapter.generate_content = AsyncMock(return_value=MagicMock(text="Test response"))
+        mock_response = MagicMock()
+        adapter.generate_content = MagicMock(return_value=mock_response)
         adapter.extract_text = MagicMock(return_value="Test response")
+        adapter.extract_usage = MagicMock(return_value=(10, 20))
         return adapter
 
     @patch("agdd.providers.google.create_google_adapter")
@@ -261,53 +297,62 @@ class TestGoogleProvider:
             with pytest.raises(ValueError, match="Google API key is required"):
                 GoogleProvider()
 
-    @pytest.mark.asyncio
     @patch("agdd.providers.google.create_google_adapter")
-    async def test_invoke(self, mock_factory: MagicMock, mock_adapter: MagicMock) -> None:
-        """Test invoke method."""
+    def test_generate(self, mock_factory: MagicMock, mock_adapter: MagicMock) -> None:
+        """Test generate method."""
         mock_factory.return_value = mock_adapter
 
         provider = GoogleProvider(api_key="test-key")
-        result = await provider.invoke("Test prompt")
+        result = provider.generate("Test prompt", model="gemini-1.5-pro")
 
-        assert result == "Test response"
-        mock_adapter.generate_content.assert_called_once_with("Test prompt")
-        mock_adapter.extract_text.assert_called_once()
+        assert result.content == "Test response"
+        assert result.model == "gemini-1.5-pro"
+        assert result.input_tokens == 10
+        assert result.output_tokens == 20
+        assert result.metadata["sdk_type"] == "google-generativeai"
+        mock_adapter.generate_content.assert_called_once()
 
-    @pytest.mark.asyncio
     @patch("agdd.providers.google.create_google_adapter")
-    async def test_invoke_with_kwargs(
+    def test_generate_with_kwargs(
         self, mock_factory: MagicMock, mock_adapter: MagicMock
     ) -> None:
-        """Test invoke method with additional kwargs."""
+        """Test generate method with additional kwargs."""
         mock_factory.return_value = mock_adapter
 
         provider = GoogleProvider(api_key="test-key")
-        await provider.invoke("Test prompt", temperature=0.8, max_tokens=200)
+        provider.generate("Test prompt", model="gemini-1.5-pro", max_tokens=500, temperature=0.8)
 
-        mock_adapter.generate_content.assert_called_once_with(
-            "Test prompt", temperature=0.8, max_tokens=200
-        )
+        # Verify generation_config was passed correctly
+        call_args = mock_adapter.generate_content.call_args
+        assert call_args[1]["generation_config"]["max_output_tokens"] == 500
+        assert call_args[1]["generation_config"]["temperature"] == 0.8
 
-    @pytest.mark.asyncio
     @patch("agdd.providers.google.create_google_adapter")
-    async def test_generate_content_async(
+    def test_get_cost(self, mock_factory: MagicMock, mock_adapter: MagicMock) -> None:
+        """Test get_cost method."""
+        mock_factory.return_value = mock_adapter
+
+        provider = GoogleProvider(api_key="test-key")
+        cost = provider.get_cost("gemini-1.5-pro", 1_000_000, 1_000_000)
+
+        # 1M input tokens * $1.25 + 1M output tokens * $5.00 = $6.25
+        assert cost == 6.25
+
+    @patch("agdd.providers.google.create_google_adapter")
+    def test_get_cost_unknown_model(
         self, mock_factory: MagicMock, mock_adapter: MagicMock
     ) -> None:
-        """Test generate_content_async method."""
-        mock_response = MagicMock()
-        mock_adapter.generate_content = AsyncMock(return_value=mock_response)
+        """Test get_cost with unknown model defaults to gemini-1.5-pro pricing."""
         mock_factory.return_value = mock_adapter
 
         provider = GoogleProvider(api_key="test-key")
-        response = await provider.generate_content_async("Test prompt")
+        cost = provider.get_cost("unknown-model", 1_000_000, 1_000_000)
 
-        assert response == mock_response
-        mock_adapter.generate_content.assert_called_once_with("Test prompt")
+        # Should use default gemini-1.5-pro pricing
+        assert cost == 6.25
 
-    @pytest.mark.asyncio
     @patch("agdd.providers.google.create_google_adapter")
-    async def test_sdk_switching(
+    def test_sdk_switching(
         self,
         mock_factory: MagicMock,
     ) -> None:

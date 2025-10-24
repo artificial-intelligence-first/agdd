@@ -1,6 +1,6 @@
-"""Provider adapters for LLM services."""
+"""LLM provider abstractions for AGDD."""
 
-from agdd.providers.base import BaseProvider
+from agdd.providers.base import BaseLLMProvider, LLMResponse
 from agdd.providers.google import GoogleProvider
 
-__all__ = ["BaseProvider", "GoogleProvider"]
+__all__ = ["BaseLLMProvider", "LLMResponse", "GoogleProvider"]
