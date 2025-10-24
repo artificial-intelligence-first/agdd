@@ -87,7 +87,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 │                     Security & Moderation                           │
 │                                                                     │
 │   ┌─────────────────────────────────────────────────────────────┐   │
-│   │  Content Moderation (omni-moderation-latest)               │   │
+│   │  Content Moderation (omni-moderation-latest)                │   │
 │   │   - Input/Output safety checks                              │   │
 │   │   - Fail-closed/Fail-open strategies                        │   │
 │   │   - Multimodal content support                              │   │
@@ -110,24 +110,24 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   Routing & Optimization Layer                      │
 │                                                                     │
-│   ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────┐ │
-│   │   Router    │  │Semantic Cache│  │Batch Manager│  │Cost      │ │
-│   │  - SLA-based│  │- FAISS/Redis │  │- OpenAI     │  │Optimizer │ │
-│   │  - Auto-opt │  │- Vector K-NN │  │  Batch API  │  │- Model   │ │
-│   │  - Fallback │  │- 100% savings│  │- 50% savings│  │  tiering │ │
-│   └─────────────┘  └──────────────┘  └─────────────┘  └──────────┘ │
+│  ┌─────────────┐  ┌───────────────┐  ┌──────────────┐  ┌──────────┐ │
+│  │ Router      │  │ Semantic Cache│  │ Batch Manager│  │ Cost     │ │
+│  │ - SLA-based │  │ - FAISS/Redis │  │ - OpenAI     │  │ Optimizer│ │
+│  │ - Auto-opt  │  │ - Vector K-NN │  │   Batch API  │  │ - Model  │ │
+│  │ - Fallback  │  │ - 100% savings│  │ - 50% savings│  │   tiering│ │
+│  └─────────────┘  └───────────────┘  └──────────────┘  └──────────┘ │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Multi-Provider Support                           │
 │                                                                     │
-│   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌───────────────┐   │
-│   │ OpenAI   │   │Anthropic │   │  Google  │   │Local (Ollama) │   │
-│   │- Responses│   │- Claude  │   │- Gemini  │   │- Responses API│   │
-│   │  API     │   │  3.5/Opus│   │  Pro     │   │  w/ fallback  │   │
-│   │- Batch   │   │          │   │          │   │               │   │
-│   └──────────┘   └──────────┘   └──────────┘   └───────────────┘   │
+│   ┌────────────┐   ┌───────────┐   ┌─────────┐   ┌────────────────┐ │
+│   │  OpenAI    │   │ Anthropic │   │ Google  │   │ Local (Ollama) │ │
+│   │ - Responses│   │ - Claude  │   │ - Gemini│   │ - Responses API│ │
+│   │  API       │   │   3.5/Opus│   │   Pro   │   │   w/ fallback  │ │
+│   │ - Batch    │   │           │   │         │   │                │ │
+│   └────────────┘   └───────────┘   └─────────┘   └────────────────┘ │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
                ▼
