@@ -25,6 +25,12 @@ from agdd.observability.tracing import initialize_observability
 from agdd.registry import AgentDescriptor, Registry, get_registry
 from agdd.router import ExecutionPlan, Router, get_router
 from agdd.routing.router import Plan as LLMPlan, get_plan as get_llm_plan
+from agdd.security import (
+    ModerationDecision,
+    ModerationError,
+    ensure_content_safe,
+    get_moderation_client,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -421,6 +427,50 @@ class AgentRunner:
             return self._build_default_llm_plan(task_type, agent, agent_plan_snapshot)
         return plan
 
+    def _apply_moderation(
+        self,
+        *,
+        content: Any,
+        stage: str,
+        llm_plan: LLMPlan,
+        obs: ObservabilityLogger | None,
+    ) -> ModerationDecision | None:
+        if not llm_plan.moderation:
+            return None
+
+        try:
+            client = get_moderation_client()
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "Moderation is required but no OpenAI API key is configured."
+            ) from exc
+
+        try:
+            decision = ensure_content_safe(content, stage=stage, client=client)
+        except ModerationError as exc:
+            if obs is not None:
+                obs.log(
+                    "moderation",
+                    {
+                        "stage": stage,
+                        "status": "blocked",
+                        "reason": str(exc),
+                    },
+                )
+            raise
+
+        if obs is not None and decision is not None:
+            obs.log(
+                "moderation",
+                {
+                    "stage": stage,
+                    "status": "passed",
+                    "categories": decision.categories,
+                    "scores": decision.category_scores,
+                },
+            )
+        return decision
+
     def invoke_mag(
         self,
         slug: str,
@@ -490,6 +540,13 @@ class AgentRunner:
                 },
             )
 
+            self._apply_moderation(
+                content=payload,
+                stage="mag-input",
+                llm_plan=llm_plan,
+                obs=obs,
+            )
+
             # Resolve entrypoint
             run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(agent.entrypoint))
 
@@ -500,6 +557,13 @@ class AgentRunner:
                 registry=self.registry,
                 skills=self.skills,
                 runner=self,  # Allow MAG to delegate to SAG
+                obs=obs,
+            )
+
+            self._apply_moderation(
+                content=output,
+                stage="mag-output",
+                llm_plan=llm_plan,
                 obs=obs,
             )
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
@@ -607,6 +671,13 @@ class AgentRunner:
                 },
             )
 
+            self._apply_moderation(
+                content=delegation.input,
+                stage=f"sag-input:{delegation.task_id}",
+                llm_plan=llm_plan,
+                obs=obs,
+            )
+
             # Retry policy
             retry_policy = agent.evaluation.get("retry_policy", {})
             max_attempts = retry_policy.get("max_attempts", 1)
@@ -622,6 +693,13 @@ class AgentRunner:
                     t0 = time.time()
                     output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
                     duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+                    self._apply_moderation(
+                        content=output,
+                        stage=f"sag-output:{delegation.task_id}",
+                        llm_plan=llm_plan,
+                        obs=obs,
+                    )
 
                     # Record metrics and cost
                     obs.metric("duration_ms", duration_ms)

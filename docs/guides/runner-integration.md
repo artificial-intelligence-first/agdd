@@ -78,6 +78,7 @@ result = invoke_sag(delegation)
 - **Retry Logic**: SAGs can configure retry policies with exponential backoff
 - **Observability**: Automatic logging and metrics to `.runs/agents/<RUN_ID>/`, with centralized cost persistence in `.runs/costs/` and optional OpenTelemetry spans
 - **Plan Awareness**: Honors `agdd.routing.router.Plan` flags for batch, cache, structured outputs, and moderation decisions
+- **Moderation Enforcement**: When `Plan.moderation` is true, MAG/SAG payloads and outputs are screened with OpenAI's `omni-moderation-latest` before execution and prior to publishing responses.
 - **Error Handling**: Graceful failure handling with partial result aggregation
 
 ### Observability Artifacts
