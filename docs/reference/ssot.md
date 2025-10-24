@@ -18,6 +18,10 @@ Authoritative source for terminology, policies, and permissions. When conflicts 
 - **Multi-Provider**: Support for multiple LLM providers (OpenAI, Anthropic, local models) within the same workflow, enabling provider diversity, fallback strategies, and cost optimization.
 - **Cost Tracking**: Automatic tracking of token usage and costs per model, agent, and run, persisted to `.runs/costs/costs.jsonl` and `.runs/costs.db`, and queryable via the storage layer.
 - **Plan Flags**: Execution toggles (`use_batch`, `use_cache`, `structured_output`, `moderation`) defined on `agdd.routing.router.Plan` and recorded alongside agent runs for auditing.
+- **Semantic Cache**: Vector similarity search-based caching using FAISS or Redis backends to reduce costs by avoiding redundant LLM calls for similar prompts. Eliminates O(N) linear scans through top-K nearest neighbor search.
+- **Content Moderation**: OpenAI omni-moderation-latest integration for input/output content safety checks. Supports fail-open (permissive on errors) and fail-closed (strict on errors) strategies.
+- **Batch API**: OpenAI Batch API integration providing 50% cost reduction for non-realtime workloads with 24-hour completion windows. Supports both `/v1/chat/completions` and `/v1/responses` endpoints.
+- **Responses API**: Modern OpenAI API format supporting structured outputs, tool calls, and multimodal content. Local providers prefer Responses API and automatically fall back to chat completions for legacy endpoints.
 - **Flow Runner Python Path**: When Flow Runner is installed in editable mode, `FLOW_RUNNER_PYTHONPATH` must include the `packages/flowrunner/src` and `packages/mcprouter/src` locations so `flowctl` can import its modules.
 
 ## Policies

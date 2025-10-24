@@ -42,8 +42,11 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ### Advanced Capabilities
 - Runner Plugins: Pluggable execution engines (Flow Runner included)
 - MAG/SAG Architecture: Main and Sub-Agent orchestration patterns
-- Observability: Comprehensive metrics, traces, and cost tracking
+- Observability: Comprehensive metrics, traces, and cost tracking with OpenTelemetry + Langfuse
 - Plan-Aware Routing: Agent Runner respects `Plan` flags (`use_batch`, `use_cache`, `structured_output`, `moderation`) and annotates runs for auditability
+- Semantic Cache: Vector similarity search with FAISS/Redis backends (no O(N) scans)
+- Content Moderation: OpenAI omni-moderation-latest with fail-open/fail-closed strategies
+- Batch API: 50% cost reduction via OpenAI Batch API (24h completion window)
 - Local LLM Fallback: Responses API preference with automatic chat completions downgrade for legacy endpoints
 - Governance Gates: Policy-based validation and compliance checks
 
@@ -387,6 +390,8 @@ uv run agdd flow gate flow_summary.json \
 ### Advanced Capabilities
 - [docs/guides/multi-provider.md](./docs/guides/multi-provider.md) - Multi-provider LLM support and model selection
 - [docs/guides/cost-optimization.md](./docs/guides/cost-optimization.md) - Cost tracking and optimization strategies
+- [docs/guides/semantic-cache.md](./docs/guides/semantic-cache.md) - Semantic caching with vector similarity search
+- [docs/guides/moderation.md](./docs/guides/moderation.md) - Content moderation with OpenAI omni-moderation
 - [docs/guides/mcp-integration.md](./docs/guides/mcp-integration.md) - Model Context Protocol integration
 - [docs/guides/a2a-communication.md](./docs/guides/a2a-communication.md) - Agent-to-Agent communication patterns (MAG/SAG)
 

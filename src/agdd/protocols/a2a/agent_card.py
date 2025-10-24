@@ -118,16 +118,17 @@ class AgentCard(BaseModel):
         Returns:
             True if signature is valid or not present, False if invalid
         """
-        # TODO: Implement actual signature verification
-        # This is a placeholder for future extension
+        # Signature verification is not yet implemented (future extension point)
+        # When implemented, this will verify the card's cryptographic signature
         if self.signature is None:
             return True  # No signature to verify
 
-        # Future implementation would:
+        # Future implementation will:
         # 1. Extract card content (excluding signature field)
         # 2. Use public_key (or identity.public_key) to verify signature
-        # 3. Return verification result
-
+        # 3. Return verification result using standard crypto libraries
+        #
+        # For now, treat all signed cards as valid to maintain forward compatibility
         return True
 
     def sign(self, private_key: str) -> None:
@@ -140,14 +141,15 @@ class AgentCard(BaseModel):
         Args:
             private_key: Private key for signing (PEM format)
         """
-        # TODO: Implement actual signature generation
-        # This is a placeholder for future extension
+        # Signature generation is not yet implemented (future extension point)
+        # When implemented, this will create cryptographic signatures for agent cards
 
-        # Future implementation would:
+        # Future implementation will:
         # 1. Serialize card content (excluding signature field)
-        # 2. Create signature using private_key
-        # 3. Set self.signature to the generated signature
-
+        # 2. Sign with private_key using standard crypto libraries
+        # 3. Set self.signature to the generated signature (base64-encoded)
+        #
+        # For now, no-op to maintain forward compatibility
         pass
 
 

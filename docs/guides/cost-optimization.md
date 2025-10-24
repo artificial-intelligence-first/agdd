@@ -115,7 +115,56 @@ async def calculate_daily_cost(agent_slug: str) -> float:
 
 ## Cost Optimization Strategies
 
-### 1. Model Selection
+### 1. Semantic Caching
+
+Reduce costs by caching similar queries using vector similarity search:
+
+```python
+from agdd.optimization.cache import create_cache, CacheConfig
+
+# Enable semantic cache
+config = CacheConfig(backend="faiss", dimension=768)
+cache = create_cache(config)
+
+# 95% threshold = high precision, fewer false hits
+matches = cache.search(query_embedding, k=1, threshold=0.95)
+if matches:
+    # Cache hit - no LLM call needed
+    return matches[0].value
+```
+
+**Cost Impact:** 100% savings on cache hits (no LLM call)
+
+**See:** [Semantic Cache Guide](./semantic-cache.md) for implementation details
+
+### 2. Batch API (50% Discount)
+
+For non-realtime workloads, use OpenAI Batch API:
+
+```python
+from agdd.optimization.batch import BatchAPIClient, BatchRequest
+
+client = BatchAPIClient()
+
+# Create batch requests
+requests = [
+    BatchRequest(
+        custom_id=f"req-{i}",
+        url="/v1/responses",
+        body={"model": "gpt-4o", "input": [...]}
+    )
+    for i in range(100)
+]
+
+# Submit batch (50% cost reduction, 24h completion)
+batch = client.submit_batch(requests)
+```
+
+**Cost Impact:** 50% reduction on all batched requests
+
+**See:** `src/agdd/optimization/batch.py` for implementation
+
+### 3. Model Selection
 
 Choose the right model for each task:
 
@@ -143,7 +192,7 @@ def select_optimal_model(task_type: str) -> str:
     return TASK_MODEL_MAP.get(task_type, "gpt-4o-mini")  # Default to cheap
 ```
 
-### 2. Prompt Engineering
+### 4. Prompt Engineering
 
 Reduce token usage through efficient prompts:
 
@@ -171,7 +220,7 @@ Return: skills_match (0-100), experience_fit (0-100), recommendations."""
 # ~40 tokens - 73% reduction
 ```
 
-### 3. Response Length Control
+### 5. Response Length Control
 
 Limit output tokens for cost-sensitive tasks:
 
