@@ -230,7 +230,9 @@ class CostTracker:
             self.initialize()
 
         if not self.enable_sqlite or self._conn is None:
-            return self._get_summary_from_jsonl(start_time, end_time, agent, run_id)
+            # JSONL fallback also needs lock protection for thread safety
+            with self._lock:
+                return self._get_summary_from_jsonl(start_time, end_time, agent, run_id)
 
         with self._lock:
             # Build WHERE clause

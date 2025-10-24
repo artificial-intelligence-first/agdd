@@ -12,6 +12,7 @@ import pytest
 
 from observability.cost_tracker import (
     CostRecord,
+    CostSummary,
     CostTracker,
     record_llm_cost,
 )
@@ -347,3 +348,73 @@ def test_summary_excludes_null_agents(tracker: CostTracker) -> None:
     assert summary.total_calls == 2
     assert len(summary.by_agent) == 1
     assert "agent-1" in summary.by_agent
+
+
+def test_concurrent_summary_reads_with_writes_jsonl_mode(temp_dir: Path) -> None:
+    """Test that concurrent summary reads don't race with writes in JSONL mode."""
+    tracker = CostTracker(
+        jsonl_path=temp_dir / "costs.jsonl",
+        db_path=temp_dir / "costs.db",
+        enable_sqlite=False,  # JSONL-only mode
+    )
+    tracker.initialize()
+
+    num_writers = 5
+    num_readers = 5
+    records_per_writer = 10
+    summaries: list[CostSummary] = []
+    threads = []
+
+    def write_costs(thread_id: int) -> None:
+        """Write costs from a thread."""
+        for i in range(records_per_writer):
+            record = CostRecord(
+                timestamp=datetime.now(timezone.utc).isoformat(),
+                model=f"model-{thread_id}",
+                input_tokens=100,
+                output_tokens=50,
+                total_tokens=150,
+                cost_usd=0.01,
+                agent=f"agent-{thread_id}",
+            )
+            tracker.record_cost(record)
+
+    def read_summaries() -> None:
+        """Read summaries from a thread."""
+        for _ in range(10):
+            summary = tracker.get_summary()
+            summaries.append(summary)
+
+    # Start writer threads
+    for tid in range(num_writers):
+        thread = threading.Thread(target=write_costs, args=(tid,))
+        threads.append(thread)
+        thread.start()
+
+    # Start reader threads
+    for _ in range(num_readers):
+        thread = threading.Thread(target=read_summaries)
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads
+    for thread in threads:
+        thread.join()
+
+    # Final summary should have all records
+    final_summary = tracker.get_summary()
+    expected_total = num_writers * records_per_writer
+    assert final_summary.total_calls == expected_total
+    assert final_summary.total_cost_usd == pytest.approx(expected_total * 0.01)
+
+    # All intermediate summaries should be consistent
+    # (no partial line reads or corrupted JSON)
+    for summary in summaries:
+        # Each summary should have valid totals
+        assert summary.total_calls >= 0
+        assert summary.total_cost_usd >= 0
+        # Cost should match call count (each call is 0.01)
+        if summary.total_calls > 0:
+            assert summary.total_cost_usd == pytest.approx(summary.total_calls * 0.01)
+
+    tracker.close()
