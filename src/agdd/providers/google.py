@@ -199,12 +199,12 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         Returns:
             Tuple of (input_tokens, output_tokens)
         """
-        # google-genai provides usage_metadata
+        # google-genai uses input_tokens and output_tokens
         if hasattr(response, "usage_metadata"):
             usage = response.usage_metadata
             return (
-                getattr(usage, "prompt_token_count", 0),
-                getattr(usage, "candidates_token_count", 0),
+                getattr(usage, "input_tokens", 0),
+                getattr(usage, "output_tokens", 0),
             )
         return (0, 0)
 

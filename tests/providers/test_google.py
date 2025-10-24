@@ -101,8 +101,8 @@ class TestGoogleGenAIAdapter:
         mock_response = MagicMock()
         mock_response.output_text = "Generated text from new SDK"
         mock_usage = MagicMock()
-        mock_usage.prompt_token_count = 15
-        mock_usage.candidates_token_count = 25
+        mock_usage.input_tokens = 15
+        mock_usage.output_tokens = 25
         mock_response.usage_metadata = mock_usage
 
         # Mock method chain
