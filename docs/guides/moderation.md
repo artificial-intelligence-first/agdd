@@ -54,6 +54,7 @@ config = ModerationConfig(
     enable_input_moderation=True,
     enable_output_moderation=True,
     block_on_flagged=True,  # Raise error if content is flagged
+    fail_closed_on_error=False,  # False: permissive on API errors, True: flag on errors
     timeout=10.0
 )
 
@@ -250,16 +251,20 @@ for msg, result in zip(messages, results):
 
 ## Error Handling
 
-### Graceful Degradation
+### Error Handling Strategies
 
-The moderation service is designed for graceful degradation:
+The moderation service supports two error handling strategies:
+
+#### Fail-Open (Default, Permissive)
 
 ```python
-from agdd.moderation import get_moderation_service
+from agdd.moderation import ModerationConfig, get_moderation_service
 
-service = get_moderation_service()
+# Default: fail-open (permissive on errors)
+config = ModerationConfig(fail_closed_on_error=False)
+service = get_moderation_service(config)
 
-# If API call fails, returns permissive result
+# If API call fails, returns permissive result (flagged=False)
 result = service.moderate("Content to check")
 
 # Check if result is from fallback
@@ -270,6 +275,34 @@ if result.metadata.get("fallback"):
 if result.metadata.get("error"):
     print(f"Moderation error: {result.metadata['error']}")
 ```
+
+#### Fail-Closed (Strict, Safer)
+
+For security-critical applications, use fail-closed mode:
+
+```python
+# Strict: fail-closed (treat errors as policy violations)
+config = ModerationConfig(fail_closed_on_error=True)
+service = get_moderation_service(config)
+
+# If API call fails, returns flagged=True
+result = service.moderate("Content to check")
+
+# Check if error caused flag
+if result.metadata.get("fail_closed"):
+    print(f"Content flagged due to moderation error: {result.metadata['error']}")
+    # Handle as policy violation
+```
+
+**When to use fail-closed:**
+- Financial services or healthcare applications
+- User-generated content platforms with strict compliance requirements
+- High-risk scenarios where false negatives are more costly than false positives
+
+**When to use fail-open (default):**
+- Internal tools or development environments
+- Applications where false positives significantly harm UX
+- Systems with fallback manual review processes
 
 ### Custom Error Handling
 

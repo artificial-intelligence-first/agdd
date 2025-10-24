@@ -72,6 +72,7 @@ class ModerationConfig:
     enable_input_moderation: bool = True
     enable_output_moderation: bool = True
     block_on_flagged: bool = True
+    fail_closed_on_error: bool = False  # If True, treat API errors as flagged content
     timeout: float = 10.0
 
     def get_api_key(self) -> str:
@@ -134,13 +135,25 @@ class ModerationService:
             httpx.HTTPError: On API errors
         """
         # Build moderation request
+        # Note: For omni-moderation-latest, multimodal format must match OpenAI spec:
+        # Text-only: string
+        # Multimodal: array with proper content type schemas
+        input_data: Any  # Type varies: str for text-only, list for multimodal
+
         if multimodal_input:
-            # Multimodal moderation
-            input_data: list[dict[str, Any]] = [{"type": "text", "text": content}]
-            input_data.extend(multimodal_input)
+            # Multimodal moderation - build content array
+            # For images, multimodal_input should be: [{"type": "image_url", "image_url": {...}}]
+
+            # Only include text if non-empty
+            if content and content.strip():
+                input_data = [{"type": "text", "text": content}]
+                input_data.extend(multimodal_input)
+            else:
+                # Image-only moderation
+                input_data = multimodal_input
         else:
             # Text-only moderation
-            input_data = content  # type: ignore[assignment]
+            input_data = content
 
         try:
             response = self.client.moderations.create(
@@ -167,12 +180,43 @@ class ModerationService:
                 },
             )
         except Exception as e:
-            logger.error(f"Moderation API error: {e}")
-            # Return permissive result on error to avoid blocking legitimate content
-            return ModerationResult(
-                flagged=False,
-                metadata={"error": str(e), "fallback": True},
+            # Log the full error for debugging
+            logger.error(
+                f"Moderation API error: {e}",
+                exc_info=True,
+                extra={
+                    "model": self.config.model,
+                    "has_multimodal": bool(multimodal_input),
+                    "content_length": len(content),
+                },
             )
+
+            # Error handling strategy depends on configuration
+            # fail_closed_on_error=True: Treat errors as policy violations (safer)
+            # fail_closed_on_error=False: Treat errors as permissive (avoid false positives)
+            if self.config.fail_closed_on_error:
+                logger.warning(
+                    "Moderation API error in fail-closed mode - flagging content as unsafe"
+                )
+                return ModerationResult(
+                    flagged=True,
+                    categories={"moderation_error": True},
+                    metadata={
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "fail_closed": True,
+                    },
+                )
+            else:
+                # Permissive fallback to avoid blocking legitimate content
+                return ModerationResult(
+                    flagged=False,
+                    metadata={
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "fallback": True,
+                    },
+                )
 
     def moderate_input(self, content: str) -> ModerationResult:
         """
