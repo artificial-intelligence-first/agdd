@@ -367,3 +367,42 @@ class TestMCPRuntimeLifecycle:
             # Verify it's not a permission error about non-MCP permissions
             assert "files:read" not in result.error.lower()
             assert "files:write" not in result.error.lower()
+
+    @pytest.mark.asyncio
+    async def test_multiple_mcp_permissions_with_invalid(
+        self, registry: MCPRegistry
+    ) -> None:
+        """Test that one invalid MCP permission doesn't block access to valid servers."""
+        runtime = MCPRuntime(registry)
+
+        # Grant multiple MCP permissions, including one with a typo/invalid server
+        runtime.grant_permissions([
+            "mcp:test-server",
+            "mcp:invalid-typo-server",  # This doesn't exist
+            "mcp:another-nonexistent",  # This also doesn't exist
+        ])
+
+        # Verify runtime has all permissions
+        granted = runtime.get_granted_permissions()
+        assert "mcp:test-server" in granted
+        assert "mcp:invalid-typo-server" in granted
+        assert "mcp:another-nonexistent" in granted
+
+        # Execute a tool on the VALID server
+        # Should NOT fail just because other permissions are invalid
+        result = await runtime.execute_tool(
+            server_id="test-server",
+            tool_name="some-tool",
+            arguments={},
+        )
+
+        # Should attempt execution (even if it fails due to server not running)
+        # The key is that it should NOT fail with "Missing required permissions" about
+        # the invalid servers
+        assert isinstance(result, MCPToolResult)
+        if not result.success:
+            # Verify it's not a permission error about the invalid servers
+            assert "invalid-typo-server" not in result.error.lower()
+            assert "another-nonexistent" not in result.error.lower()
+            # It's fine if it fails because test-server isn't started, but not
+            # because of validation of unrelated permissions

@@ -128,14 +128,15 @@ class MCPRuntime:
             )
 
         # Execute tool via registry
-        # Filter only MCP permissions to avoid validation errors for non-MCP permissions
-        mcp_permissions = [p for p in self._granted_permissions if p.startswith("mcp:")]
+        # Only validate the specific permission for this server, not all MCP permissions
+        # (avoids false failures when skill has multiple MCP permissions and one is invalid)
+        required_permission = f"mcp:{server_id}"
         logger.info(f"Executing tool {server_id}.{tool_name}")
         result = await self._registry.execute_tool(
             server_id=server_id,
             tool_name=tool_name,
             arguments=arguments,
-            required_permissions=mcp_permissions,
+            required_permissions=[required_permission],
         )
 
         if result.success:
