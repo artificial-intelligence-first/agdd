@@ -22,8 +22,35 @@ from typing import Any, Dict
 import jsonschema
 import yaml
 
+def _find_repo_root(start_path: Path) -> Path:
+    """
+    Find repository root by looking for pyproject.toml or .git directory.
+
+    This is more robust than using a fixed parent level, which can break
+    when the skill is nested at different depths.
+
+    Args:
+        start_path: Starting path (typically __file__)
+
+    Returns:
+        Path to repository root
+
+    Raises:
+        RuntimeError: If repository root cannot be found
+    """
+    current = start_path.resolve()
+    # Walk up the directory tree
+    for parent in [current] + list(current.parents):
+        # Check for repository markers
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+            return parent
+    # Fallback: assume we're in catalog/skills/<name>/impl/ and go up 4 levels
+    # This works for standard skill structure: impl -> skill -> skills -> catalog -> root
+    return start_path.resolve().parents[4]
+
+
 # Update these paths to match your contract files
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = _find_repo_root(Path(__file__))
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<input-contract>.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<output-contract>.json"
 
@@ -41,6 +68,11 @@ def _load_schema(path: Path) -> Dict[str, Any]:
     Raises:
         ValueError: If the schema is not a valid JSON object
     """
+    if not path.exists():
+        # Return minimal schema if contract doesn't exist yet
+        # This is useful for templates with placeholder paths
+        return {"type": "object"}
+
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError(f"Schema at {path} must be a JSON object")

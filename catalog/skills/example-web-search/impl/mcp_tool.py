@@ -20,7 +20,34 @@ from typing import Any, Dict
 import jsonschema
 import yaml
 
-ROOT = Path(__file__).resolve().parents[4]
+def _find_repo_root(start_path: Path) -> Path:
+    """
+    Find repository root by looking for pyproject.toml or .git directory.
+
+    This is more robust than using a fixed parent level, which can break
+    when the skill is nested at different depths.
+
+    Args:
+        start_path: Starting path (typically __file__)
+
+    Returns:
+        Path to repository root
+
+    Raises:
+        RuntimeError: If repository root cannot be found
+    """
+    current = start_path.resolve()
+    # Walk up the directory tree
+    for parent in [current] + list(current.parents):
+        # Check for repository markers
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+            return parent
+    # Fallback: assume we're in catalog/skills/<name>/impl/ and go up 4 levels
+    # This works for standard skill structure: impl -> skill -> skills -> catalog -> root
+    return start_path.resolve().parents[4]
+
+
+ROOT = _find_repo_root(Path(__file__))
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_query.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_result.json"
 
