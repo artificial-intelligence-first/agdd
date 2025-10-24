@@ -1,0 +1,47 @@
+slug: "your-a2a-advisor-sag"
+name: "YourA2AAdvisorSAG"
+role: "sub"
+version: "0.1.0"
+description: "A2A-enabled Sub-Agent for specialized task execution"
+
+entrypoint: "catalog/agents/sub/your-a2a-advisor-sag/code/advisor.py:run"
+
+depends_on:
+  skills:
+    - "skill.your-domain-skill"
+
+contracts:
+  input_schema: "catalog/contracts/a2a_advisor_input.schema.json"
+  output_schema: "catalog/contracts/a2a_advisor_output.schema.json"
+
+risk_class: "low"
+
+budgets:
+  max_tokens: 50000
+  max_cost_usd: 0.50
+  timeout_seconds: 10
+
+observability:
+  log_level: "info"
+  trace_a2a_calls: true  # Enable A2A-specific tracing
+  metrics:
+    - "latency_ms"
+    - "tokens"
+    - "a2a_depth"  # Track call chain depth
+
+evaluation:
+  success_criteria:
+    - "output conforms to schema"
+    - "a2a context preserved"
+  performance_targets:
+    p95_latency_ms: 2000
+    success_rate: 0.98
+
+# A2A-specific configuration
+a2a:
+  api_version: "v1"
+  discovery_enabled: true
+  supports_async: false
+  capabilities:
+    - "data-processing"
+    - "specialized-analysis"

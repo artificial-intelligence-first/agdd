@@ -1,18 +1,23 @@
 """
-Optimization module for SLA-based routing and cost optimization.
+Optimization utilities for AGDD.
 
-This module provides functionality to select optimal execution plans,
-caching strategies, and batching configurations based on SLA parameters.
+This module provides functionality for:
+- SLA-based routing decisions (execution plans, model tier selection)
+- LLM API call optimization (batch processing, cost reduction strategies)
+- Caching strategies and batching configurations
 """
 
+from __future__ import annotations
+
 from agdd.optimization.optimizer import (
-    SLAParameters,
-    ExecutionPlan,
     CostOptimizer,
+    ExecutionPlan,
+    SLAParameters,
     optimize_for_sla,
 )
 
 __all__ = [
+    "batch",
     "SLAParameters",
     "ExecutionPlan",
     "CostOptimizer",

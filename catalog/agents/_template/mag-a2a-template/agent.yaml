@@ -1,0 +1,54 @@
+slug: "your-a2a-orchestrator-mag"
+name: "YourA2AOrchestratorMAG"
+role: "main"
+version: "0.1.0"
+description: "A2A-enabled Main Agent for orchestrating agent-to-agent workflows"
+
+entrypoint: "catalog/agents/main/your-a2a-orchestrator-mag/code/orchestrator.py:run"
+
+depends_on:
+  sub_agents:
+    - "your-a2a-advisor-sag"
+  skills:
+    - "skill.task-decomposition"
+    - "skill.result-aggregation"
+
+contracts:
+  input_schema: "catalog/contracts/a2a_orchestrator_input.schema.json"
+  output_schema: "catalog/contracts/a2a_orchestrator_output.schema.json"
+
+risk_class: "low"
+
+budgets:
+  max_tokens: 100000
+  max_cost_usd: 1.00
+  timeout_seconds: 30
+
+observability:
+  log_level: "info"
+  trace_delegations: true
+  trace_a2a_calls: true  # Enable A2A-specific tracing
+  metrics:
+    - "latency_ms"
+    - "task_count"
+    - "success_count"
+    - "a2a_calls"  # Track A2A invocations
+
+evaluation:
+  success_criteria:
+    - "output conforms to schema"
+    - "all required fields present"
+    - "a2a communication successful"
+  performance_targets:
+    p95_latency_ms: 5000
+    success_rate: 0.95
+
+# A2A-specific configuration
+a2a:
+  api_version: "v1"
+  discovery_enabled: true
+  supports_async: false
+  capabilities:
+    - "task-decomposition"
+    - "multi-agent-coordination"
+    - "result-aggregation"
