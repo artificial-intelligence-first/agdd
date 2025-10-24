@@ -1,3 +1,11 @@
+---
+title: AGDD HTTP API Reference
+last_synced: 2025-10-24
+description: Complete reference for AGDD FastAPI endpoints, authentication, and observability
+change_log:
+  - 2025-10-24: Added front-matter and SSE/NDJSON contract specifications
+---
+
 # AGDD HTTP API Reference
 
 The AG-Driven Development (AGDD) HTTP API exposes agent orchestration, run observability, and GitHub automation over FastAPI. This document provides an end-to-end reference for configuration, authentication, endpoints, and troubleshooting.

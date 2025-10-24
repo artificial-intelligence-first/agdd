@@ -1,3 +1,11 @@
+---
+title: Semantic Cache Guide
+last_synced: 2025-10-24
+description: Vector similarity caching with FAISS and Redis for cost and latency reduction
+change_log:
+  - 2025-10-24: Added front-matter and architecture overview
+---
+
 # Semantic Cache Guide
 
 AGDD provides semantic caching using vector similarity search to reduce costs and latency by reusing responses for similar prompts.

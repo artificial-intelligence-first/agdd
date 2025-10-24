@@ -1,4 +1,15 @@
+---
+title: Agent-to-Agent (A2A) Communication
+last_synced: 2025-10-24
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md
+description: MAG/SAG orchestration patterns and delegation workflows
+change_log:
+  - 2025-10-24: Added front-matter and SSOT reference for agent patterns
+---
+
 # Agent-to-Agent (A2A) Communication
+
+**Note:** For canonical A2A patterns and agent architecture principles, refer to [AGENTS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md).
 
 This guide covers the Agent-to-Agent (A2A) communication patterns in AGDD, focusing on the MAG (Main Agent) and SAG (Sub-Agent) orchestration architecture.
 

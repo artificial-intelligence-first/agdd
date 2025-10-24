@@ -1,4 +1,16 @@
+---
+title: SSOT (Single Source of Truth) - Local Reference
+last_synced: 2025-10-24
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/SSOT.md
+description: Local reference for AGDD-specific terminology and policies. For canonical definitions, see the SSOT repository.
+change_log:
+  - 2025-10-24: Added SSOT repository reference and front-matter
+---
+
 # SSOT (Single Source of Truth)
+
+**Note:** This document provides AGDD-specific terminology. For canonical definitions and cross-project policies, refer to the [SSOT repository](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/SSOT.md).
+
 Authoritative source for terminology, policies, and permissions. When conflicts arise, this document wins. Announce changes here first via PR and let other documents reference this canon.
 
 ## Glossary

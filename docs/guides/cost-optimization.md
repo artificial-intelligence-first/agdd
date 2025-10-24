@@ -1,3 +1,11 @@
+---
+title: Cost Optimization Guide
+last_synced: 2025-10-24
+description: Strategies for optimizing LLM costs through model selection, token management, and usage tracking
+change_log:
+  - 2025-10-24: Added front-matter and cost tracking architecture
+---
+
 # Cost Optimization Guide
 
 This guide covers strategies and best practices for optimizing LLM costs in the AGDD framework, from model selection to token management and usage tracking.
