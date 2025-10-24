@@ -227,3 +227,69 @@ class TestScalability:
 
         assert len(results) <= 10
         assert elapsed < 0.1  # Should complete in < 100ms
+
+
+class TestIVFFlatTraining:
+    """Test IVFFlat index training."""
+
+    def test_ivfflat_training(self) -> None:
+        """Test that IVFFlat index trains correctly."""
+        pytest.importorskip("faiss")
+
+        config = CacheConfig(
+            backend=CacheBackend.FAISS,
+            dimension=128,
+            faiss_index_type="IVFFlat",
+            faiss_nlist=10,  # Small nlist for testing
+        )
+        cache = create_cache(config)
+
+        # Add entries before training threshold
+        for i in range(5):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i})
+
+        # Should be buffered
+        assert cache.size() == 5
+
+        # Search should work on buffered entries
+        query = np.random.rand(128).astype(np.float32)
+        results = cache.search(query, k=3, threshold=0.0)
+        assert len(results) <= 3
+
+        # Add more entries to trigger training
+        for i in range(5, 15):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i})
+
+        # Should be trained now
+        assert cache.size() == 15
+
+        # Search should work after training
+        results = cache.search(query, k=5, threshold=0.0)
+        assert len(results) <= 5
+
+    def test_ivfflat_search_before_training(self) -> None:
+        """Test search works before IVFFlat training."""
+        pytest.importorskip("faiss")
+
+        config = CacheConfig(
+            backend=CacheBackend.FAISS,
+            dimension=128,
+            faiss_index_type="IVFFlat",
+            faiss_nlist=100,  # High threshold
+        )
+        cache = create_cache(config)
+
+        # Add a few entries (less than nlist)
+        embeddings_data = []
+        for i in range(10):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i})
+            embeddings_data.append((embedding, i))
+
+        # Search for exact match
+        for embedding, expected_idx in embeddings_data:
+            results = cache.search(embedding, k=1, threshold=0.99)
+            assert len(results) == 1
+            assert results[0].value["index"] == expected_idx

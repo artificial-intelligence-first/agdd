@@ -167,12 +167,19 @@ class FAISSCache(SemanticCache):
 
         self.config = config
         self.dimension = config.dimension
-        self._metadata: dict[int, tuple[str, dict[str, Any]]] = {}
+        self._metadata: dict[
+            int, tuple[str, dict[str, Any], np.ndarray[Any, np.dtype[np.float32]]]
+        ] = {}
         self._next_id = 0
+
+        # Buffer for IVFFlat training
+        self._training_buffer: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+        self._trained = False
 
         # Create FAISS index based on configuration
         if config.faiss_index_type == "Flat":
             self.index: Any = faiss.IndexFlatIP(self.dimension)
+            self._trained = True  # Flat doesn't need training
         elif config.faiss_index_type == "IVFFlat":
             quantizer = faiss.IndexFlatIP(self.dimension)
             self.index = faiss.IndexIVFFlat(
@@ -181,10 +188,9 @@ class FAISSCache(SemanticCache):
                 config.faiss_nlist,
                 faiss.METRIC_INNER_PRODUCT,
             )
-            # Need to train IVF index before use
-            self._trained = False
         elif config.faiss_index_type == "HNSW":
             self.index = faiss.IndexHNSWFlat(self.dimension, 32)
+            self._trained = True  # HNSW doesn't need training
         else:
             msg = f"Unknown FAISS index type: {config.faiss_index_type}"
             raise ValueError(msg)
@@ -200,22 +206,19 @@ class FAISSCache(SemanticCache):
         if self.config.faiss_index_type != "IVFFlat":
             return
 
-        if hasattr(self, "_trained") and not self._trained:
-            # Need at least nlist vectors to train
-            if self._next_id >= self.config.faiss_nlist:
-                # Collect all embeddings for training
-                embeddings: list[np.ndarray[Any, np.dtype[np.float32]]] = []
-                for idx in range(self._next_id):
-                    # We need to reconstruct from index
-                    # For simplicity, we'll train on first nlist*10 vectors
-                    if len(embeddings) >= self.config.faiss_nlist * 10:
-                        break
-                    embeddings.append(self.index.reconstruct(int(idx)))
+        if not self._trained and len(self._training_buffer) >= self.config.faiss_nlist:
+            # Train the index with buffered embeddings
+            train_data = np.array(self._training_buffer, dtype=np.float32)
+            self.index.train(train_data)
+            self._trained = True
+            logger.info("Trained IVF index with %d vectors", len(train_data))
 
-                train_data = np.array(embeddings, dtype=np.float32)
-                self.index.train(train_data)
-                self._trained = True
-                logger.info("Trained IVF index with %d vectors", len(train_data))
+            # Add all buffered embeddings to the index
+            for embedding in self._training_buffer:
+                self.index.add(embedding.reshape(1, -1))
+
+            # Clear the buffer
+            self._training_buffer.clear()
 
     def set(
         self,
@@ -233,16 +236,17 @@ class FAISSCache(SemanticCache):
         if norm > 0:
             embedding = embedding / norm
 
-        # Add to FAISS index
-        self.index.add(embedding.reshape(1, -1))
-
-        # Store metadata
-        self._metadata[self._next_id] = (key, value)
+        # Store metadata with embedding
+        self._metadata[self._next_id] = (key, value, embedding.copy())
         self._next_id += 1
 
-        # Train if needed
-        if self.config.faiss_index_type == "IVFFlat":
+        # For IVFFlat, buffer embeddings until we have enough to train
+        if self.config.faiss_index_type == "IVFFlat" and not self._trained:
+            self._training_buffer.append(embedding.copy())
             self._ensure_trained()
+        else:
+            # Add to FAISS index directly
+            self.index.add(embedding.reshape(1, -1))
 
     def search(
         self,
@@ -263,36 +267,55 @@ class FAISSCache(SemanticCache):
         if norm > 0:
             query_embedding = query_embedding / norm
 
-        # Search FAISS index
-        k_actual = min(k, self._next_id)
-        distances, indices = self.index.search(query_embedding.reshape(1, -1), k_actual)
-
-        # Filter by threshold and construct results
         results: list[CacheEntry] = []
-        for dist, idx in zip(distances[0], indices[0]):
-            # FAISS inner product returns similarity (higher is better)
-            similarity = float(dist)
-            if similarity >= threshold:
-                key, value = self._metadata[int(idx)]
-                # Reconstruct embedding if needed
-                emb = self.index.reconstruct(int(idx))
-                results.append(
-                    CacheEntry(
-                        key=key,
-                        embedding=emb,
-                        value=value,
-                        distance=1.0 - similarity,  # Convert to distance
-                    )
-                )
 
-        return results
+        # Search buffered embeddings (for untrained IVFFlat)
+        if self._training_buffer:
+            buffer_start_idx = self._next_id - len(self._training_buffer)
+            for i, emb in enumerate(self._training_buffer):
+                similarity = float(np.dot(query_embedding, emb))
+                if similarity >= threshold:
+                    idx = buffer_start_idx + i
+                    key, value, stored_emb = self._metadata[idx]
+                    results.append(
+                        CacheEntry(
+                            key=key,
+                            embedding=stored_emb,
+                            value=value,
+                            distance=1.0 - similarity,
+                        )
+                    )
+
+        # Search FAISS index if trained
+        if self._trained and self.index.ntotal > 0:
+            k_actual = min(k, self.index.ntotal)
+            distances, indices = self.index.search(query_embedding.reshape(1, -1), k_actual)
+
+            for dist, idx in zip(distances[0], indices[0]):
+                # FAISS inner product returns similarity (higher is better)
+                similarity = float(dist)
+                if similarity >= threshold:
+                    key, value, emb = self._metadata[int(idx)]
+                    results.append(
+                        CacheEntry(
+                            key=key,
+                            embedding=emb,
+                            value=value,
+                            distance=1.0 - similarity,  # Convert to distance
+                        )
+                    )
+
+        # Sort by distance and limit to k results
+        results.sort(key=lambda x: x.distance)
+        return results[:k]
 
     def clear(self) -> None:
         """Clear all entries from the cache."""
         self.index.reset()
         self._metadata.clear()
         self._next_id = 0
-        if hasattr(self, "_trained"):
+        self._training_buffer.clear()
+        if self.config.faiss_index_type == "IVFFlat":
             self._trained = False
 
     def size(self) -> int:

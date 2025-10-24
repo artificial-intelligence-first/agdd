@@ -133,9 +133,7 @@ class BatchAPIClient:
             ValueError: If batch size exceeds maximum
         """
         if len(requests) > self.MAX_BATCH_SIZE:
-            raise ValueError(
-                f"Batch size {len(requests)} exceeds maximum {self.MAX_BATCH_SIZE}"
-            )
+            raise ValueError(f"Batch size {len(requests)} exceeds maximum {self.MAX_BATCH_SIZE}")
 
         if output_path is None:
             timestamp = int(time.time())
