@@ -80,15 +80,15 @@ class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
             model_name: Model name to use
         """
         try:
-            import google.generativeai as genai  # type: ignore[import-not-found]
+            import google.generativeai as genai
         except ImportError as e:
             raise ImportError(
                 "google-generativeai package is required. "
                 "Install with: pip install google-generativeai"
             ) from e
 
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(model_name)
+        genai.configure(api_key=api_key)  # type: ignore[attr-defined]
+        self._model = genai.GenerativeModel(model_name)  # type: ignore[attr-defined]
 
     def generate_content(self, prompt: str, **kwargs: Any) -> Any:
         """Generate content using google-generativeai SDK.
@@ -146,7 +146,7 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         """
         try:
             from google import genai
-            from google.genai import types  # type: ignore[import-not-found]
+            from google.genai import types
         except ImportError as e:
             raise ImportError(
                 "google-genai package is required. "
