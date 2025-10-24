@@ -308,15 +308,50 @@ class ModerationService:
 
             return results
         except Exception as e:
-            logger.error(f"Batch moderation API error: {e}")
-            # Return permissive results on error
-            return [
-                ModerationResult(
-                    flagged=False,
-                    metadata={"error": str(e), "fallback": True},
+            # Log the full error for debugging
+            logger.error(
+                f"Batch moderation API error: {e}",
+                exc_info=True,
+                extra={
+                    "model": self.config.model,
+                    "batch_size": len(contents),
+                },
+            )
+
+            # Error handling strategy depends on configuration
+            # fail_closed_on_error=True: Treat errors as policy violations (safer)
+            # fail_closed_on_error=False: Treat errors as permissive (avoid false positives)
+            if self.config.fail_closed_on_error:
+                logger.warning(
+                    f"Batch moderation API error in fail-closed mode - flagging all {len(contents)} items as unsafe"
                 )
-                for _ in contents
-            ]
+                return [
+                    ModerationResult(
+                        flagged=True,
+                        categories={"moderation_error": True},
+                        metadata={
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "fail_closed": True,
+                            "batch_index": i,
+                        },
+                    )
+                    for i in range(len(contents))
+                ]
+            else:
+                # Permissive fallback to avoid blocking legitimate content
+                return [
+                    ModerationResult(
+                        flagged=False,
+                        metadata={
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "fallback": True,
+                            "batch_index": i,
+                        },
+                    )
+                    for i in range(len(contents))
+                ]
 
 
 # Global singleton instance

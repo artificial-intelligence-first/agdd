@@ -216,7 +216,7 @@ for category, input_types in result.category_applied_input_types.items():
 Efficiently moderate multiple items:
 
 ```python
-from agdd.moderation import get_moderation_service
+from agdd.moderation import get_moderation_service, ModerationConfig
 
 service = get_moderation_service()
 
@@ -234,6 +234,34 @@ for msg, result in zip(messages, results):
         print(f"Flagged: {msg[:50]}... ({result.flagged_categories})")
 ```
 
+**Error Handling in Batch Mode:**
+
+Batch moderation respects the `fail_closed_on_error` configuration:
+
+```python
+# Fail-closed: All items flagged on API error
+config = ModerationConfig(fail_closed_on_error=True)
+service = ModerationService(config)
+
+results = service.batch_moderate(messages)
+
+# If API fails, all results will have flagged=True
+for i, result in enumerate(results):
+    if result.metadata.get("fail_closed"):
+        print(f"Item {i} flagged due to API error")
+
+# Fail-open (default): All items permissive on API error
+config = ModerationConfig(fail_closed_on_error=False)
+service = ModerationService(config)
+
+results = service.batch_moderate(messages)
+
+# If API fails, all results will have flagged=False
+for i, result in enumerate(results):
+    if result.metadata.get("fallback"):
+        print(f"Item {i} passed due to API error (permissive)")
+```
+
 ## Cost Considerations
 
 ### Pricing
@@ -245,9 +273,10 @@ for msg, result in zip(messages, results):
 ### Best Practices
 
 1. **Cache moderation results**: For repeated content, cache results to avoid duplicate API calls
-2. **Batch requests**: Use `batch_moderate()` for multiple items
-3. **Fail-safe**: Service returns permissive result on API errors to avoid blocking legitimate content
-4. **Async support**: For high-throughput scenarios, consider async wrappers
+2. **Batch requests**: Use `batch_moderate()` for multiple items (single API call for multiple contents)
+3. **Configure error handling**: Set `fail_closed_on_error=True` for security-critical applications
+4. **Check metadata**: Always check `result.metadata` for error/fallback flags to detect API issues
+5. **Async support**: For high-throughput scenarios, consider async wrappers
 
 ## Error Handling
 
