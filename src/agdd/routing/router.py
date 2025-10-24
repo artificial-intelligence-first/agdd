@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from dataclasses import dataclass
 from importlib.resources import files
@@ -101,7 +102,7 @@ def get_plan(
     policy: Optional[RoutingPolicy] = None,
 ) -> Optional[Plan]:
     """
-    Get execution plan for task type.
+    Get execution plan for task type with unified provider selection support.
 
     Args:
         task_type: Task type identifier (e.g., "offer-orchestration")
@@ -111,17 +112,38 @@ def get_plan(
     Returns:
         Plan instance or None if no matching route found
 
+    Environment Variables:
+        AGDD_PROVIDER: Override provider for all tasks (e.g., "openai", "anthropic", "google", "local")
+        AGDD_MODEL: Override model for all tasks (optional, provider-specific)
+
     Examples:
         >>> plan = get_plan("offer-orchestration")
         >>> if plan:
         ...     print(f"Provider: {plan.provider}, Model: {plan.model}")
 
         >>> plan = get_plan("offer-orchestration", overrides={"use_batch": True})
+
+        >>> # Use environment variable to switch provider globally
+        >>> os.environ["AGDD_PROVIDER"] = "openai"
+        >>> plan = get_plan("offer-orchestration")  # Uses OpenAI regardless of policy
     """
     if policy is None:
         policy = _get_default_policy()
 
-    route = policy.get_route(task_type, overrides=overrides)
+    # Apply environment variable overrides if set
+    env_overrides = {}
+    provider_env = os.getenv("AGDD_PROVIDER")
+    if provider_env:
+        env_overrides["provider"] = provider_env
+
+    model_env = os.getenv("AGDD_MODEL")
+    if model_env:
+        env_overrides["model"] = model_env
+
+    # Merge environment overrides with explicit overrides (explicit takes precedence)
+    merged_overrides = {**env_overrides, **(overrides or {})}
+
+    route = policy.get_route(task_type, overrides=merged_overrides if merged_overrides else None)
     if route is None:
         return None
 

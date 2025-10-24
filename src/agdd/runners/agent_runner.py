@@ -433,7 +433,8 @@ class AgentRunner:
         Args:
             slug: Agent slug (e.g., "offer-orchestrator-mag")
             payload: Input data conforming to agent's input schema
-            context: Optional context for distributed tracing
+            context: Optional context for distributed tracing and run_id retrieval.
+                     If provided, the generated run_id will be written to context["run_id"].
 
         Returns:
             Output data conforming to agent's output schema
@@ -443,6 +444,9 @@ class AgentRunner:
         """
         context = context or {}
         run_id = f"mag-{uuid.uuid4().hex[:8]}"
+
+        # Write run_id to context for caller retrieval
+        context["run_id"] = run_id
 
         # Initialize obs early so it's available in exception handler
         obs: ObservabilityLogger | None = None
@@ -762,7 +766,19 @@ def invoke_mag(
     base_dir: Optional[Path] = None,
     context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Convenience function to invoke a MAG"""
+    """
+    Convenience function to invoke a MAG.
+
+    Args:
+        slug: Agent slug identifier
+        payload: Input data conforming to agent's input schema
+        base_dir: Optional base directory for run artifacts
+        context: Optional context for distributed tracing and run_id retrieval.
+                 If provided, the generated run_id will be written to context["run_id"].
+
+    Returns:
+        Output data conforming to agent's output schema
+    """
     runner = get_runner(base_dir=base_dir)
     return runner.invoke_mag(slug, payload, context=context)
 

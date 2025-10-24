@@ -4,6 +4,7 @@ last_synced: 2025-10-24
 description: Complete reference for AGDD FastAPI endpoints, authentication, and observability
 change_log:
   - 2025-10-24: Added front-matter and SSE/NDJSON contract specifications
+  - 2025-10-24: Added run_id format specification and retrieval documentation
 ---
 
 # AGDD HTTP API Reference
@@ -261,9 +262,50 @@ The `examples/api/curl_examples.sh` script provides a guided tour of every endpo
 
 ## Run Tracking and Observability
 
-- Run directories are created under `.runs/agents/`.
-- `summary.json` and `metrics.json` are parsed to populate the `/runs/{run_id}` response.
-- `logs.jsonl` is streamed directly for `/runs/{run_id}/logs`.
+### Run ID Format
+
+Every agent execution is assigned a unique `run_id` that identifies the run and its artifacts:
+
+- **Main Agent (MAG)**: `mag-{8-char-hex}`
+  - Example: `mag-a1b2c3d4`
+- **Sub-Agent (SAG)**: `sag-{8-char-hex}`
+  - Example: `sag-e5f6g7h8`
+
+The hex suffix is generated from a UUID v4 (8 characters = first 8 hex digits of UUID).
+
+### Run ID Retrieval
+
+When executing an agent via `POST /agents/{slug}/run`, the API response always includes the `run_id`:
+
+```json
+{
+  "run_id": "mag-a1b2c3d4",
+  "slug": "offer-orchestrator-mag",
+  "output": {...},
+  "artifacts": {
+    "summary": "/api/v1/runs/mag-a1b2c3d4",
+    "logs": "/api/v1/runs/mag-a1b2c3d4/logs"
+  }
+}
+```
+
+Clients should use the returned `run_id` to retrieve run artifacts and logs. Do not attempt to construct run IDs manually.
+
+### Directory Structure
+
+Run artifacts are stored in the following structure:
+
+```
+.runs/agents/{run_id}/
+├── summary.json    # Run metadata, status, and metrics summary
+├── metrics.json    # Detailed time-series metrics
+└── logs.jsonl      # Newline-delimited JSON log entries
+```
+
+### API Endpoints
+
+- `summary.json` and `metrics.json` are parsed to populate the `GET /runs/{run_id}` response.
+- `logs.jsonl` is streamed directly for `GET /runs/{run_id}/logs`.
 - The run tracker validates run IDs to guard against path traversal attacks and inspects the filesystem to determine newly created run folders.
 
 ## Error Reference
