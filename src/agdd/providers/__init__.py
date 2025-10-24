@@ -7,9 +7,30 @@ with support for standard and optimized API endpoints.
 
 from __future__ import annotations
 
+# Core protocol (used by MAG/SAG)
 from agdd.providers.base import BaseLLMProvider, LLMResponse
 
 # Import submodules to make them available via package namespace
 from . import anthropic, openai
 
-__all__ = ["BaseLLMProvider", "LLMResponse", "anthropic", "openai"]
+# OpenAI-compatible providers (vLLM, Ollama)
+from agdd.providers.openai_compat import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    OpenAICompatProvider,
+    ProviderCapabilities,
+)
+
+__all__ = [
+    # Core protocol
+    "BaseLLMProvider",
+    "LLMResponse",
+    # Provider modules
+    "anthropic",
+    "openai",
+    # OpenAI-compatible providers (vLLM, Ollama)
+    "OpenAICompatProvider",
+    "ChatCompletionRequest",
+    "ChatCompletionResponse",
+    "ProviderCapabilities",
+]
