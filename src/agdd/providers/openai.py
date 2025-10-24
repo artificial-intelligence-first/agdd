@@ -171,8 +171,8 @@ class OpenAIProvider:
         if not isinstance(request.tool_choice, NotGiven):
             params["tool_choice"] = request.tool_choice
         if not isinstance(request.response_format, NotGiven):
-            # Responses API uses 'text' field configuration
-            params["text"] = request.response_format
+            # Responses API uses response_format for structured outputs
+            params["response_format"] = request.response_format
         if request.metadata:
             params["metadata"] = request.metadata
 
@@ -261,7 +261,8 @@ class OpenAIProvider:
         if not isinstance(request.tool_choice, NotGiven):
             params["tool_choice"] = request.tool_choice
         if not isinstance(request.response_format, NotGiven):
-            params["text"] = request.response_format
+            # Responses API uses response_format for structured outputs
+            params["response_format"] = request.response_format
 
         # Use stream() method for Responses API as context manager
         accumulated_content = ""

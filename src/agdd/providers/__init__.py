@@ -7,4 +7,6 @@ with support for standard and optimized API endpoints.
 
 from __future__ import annotations
 
-__all__ = ["openai"]
+from agdd.providers.base import BaseLLMProvider, LLMResponse
+
+__all__ = ["BaseLLMProvider", "LLMResponse", "openai"]

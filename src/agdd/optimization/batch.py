@@ -302,17 +302,19 @@ class BatchAPIClient:
         if not batch_details.output_file_id:
             raise ValueError(f"Batch {batch_id} has no output file")
 
-        # Download output file
-        file_content = self.client.files.content(batch_details.output_file_id)
+        # Download output file using streaming API
+        file_response = self.client.files.content(batch_details.output_file_id)
+        file_bytes = file_response.read()
 
         # Save to file if path provided
         if output_path:
             with open(output_path, "wb") as f:
-                f.write(file_content.content)
+                f.write(file_bytes)
 
-        # Parse results
+        # Parse results from bytes
+        file_text = file_bytes.decode("utf-8")
         results: List[BatchResponse] = []
-        for line in file_content.text.strip().split("\n"):
+        for line in file_text.strip().split("\n"):
             if not line:
                 continue
             data = json.loads(line)
