@@ -11,10 +11,17 @@ import subprocess
 import time
 from typing import Any
 
-import asyncpg  # type: ignore[import-untyped]
-
 from agdd.mcp.config import MCPServerConfig
 from agdd.mcp.tool import MCPTool, MCPToolResult, MCPToolSchema
+
+# Optional import for PostgreSQL support
+try:
+    import asyncpg  # type: ignore[import-untyped]
+
+    HAS_ASYNCPG = True
+except ImportError:
+    HAS_ASYNCPG = False
+    asyncpg = None
 
 
 class MCPServerError(Exception):
@@ -40,7 +47,7 @@ class MCPServer:
         self.config = config
         self._process: subprocess.Popen[bytes] | None = None
         self._tools: dict[str, MCPTool] = {}
-        self._pg_pool: asyncpg.Pool[Any] | None = None
+        self._pg_pool: Any = None  # asyncpg.Pool[Any] | None (if asyncpg is installed)
         self._started: bool = False
 
     @property
@@ -118,6 +125,12 @@ class MCPServer:
         Raises:
             MCPServerError: If connection configuration is missing or invalid
         """
+        if not HAS_ASYNCPG:
+            raise MCPServerError(
+                f"PostgreSQL server '{self.server_id}' requires asyncpg package. "
+                "Install it with: pip install asyncpg"
+            )
+
         if not self.config.conn:
             raise MCPServerError(f"No connection config for PostgreSQL server {self.server_id}")
 

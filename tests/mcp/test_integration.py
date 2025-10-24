@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRuntime
+from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 
 
 class TestSkillsMCPIntegration:
@@ -329,3 +329,32 @@ class TestMCPRuntimeLifecycle:
         runtime.revoke_permissions(["mcp:test-server"])
 
         assert runtime.get_granted_permissions() == []
+
+    @pytest.mark.asyncio
+    async def test_mixed_permissions_execution(self, registry: MCPRegistry) -> None:
+        """Test that skills with mixed MCP and non-MCP permissions can execute tools."""
+        runtime = MCPRuntime(registry)
+
+        # Grant both MCP and non-MCP permissions (simulating a skill that needs multiple access)
+        runtime.grant_permissions(["mcp:test-server", "files:read", "files:write"])
+
+        # Verify runtime has all permissions
+        granted = runtime.get_granted_permissions()
+        assert "mcp:test-server" in granted
+        assert "files:read" in granted
+        assert "files:write" in granted
+
+        # Execute a tool - should only validate MCP permissions
+        result = await runtime.execute_tool(
+            server_id="test-server",
+            tool_name="some-tool",
+            arguments={},
+        )
+
+        # Should attempt execution (even if it fails due to server not running)
+        # The key is that it should NOT fail with "Missing required permissions" for non-MCP perms
+        assert isinstance(result, MCPToolResult)
+        if not result.success:
+            # Verify it's not a permission error about non-MCP permissions
+            assert "files:read" not in result.error.lower()
+            assert "files:write" not in result.error.lower()
