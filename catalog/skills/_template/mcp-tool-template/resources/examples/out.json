@@ -1,0 +1,6 @@
+{
+  "result": {
+    "status": "not_implemented",
+    "message": "MCP tool invocation not implemented. Please implement _call_mcp_tool()."
+  }
+}
