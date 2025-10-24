@@ -215,7 +215,7 @@ class FAISSCache(SemanticCache):
             return
 
         if not self._trained and len(self._training_buffer) >= self.config.faiss_nlist:
-            # Extract embeddings and IDs from buffer
+            # Extract embeddings and IDs from buffer, filtering out logically deleted entries
             ids_to_add = []
             embeddings_to_add = []
             for idx, embedding in self._training_buffer:
@@ -224,7 +224,8 @@ class FAISSCache(SemanticCache):
                     ids_to_add.append(idx)
                     embeddings_to_add.append(embedding)
 
-            if embeddings_to_add:
+            # Only train if we have enough active embeddings (FAISS requires >= nlist)
+            if len(embeddings_to_add) >= self.config.faiss_nlist:
                 # Train the index with active embeddings
                 train_data = np.array(embeddings_to_add, dtype=np.float32)
                 self.index.train(train_data)
@@ -241,8 +242,9 @@ class FAISSCache(SemanticCache):
                 self._trained = True
                 logger.info("Trained IVF index with %d vectors", len(embeddings_to_add))
 
-            # Clear the buffer
-            self._training_buffer.clear()
+                # Clear the buffer only after successful training
+                self._training_buffer.clear()
+            # else: keep buffering until we have enough active entries
 
     def set(
         self,

@@ -406,3 +406,53 @@ class TestIVFFlatTraining:
             results = cache.search(embedding, k=1, threshold=0.99)
             assert len(results) == 1
             assert results[0].value["index"] == expected_idx
+
+    def test_ivfflat_training_with_key_overwrites(self) -> None:
+        """Test IVFFlat training handles frequent key overwrites correctly.
+
+        This test verifies that when many keys are overwritten before training,
+        the cache correctly waits until there are enough active (non-deleted)
+        vectors before attempting to train the index.
+        """
+        pytest.importorskip("faiss")
+
+        config = CacheConfig(
+            backend=CacheBackend.FAISS,
+            dimension=128,
+            faiss_index_type="IVFFlat",
+            faiss_nlist=10,  # Requires 10 vectors to train
+        )
+        cache = create_cache(config)
+
+        # Add 15 entries, but overwrite the same 3 keys repeatedly
+        # This simulates a workload with frequent updates
+        for i in range(15):
+            key = f"key_{i % 3}"  # Only 3 unique keys
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(key, embedding, {"iteration": i})
+
+        # Should have 3 unique keys (not enough to train with nlist=10)
+        assert cache.size() == 3
+
+        # Get access to check if trained
+        from agdd.optimization.cache import FAISSCache
+
+        assert isinstance(cache, FAISSCache)
+        # Should NOT be trained yet (only 3 active vectors < 10 required)
+        assert not cache._trained, "Cache should not train with insufficient active vectors"
+
+        # Add more unique keys to reach training threshold
+        for i in range(10):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"unique_key_{i}", embedding, {"index": i})
+
+        # Now should have 13 unique keys (3 + 10)
+        assert cache.size() == 13
+
+        # Should be trained now (13 active vectors >= 10 required)
+        assert cache._trained, "Cache should train after reaching sufficient active vectors"
+
+        # Verify search works correctly after training
+        query = np.random.rand(128).astype(np.float32)
+        results = cache.search(query, k=5, threshold=0.0)
+        assert len(results) <= 5
