@@ -167,6 +167,11 @@ class GoogleGenAIAdapter(GoogleSDKAdapter):
         Returns:
             GenerateContentResponse object
         """
+        # google-genai uses 'config' instead of 'generation_config'
+        # Translate the parameter name if needed
+        if "generation_config" in kwargs:
+            kwargs["config"] = kwargs.pop("generation_config")
+
         # google-genai uses synchronous models.generate_content
         response = self._client.models.generate_content(
             model=self._model_name, contents=prompt, **kwargs

@@ -145,15 +145,17 @@ class TestGoogleGenAIAdapter:
         ):
             adapter = GoogleGenAIAdapter(api_key="test-key")
 
+            # google-genai adapter translates generation_config to config
             adapter.generate_content(
                 "Test prompt",
                 generation_config={"temperature": 0.7, "max_output_tokens": 100},
             )
 
+            # Verify that generation_config was translated to config
             mock_genai.Client.return_value.models.generate_content.assert_called_once_with(
                 model="gemini-1.5-pro",
                 contents="Test prompt",
-                generation_config={"temperature": 0.7, "max_output_tokens": 100},
+                config={"temperature": 0.7, "max_output_tokens": 100},
             )
 
     def test_extract_text(self, mock_genai_module: tuple[MagicMock, MagicMock]) -> None:

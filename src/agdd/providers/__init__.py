@@ -11,6 +11,6 @@ from agdd.providers.base import BaseLLMProvider, LLMResponse
 from agdd.providers.google import GoogleProvider
 
 # Import submodules to make them available via package namespace
-from . import openai
+from . import anthropic, openai
 
-__all__ = ["BaseLLMProvider", "LLMResponse", "GoogleProvider", "openai"]
+__all__ = ["BaseLLMProvider", "LLMResponse", "GoogleProvider", "anthropic", "openai"]
