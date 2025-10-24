@@ -525,9 +525,15 @@ class RedisVectorCache(SemanticCache):
             if distance <= max_distance:
                 key = doc.key.decode() if isinstance(doc.key, bytes) else doc.key
                 value_str = doc.value.decode() if isinstance(doc.value, bytes) else doc.value
-                embedding_bytes = (
-                    doc.embedding if isinstance(doc.embedding, bytes) else doc.embedding.encode()
-                )
+
+                # Handle embedding field: redis-py returns vector fields as memoryview
+                if isinstance(doc.embedding, bytes):
+                    embedding_bytes = doc.embedding
+                elif isinstance(doc.embedding, memoryview):
+                    embedding_bytes = bytes(doc.embedding)
+                else:
+                    # Fallback for string or other types
+                    embedding_bytes = doc.embedding.encode()
 
                 results.append(
                     CacheEntry(
