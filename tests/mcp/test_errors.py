@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import yaml
@@ -98,13 +99,15 @@ class TestMCPServerErrors:
 
         server = MCPServer(config)
 
-        # First start (will succeed even without real server)
-        await server.start()
-        assert server.is_started
+        async_mock = AsyncMock(return_value=None)
+        with patch.object(server, "_start_mcp_server", async_mock):
+            await server.start()
+            assert server.is_started
 
-        # Second start should be idempotent
-        await server.start()
-        assert server.is_started
+            # Second start should be idempotent and not re-trigger the mock
+            await server.start()
+            assert server.is_started
+            async_mock.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_stop_server_twice(self) -> None:
@@ -182,7 +185,9 @@ class TestMCPServerErrors:
         )
 
         server = MCPServer(config)
-        await server.start()
+
+        with patch.object(server, "_start_mcp_server", AsyncMock(return_value=None)):
+            await server.start()
 
         result = await server.execute_tool("nonexistent_tool", {})
 
@@ -292,7 +297,8 @@ class TestMCPRegistryErrors:
         registry.discover_servers()
 
         # Should not raise, but some servers may fail to start
-        await registry.start_all_servers()
+        with patch.object(MCPServer, "_start_mcp_server", AsyncMock(return_value=None)):
+            await registry.start_all_servers()
 
         # Valid server should be started, invalid should not
         running = registry.list_running_servers()

@@ -33,6 +33,8 @@ export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
 export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
+AGDD's local provider (`src/agdd/providers/local.py`) prefers the OpenAI Responses API. If the endpoint rejects Responses or returns a legacy status code, the provider automatically falls back to chat completions while recording a warning in the response metadata.
+
 ### Model Selection in Agent Code
 
 Agents specify model preferences by including them in the payload or context:

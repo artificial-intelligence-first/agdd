@@ -83,6 +83,7 @@ target-version = "py312"
 python_version = "3.12"
 warn_unused_ignores = true
 strict = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-q"

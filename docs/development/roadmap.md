@@ -68,7 +68,7 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Artifacts and Notes
 - Policy definitions: `catalog/policies/flow_governance.yaml`.
-- Governance tooling: `src/observability/summarize_runs.py`, CLI command `agdd flow gate`.
+- Governance tooling: `src/agdd/observability/summarize_runs.py`, CLI command `agdd flow gate`.
 - Runner scripts: `ops/scripts/setup-flowrunner.sh` (generates `ops/scripts/flowrunner-env.sh`).
 - Agent templates: `catalog/agents/_template/mag-template/` and `catalog/agents/_template/sag-template/`.
 - Development automation: `Makefile` with common tasks.

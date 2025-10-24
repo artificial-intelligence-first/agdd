@@ -12,11 +12,12 @@ Authoritative source for terminology, policies, and permissions. When conflicts 
 - **Registry**: Canonical mapping of tasks -> agents (`registry/agents.yaml`) and skills (`registry/skills.yaml`), plus per-agent descriptors.
 - **Walking Skeleton**: Minimal end-to-end path (registry -> contract validation -> skill execution -> logging/CI) proving the AGDD pipeline works.
 - **Runner**: Execution boundary defined under `agdd.runners.*` that orchestrates flows for agents. Flow Runner is the default adapter.
-- **Run Artifact**: Structured logs emitted to `.runs/<RUN_ID>/` by Flow Runner (e.g., `summary.json`, `runs.jsonl`, `mcp_calls.jsonl`) used for observability and governance.
+- **Run Artifact**: Structured logs emitted to `.runs/agents/<RUN_ID>/` by Flow Runner (e.g., `summary.json`, `runs.jsonl`, `mcp_calls.jsonl`) used for observability and governance.
 - **MCP (Model Context Protocol)**: Open protocol for standardizing AI application interactions with external tools and data sources. AGDD integrates MCP servers for filesystem, git, memory, web fetching, and database access.
 - **MCP Server**: External service providing tools via the Model Context Protocol (e.g., filesystem operations, git commands, knowledge graph queries).
 - **Multi-Provider**: Support for multiple LLM providers (OpenAI, Anthropic, local models) within the same workflow, enabling provider diversity, fallback strategies, and cost optimization.
-- **Cost Tracking**: Automatic tracking of token usage and costs per model, agent, and run, captured in observability artifacts and queryable via the storage layer.
+- **Cost Tracking**: Automatic tracking of token usage and costs per model, agent, and run, persisted to `.runs/costs/costs.jsonl` and `.runs/costs.db`, and queryable via the storage layer.
+- **Plan Flags**: Execution toggles (`use_batch`, `use_cache`, `structured_output`, `moderation`) defined on `agdd.routing.router.Plan` and recorded alongside agent runs for auditing.
 - **Flow Runner Python Path**: When Flow Runner is installed in editable mode, `FLOW_RUNNER_PYTHONPATH` must include the `packages/flowrunner/src` and `packages/mcprouter/src` locations so `flowctl` can import its modules.
 
 ## Policies
@@ -25,7 +26,7 @@ Authoritative source for terminology, policies, and permissions. When conflicts 
 - **Naming**: Agent identifiers use lowercase hyphen-less slugs (e.g., `hello`), skill identifiers use dotted kebab-case (e.g., `skill.echo`), runner modules live under `agdd.runners.<adapter_name>`.
 - **Documentation**: Update `PLANS.md` before touching code, propagate terminology changes here first, and append `CHANGELOG.md` when work is complete.
 - **Runner Boundaries**: Flow Runner (`FlowRunner`) is the reference implementation; alternative runners must implement `agdd.runners.base.Runner` and document installation steps.
-- **Observability**: `.runs/` artifacts must be summarized via `observability/summarize_runs.py` (or equivalent) before feeding metrics into CI governance stages, capturing success rates, MCP call counts, latency statistics, and per-step performance. CI must persist the summary output for downstream Multi Agent Governance checks.
+- **Observability**: `.runs/` artifacts must be summarized via `src/agdd/observability/summarize_runs.py` (or equivalent) before feeding metrics into CI governance stages, capturing success rates, MCP call counts, latency statistics, plan flag decisions, and per-step performance. CI must persist the summary output for downstream Multi Agent Governance checks, and `.runs/costs/` must be archived for expense governance.
 - **Packaging**: Wheel builds must include schemas and governance policies under `agdd/assets/`. After modifying bundled resources, run `uv build` and install the wheel in a temporary virtual environment to confirm `importlib.resources` loads succeed.
 - **Governance**: `policies/flow_governance.yaml` defines baseline thresholds. Any change to thresholds or summary structure requires concurrent updates to CLI (`agdd flow gate`) and `contracts/flow_summary.schema.json`.
 - **Vendor Assets**: Flow Runner schemas and examples are vendored; run `uv run python tools/verify_vendor.py` locally and in CI to detect drift.

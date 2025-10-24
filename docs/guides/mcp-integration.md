@@ -233,6 +233,38 @@ export PG_RO_URL="postgresql://readonly:password@localhost/agdd"
 - No DDL/DML operations (INSERT, UPDATE, DELETE)
 - Requires `PG_RO_URL` environment variable
 
+## AGDD stdio MCP Runtime
+
+AGDD ships with `src/agdd/mcp/server.py`, which manages stdio-based MCP servers and optional PostgreSQL adapters.
+
+### Handshake Sequence
+
+When a server configuration with `type: mcp` is started, `MCPServer.start()`:
+
+1. Launches the configured command with stdio pipes.
+2. Sends an `initialize` request identifying AGDD as the client.
+3. Waits for a successful response and issues the `notifications/initialized` signal.
+4. Calls `tools/list` to retrieve tool metadata and caches each tool's JSON Schema.
+
+If any step fails or times out, the subprocess is terminated and the error is surfaced to the caller.
+
+### Tool Discovery and Execution
+
+- Discovered tools are stored in-memory as `MCPTool` instances keyed by name.
+- `execute_tool()` issues `tools/call` requests with the captured schema and hands back structured results.
+- Additional metadata (execution time, server ID, raw payload) is returned for observability.
+- PostgreSQL servers reuse the same interface but open an asyncpg pool and expose canned query helpers.
+
+### Error Handling
+
+- Start-up failures (missing binary, handshake rejection) raise `MCPServerError`.
+- Response timeouts respect the per-server `limits.timeout_s` setting.
+- Background stderr is drained for diagnostics without blocking tool calls.
+
+### Testing
+
+Integration tests live under `tests/mcp/test_execution.py` and validate handshake, tool discovery, and `tools/call` execution using mocked subprocesses. Extend these tests when adding new transports or server types.
+
 ## Using MCP in Agents
 
 ### Implicit Tool Usage

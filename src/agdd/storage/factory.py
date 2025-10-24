@@ -32,6 +32,8 @@ async def create_storage_backend(settings: Settings) -> StorageBackend:
     """
     backend_type = settings.STORAGE_BACKEND.lower()
 
+    backend: "StorageBackend"
+
     if backend_type == "sqlite":
         backend = SQLiteStorageBackend(
             db_path=settings.STORAGE_DB_PATH,

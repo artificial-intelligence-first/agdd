@@ -186,8 +186,9 @@ All tests must pass before a pull request is opened.
 - Run `uv run ruff check .` to enforce formatting and linting rules (configured
   in `pyproject.toml`). Use `uv run ruff check . --fix` for safe autofixes.
 - Enforce typing guarantees with `uv run mypy agdd tests tools`.
-- Maintain observability instrumentation under `observability/` so generated
+- Maintain observability instrumentation under `src/agdd/observability/` so generated
   summaries expose `runs`, `success_rate`, latency metrics, and MCP statistics.
+- Cost tracking artifacts are persisted under `.runs/costs/` for downstream governance.
 
 ## PR Instructions
 - Update `PLANS.md` before starting significant work and record completed items

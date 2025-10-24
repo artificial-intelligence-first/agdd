@@ -36,7 +36,7 @@ When adding a new runner adapter:
 
 1. Implement the `Runner` protocol and `info()` method.
 2. Provide a minimal example flow and schema if the runner needs bespoke definitions.
-3. Ensure `observability/summarize_runs.py` can normalize the runner's artifacts or supply a custom normalizer.
+3. Ensure `src/agdd/observability/summarize_runs.py` can normalize the runner's artifacts or supply a custom normalizer.
 4. Add tests under `tests/runner/conformance/` exercising:
    - `is_available()` detection (can be skipped when the runner binary is missing).
    - `validate()` error handling for known-bad inputs.
@@ -76,7 +76,8 @@ result = invoke_sag(delegation)
 ### Capabilities
 - **Dependency Injection**: Registry, skills, and runner instances injected into agent code
 - **Retry Logic**: SAGs can configure retry policies with exponential backoff
-- **Observability**: Automatic logging and metrics to `.runs/agents/<RUN_ID>/`
+- **Observability**: Automatic logging and metrics to `.runs/agents/<RUN_ID>/`, with centralized cost persistence in `.runs/costs/` and optional OpenTelemetry spans
+- **Plan Awareness**: Honors `agdd.routing.router.Plan` flags for batch, cache, structured outputs, and moderation decisions
 - **Error Handling**: Graceful failure handling with partial result aggregation
 
 ### Observability Artifacts
@@ -116,6 +117,8 @@ JSONL format with one event per line:
 - `tokens` - Token usage (if available)
 - `cost` - Estimated cost (if available)
 
+Cost ledger entries are written separately to `.runs/costs/costs.jsonl` and `.runs/costs.db` via `agdd.observability.cost_tracker`.
+
 #### `summary.json` - Run Summary
 ```json
 {
@@ -145,6 +148,16 @@ Agent executions should meet these minimum thresholds:
 | P95 Latency (SAG) | ≤ 2s | ≤ 5s |
 
 **Note:** SLOs are measured over 24-hour rolling windows. Critical thresholds trigger alerts; below-target values require investigation.
+
+### LLM Plan Integration
+
+`AgentRunner` loads execution plans via `agdd.routing.router.get_plan()` and embeds the selected `Plan` snapshot in each run directory. The snapshot includes:
+
+- `use_batch`, `use_cache`, `structured_output`, `moderation` flags
+- Provider/model decisions and metadata
+- Plan overrides applied at invocation time
+
+These values are surfaced in `summary.json` metadata and recorded alongside cost events so downstream governance can audit why a batch or moderation pathway was selected. When plan flags require capabilities (e.g., batch APIs), the runner logs the decision and falls back gracefully if a provider declines support, preserving the flag state for analysis.
 
 ### Conformance
 - Agents must provide `run(payload, *, registry, skills, runner, obs)` entrypoint

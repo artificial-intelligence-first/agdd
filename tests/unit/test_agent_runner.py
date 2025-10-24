@@ -1,8 +1,12 @@
 """Unit tests for agdd.runners.agent_runner module"""
 
-import tempfile
 import json
+import tempfile
 from pathlib import Path
+
+import pytest
+
+import agdd.observability.cost_tracker as cost_tracker
 from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
 
 
@@ -57,9 +61,12 @@ class TestSkillRuntime:
 class TestAgentRunner:
     """Test suite for AgentRunner"""
 
-    def test_invoke_sag(self) -> None:
+    def test_invoke_sag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test SAG invocation"""
         with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.chdir(tmpdir)
+            monkeypatch.setattr(cost_tracker, "_tracker", None)
+
             runner = AgentRunner(base_dir=Path(tmpdir))
 
             delegation = Delegation(
@@ -83,10 +90,19 @@ class TestAgentRunner:
             assert result.output["offer"]["role"] == "Software Engineer"
             assert "base_salary" in result.output["offer"]
             assert "duration_ms" in result.metrics
+            assert "llm_plan" in result.metrics
+            assert isinstance(result.metrics["llm_plan"], dict)
 
-    def test_invoke_mag(self) -> None:
+            if cost_tracker._tracker is not None:
+                cost_tracker._tracker.close()
+                cost_tracker._tracker = None
+
+    def test_invoke_mag(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test MAG invocation"""
         with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.chdir(tmpdir)
+            monkeypatch.setattr(cost_tracker, "_tracker", None)
+
             runner = AgentRunner(base_dir=Path(tmpdir))
 
             payload = {
@@ -104,11 +120,18 @@ class TestAgentRunner:
             assert "run_id" in output["metadata"]
             assert "timestamp" in output["metadata"]
 
-    def test_sag_retry_on_failure(self) -> None:
+            if cost_tracker._tracker is not None:
+                cost_tracker._tracker.close()
+                cost_tracker._tracker = None
+
+    def test_sag_retry_on_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test SAG retry policy"""
         # This test would require mocking to force failures
         # For now, we test that the retry config is respected
         with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.chdir(tmpdir)
+            monkeypatch.setattr(cost_tracker, "_tracker", None)
+
             runner = AgentRunner(base_dir=Path(tmpdir))
 
             delegation = Delegation(
@@ -122,9 +145,16 @@ class TestAgentRunner:
             # Should succeed on first attempt
             assert result.metrics["attempts"] == 1
 
-    def test_observability_artifacts(self) -> None:
+            if cost_tracker._tracker is not None:
+                cost_tracker._tracker.close()
+                cost_tracker._tracker = None
+
+    def test_observability_artifacts(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that observability artifacts are created"""
         with tempfile.TemporaryDirectory() as tmpdir:
+            monkeypatch.chdir(tmpdir)
+            monkeypatch.setattr(cost_tracker, "_tracker", None)
+
             runner = AgentRunner(base_dir=Path(tmpdir))
 
             payload = {"role": "Engineer", "level": "Junior"}
@@ -141,3 +171,42 @@ class TestAgentRunner:
             assert (run_dir / "logs.jsonl").exists()
             assert (run_dir / "metrics.json").exists()
             assert (run_dir / "summary.json").exists()
+
+            if cost_tracker._tracker is not None:
+                cost_tracker._tracker.close()
+                cost_tracker._tracker = None
+
+    def test_runner_records_costs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Runner should write cost tracking artifacts under .runs/costs."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cost_tracker, "_tracker", None)
+
+        runner = AgentRunner()
+        payload = {
+            "role": "Staff Engineer",
+            "level": "Staff",
+            "location": "San Francisco, CA",
+            "experience_years": 12,
+        }
+        runner.invoke_mag("offer-orchestrator-mag", payload)
+
+        costs_dir = tmp_path / ".runs" / "costs"
+        jsonl_path = costs_dir / "costs.jsonl"
+        db_path = tmp_path / ".runs" / "costs.db"
+
+        assert costs_dir.exists()
+        assert jsonl_path.exists()
+        assert db_path.exists()
+
+        entries = jsonl_path.read_text(encoding="utf-8").strip().splitlines()
+        assert entries
+        record = json.loads(entries[-1])
+        assert record["agent"] == "offer-orchestrator-mag"
+        assert "model" in record
+        assert record["metadata"].get("placeholder") is True
+
+        if cost_tracker._tracker is not None:
+            cost_tracker._tracker.close()
+            cost_tracker._tracker = None

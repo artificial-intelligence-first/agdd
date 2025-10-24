@@ -1,9 +1,11 @@
 """FastAPI server for AGDD HTTP API."""
 from __future__ import annotations
 
+from typing import Awaitable, Callable
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .config import Settings, get_settings
 from .routes import agents, github, runs
@@ -33,7 +35,10 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def enforce_request_size(request: Request, call_next):
+async def enforce_request_size(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
     """Reject requests that exceed the configured payload limit."""
     max_bytes = settings.API_MAX_REQUEST_BYTES
     header_value = request.headers.get("content-length")

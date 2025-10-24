@@ -1,11 +1,16 @@
 """OpenAI-compatible LLM provider (vLLM, Ollama) with automatic fallback support."""
 
+from __future__ import annotations
+
+import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from pydantic import BaseModel, Field
+
+from agdd.providers.base import LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,9 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = None
     response_format: dict[str, Any] | None = None
     stream: bool = False
+    tools: list[dict[str, Any]] | None = None
+    tool_choice: str | dict[str, Any] | None = None
+    reasoning: dict[str, Any] | None = None
 
 
 class ChatCompletionResponse(BaseModel):
@@ -68,6 +76,10 @@ class OpenAICompatProviderConfig(BaseModel):
     timeout: float = Field(default=60.0, description="Request timeout in seconds")
     api_key: str | None = Field(
         default=None, description="API key (optional, some local servers require it)"
+    )
+    pricing: dict[str, dict[str, float]] = Field(
+        default_factory=dict,
+        description="Optional pricing table (per 1M tokens) used for cost estimation",
     )
 
 
@@ -139,6 +151,7 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
         """
         # Check for unsupported features and prepare fallback
         fallback_warnings: list[str] = []
+        capabilities = self.get_capabilities()
 
         # Prepare request payload
         payload: dict[str, Any] = {
@@ -154,7 +167,6 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
 
         # Check for streaming (not supported)
         if request.stream:
-            capabilities = self.get_capabilities()
             if not capabilities.supports_streaming:
                 fallback_warnings.append(
                     "Streaming is not supported by this provider. "
@@ -166,7 +178,6 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
 
         # Check for response_format (structured outputs)
         if request.response_format is not None:
-            capabilities = self.get_capabilities()
             if not capabilities.supports_responses:
                 fallback_warnings.append(
                     "response_format is not supported by this local provider. "
@@ -176,6 +187,28 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
                 # Don't include response_format in the payload
             else:
                 payload["response_format"] = request.response_format
+
+        # Check tool usage support
+        if request.tools:
+            if not capabilities.supports_function_calling:
+                fallback_warnings.append(
+                    "Tool calls are not supported by this provider. "
+                    "Dropping tools and tool_choice parameters."
+                )
+            else:
+                payload["tools"] = request.tools
+                if request.tool_choice is not None:
+                    payload["tool_choice"] = request.tool_choice
+        elif request.tool_choice is not None:
+            fallback_warnings.append(
+                "tool_choice was provided without tools or function-call support. Ignoring value."
+            )
+
+        # Reasoning parameters are not supported by basic OpenAI-compatible endpoints
+        if request.reasoning is not None:
+            fallback_warnings.append(
+                "Reasoning configuration is not supported by this provider. Ignoring `reasoning`."
+            )
 
         # Log warnings if fallback is needed
         for warning in fallback_warnings:
@@ -200,3 +233,141 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
     async def __aexit__(self, *args: Any) -> None:
         """Async context manager exit."""
         await self.close()
+
+    def _run_chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        """Execute chat completion request from synchronous context."""
+
+        async def _execute() -> ChatCompletionResponse:
+            return await self.chat_completion(request)
+
+        try:
+            return asyncio.run(_execute())
+        except RuntimeError as exc:
+            # Handle nested event loops (e.g., notebooks) by creating a dedicated loop
+            if "asyncio.run() cannot be called" not in str(exc):
+                raise
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(self.chat_completion(request))
+            finally:
+                loop.close()
+
+    def generate(
+        self,
+        prompt: str,
+        *,
+        model: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str | dict[str, Any]] = None,
+        response_format: Optional[dict[str, Any]] = None,
+        reasoning: Optional[dict[str, Any]] = None,
+        mcp_tools: Optional[list[dict[str, Any]]] = None,
+        **_: Any,
+    ) -> LLMResponse:
+        """Synchronously generate a completion following BaseLLMProvider semantics."""
+        capabilities = self.get_capabilities()
+        sanitized_tools = tools
+        sanitized_tool_choice = tool_choice
+        sanitized_response_format = response_format
+        warnings: list[str] = []
+
+        if tools and not capabilities.supports_function_calling:
+            warnings.append(
+                "Tools were requested but this provider does not support function calling. Dropping tools."
+            )
+            sanitized_tools = None
+            sanitized_tool_choice = None
+        if tool_choice and not capabilities.supports_function_calling:
+            warnings.append(
+                "tool_choice was provided but function calling is unsupported. Dropping tool_choice."
+            )
+            sanitized_tool_choice = None
+        if response_format and not capabilities.supports_responses:
+            warnings.append(
+                "Structured response_format is not supported by this provider. "
+                "Output may not match the requested schema."
+            )
+            sanitized_response_format = None
+        if reasoning is not None:
+            warnings.append(
+                "Reasoning configuration is not supported by this provider and will be ignored."
+            )
+        if mcp_tools:
+            warnings.append("MCP tool definitions are not supported by OpenAI-compatible providers.")
+
+        for warning in warnings:
+            logger.warning(warning)
+
+        request = ChatCompletionRequest(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format=sanitized_response_format,
+            tools=sanitized_tools,
+            tool_choice=sanitized_tool_choice,
+        )
+
+        response = self._run_chat_completion(request)
+        llm_response = self._chat_response_to_llm_response(
+            response,
+            response_format_requested=response_format,
+            warnings=warnings,
+        )
+
+        return llm_response
+
+    def _chat_response_to_llm_response(
+        self,
+        response: ChatCompletionResponse,
+        *,
+        response_format_requested: Optional[dict[str, Any]],
+        warnings: list[str],
+    ) -> LLMResponse:
+        """Convert a ChatCompletionResponse into an LLMResponse dataclass."""
+        primary_choice = response.choices[0] if response.choices else {}
+        message = primary_choice.get("message", {})
+        content = message.get("content") or ""
+        tool_calls = message.get("tool_calls")
+        usage = response.usage or {}
+        input_tokens = usage.get("prompt_tokens", 0)
+        output_tokens = usage.get("completion_tokens", 0)
+        cost_usd = self.get_cost(response.model, input_tokens, output_tokens)
+
+        metadata: dict[str, Any] = {
+            "id": response.id,
+            "finish_reason": primary_choice.get("finish_reason"),
+            "endpoint": "chat_completions",
+            "raw_choices": response.choices,
+            "cost_usd": cost_usd,
+        }
+        if warnings:
+            metadata["warnings"] = warnings
+
+        return LLMResponse(
+            content=content,
+            model=response.model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            tool_calls=tool_calls if tool_calls else None,
+            response_format_ok=response_format_requested is None,
+            raw_output_blocks=None,
+            metadata=metadata,
+        )
+
+    def get_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> float:
+        """Estimate cost in USD based on configured pricing."""
+        pricing = self.config.pricing.get(model)
+        if not pricing:
+            return 0.0
+
+        prompt_rate = pricing.get("prompt", 0.0)
+        completion_rate = pricing.get("completion", 0.0)
+        return (input_tokens / 1_000_000) * prompt_rate + (output_tokens / 1_000_000) * completion_rate

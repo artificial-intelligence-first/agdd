@@ -1,5 +1,6 @@
 """Tests for OpenAICompatProvider with fallback behavior."""
 
+import asyncio
 import logging
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -7,8 +8,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
+from agdd.providers.base import LLMResponse
 from agdd.providers.openai_compat import (
     ChatCompletionRequest,
+    ChatCompletionResponse,
     OpenAICompatProvider,
     OpenAICompatProviderConfig,
     ProviderCapabilities,
@@ -336,3 +339,46 @@ async def test_multiple_fallbacks(
             assert len(caplog.records) >= 2
 
     await provider.close()
+
+
+def test_generate_returns_llmresponse(
+    provider_config: OpenAICompatProviderConfig, mock_response: dict[str, Any]
+) -> None:
+    """generate() should wrap chat completion output into LLMResponse."""
+    provider = OpenAICompatProvider(config=provider_config)
+    chat_response = ChatCompletionResponse(**mock_response)
+
+    with patch.object(provider, "_run_chat_completion", return_value=chat_response):
+        result = provider.generate("Hello", model="llama-2-7b")
+
+    assert isinstance(result, LLMResponse)
+    assert result.content == "Hello!"
+    assert result.metadata["endpoint"] == "chat_completions"
+    assert result.response_format_ok is True
+
+    asyncio.run(provider.close())
+
+
+def test_generate_with_unsupported_response_format_logs_warning(
+    provider_config: OpenAICompatProviderConfig,
+    mock_response: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Requesting structured outputs should emit warning when unsupported."""
+    provider = OpenAICompatProvider(config=provider_config)
+    chat_response = ChatCompletionResponse(**mock_response)
+
+    with patch.object(provider, "_run_chat_completion", return_value=chat_response):
+        with caplog.at_level(logging.WARNING):
+            result = provider.generate(
+                "Give JSON",
+                model="llama-2-7b",
+                response_format={"type": "json_schema"},
+            )
+
+    assert result.response_format_ok is False
+    assert any(
+        "Structured response_format is not supported" in record.message for record in caplog.records
+    )
+
+    asyncio.run(provider.close())

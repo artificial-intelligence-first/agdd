@@ -43,6 +43,8 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - Runner Plugins: Pluggable execution engines (Flow Runner included)
 - MAG/SAG Architecture: Main and Sub-Agent orchestration patterns
 - Observability: Comprehensive metrics, traces, and cost tracking
+- Plan-Aware Routing: Agent Runner respects `Plan` flags (`use_batch`, `use_cache`, `structured_output`, `moderation`) and annotates runs for auditability
+- Local LLM Fallback: Responses API preference with automatic chat completions downgrade for legacy endpoints
 - Governance Gates: Policy-based validation and compliance checks
 
 ### Developer Experience
@@ -236,6 +238,7 @@ uv run agdd agent run offer-orchestrator-mag \
 ```
 
 Observability artifacts are generated in `.runs/agents/<RUN_ID>/`.
+Cost trackers persist JSONL and SQLite artifacts under `.runs/costs/`.
 
 ### HTTP API
 
@@ -332,6 +335,7 @@ uv run agdd flow summarize --output flow_summary.json
 ```
 
 Summary metrics include execution stats, errors, MCP calls, per-step performance, and per-model resource usage.
+Detailed cost data is appended to `.runs/costs/costs.jsonl` and aggregated in `.runs/costs.db`. The summarizer is backed by `src/agdd/observability/summarize_runs.py`.
 
 ### Data Management (New Storage Layer)
 
@@ -357,7 +361,7 @@ uv run agdd data vacuum --hot-days 7
 - **SQLite backend** (default): Zero-config local storage with FTS5 full-text search
 - **PostgreSQL/TimescaleDB backend** (beta): Production-grade storage via `asyncpg` (enable with `pip install agdd[postgres]`)
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
-- **Migration tool**: Import legacy `.runs/agents/` data for analysis
+- **Migration tool**: Import legacy `.runs/agents/` data for analysis while new cost tracking lives in `.runs/costs/`
 
 **Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./docs/guides/agent-development.md)).
 

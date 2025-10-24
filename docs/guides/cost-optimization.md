@@ -55,9 +55,17 @@ Cost data is captured in multiple observability artifacts:
 # MCP call logs
 .runs/agents/<RUN_ID>/mcp_calls.jsonl
 
+# Cost ledger (append-only)
+.runs/costs/costs.jsonl
+
+# Aggregated SQLite database
+.runs/costs.db
+
 # Storage layer (queryable)
 uv run agdd data query --run-id <RUN_ID>
 ```
+
+The JSONL ledger and SQLite database are maintained by `agdd.observability.cost_tracker` and initialize automatically on first use.
 
 ## Viewing Cost Data
 

@@ -21,6 +21,7 @@ The storage layer provides CLI and API tools for managing observability data gen
 - **Migration tool**: Imports legacy `.runs/agents/` data into the storage layer for analysis
 
 The storage layer complements (not replaces) the existing agent observability system.
+Cost tracking is handled separately by `agdd.observability.cost_tracker` and persists artifacts under `.runs/costs/` (JSONL ledger and SQLite database).
 
 ## Architecture
 
@@ -155,6 +156,8 @@ python scripts/migrate_to_storage.py \
   --backend sqlite \
   --db-path /var/agdd/storage.db
 ```
+
+Cost ledgers produced after the migration live in `.runs/costs/` and do not require conversion; back up both `costs.jsonl` and `costs.db` for historical analysis.
 
 ## Programmatic Access
 

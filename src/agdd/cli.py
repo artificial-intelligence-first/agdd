@@ -10,7 +10,7 @@ import typer
 from agdd.governance.gate import evaluate as evaluate_flow_summary
 from agdd.runners.agent_runner import invoke_mag
 from agdd.runners.flowrunner import FlowRunner
-from observability.summarize_runs import summarize as summarize_runs
+from agdd.observability.summarize_runs import summarize as summarize_runs
 
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")

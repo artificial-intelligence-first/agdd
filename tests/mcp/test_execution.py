@@ -1,6 +1,8 @@
 """Tests for MCP tool execution functionality."""
 
+import logging
 import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,6 +11,8 @@ import pytest
 import yaml
 
 from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
+from agdd.mcp.config import MCPServerConfig
+from agdd.mcp.server import MCPServer
 
 # Check if asyncpg is available
 try:
@@ -17,6 +21,124 @@ try:
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False
+
+
+@pytest.mark.asyncio
+async def test_mcp_stdio_server_tool_execution(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Ensure stdio MCP server handshake and tool execution succeed."""
+    script_path = tmp_path / "fake_mcp_server.py"
+    script_lines = [
+        "import json",
+        "import sys",
+        "",
+        "TOOLS = [",
+        "    {",
+        "        \"name\": \"echo\",",
+        "        \"description\": \"Echo arguments back to the caller\",",
+        "        \"inputSchema\": {",
+        "            \"type\": \"object\",",
+        "            \"properties\": {",
+        "                \"value\": {\"type\": \"string\", \"description\": \"Value to echo\"}",
+        "            },",
+        "            \"required\": [\"value\"],",
+        "        },",
+        "    }",
+        "]",
+        "",
+        "def send(payload):",
+        "    sys.stdout.write(json.dumps(payload) + \"\\n\")",
+        "    sys.stdout.flush()",
+        "",
+        "def main() -> None:",
+        "    try:",
+        "        for line in sys.stdin:",
+        "            if not line.strip():",
+        "                continue",
+        "            message = json.loads(line)",
+        "            method = message.get(\"method\")",
+        "            if method == \"initialize\":",
+        "                send({",
+        "                    \"jsonrpc\": \"2.0\",",
+        "                    \"id\": message[\"id\"],",
+        "                    \"result\": {",
+        "                        \"capabilities\": {},",
+        "                        \"serverInfo\": {\"name\": \"fake-mcp\", \"version\": \"0.1\"},",
+        "                    },",
+        "                })",
+        "            elif method == \"notifications/initialized\":",
+        "                continue",
+        "            elif method == \"tools/list\":",
+        "                send({",
+        "                    \"jsonrpc\": \"2.0\",",
+        "                    \"id\": message[\"id\"],",
+        "                    \"result\": {\"tools\": TOOLS},",
+        "                })",
+        "            elif method == \"tools/call\":",
+        "                params = message.get(\"params\", {})",
+        "                name = params.get(\"name\")",
+        "                args = params.get(\"arguments\", {})",
+        "                if name == \"echo\":",
+        "                    send({",
+        "                        \"jsonrpc\": \"2.0\",",
+        "                        \"id\": message[\"id\"],",
+        "                        \"result\": {\"success\": True, \"output\": {\"echo\": args}},",
+        "                    })",
+        "                else:",
+        "                    send({",
+        "                        \"jsonrpc\": \"2.0\",",
+        "                        \"id\": message[\"id\"],",
+        "                        \"result\": {\"success\": False, \"error\": f\"unknown tool {name}\"},",
+        "                    })",
+        "            else:",
+        "                if message.get(\"id\") is not None:",
+        "                    send({",
+        "                        \"jsonrpc\": \"2.0\",",
+        "                        \"id\": message[\"id\"],",
+        "                        \"error\": {\"message\": \"unknown method\"},",
+        "                    })",
+        "    except Exception as exc:",
+        "        sys.stderr.write(f\"ERROR: {exc}\\n\")",
+        "        sys.stderr.flush()",
+        "        raise",
+        "",
+        "if __name__ == \"__main__\":",
+        "    main()",
+        "",
+    ]
+
+    script_path.write_text("\n".join(script_lines), encoding="utf-8")
+
+    config = MCPServerConfig(
+        server_id="test-stdio",
+        type="mcp",
+        scopes=[],
+        command=sys.executable,
+        args=["-u", str(script_path)],
+    )
+
+    server = MCPServer(config)
+
+    try:
+        with caplog.at_level(logging.DEBUG, logger="agdd.mcp.server"):
+            await server.start()
+
+        tools = server.get_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "echo"
+
+        result = await server.execute_tool("echo", {"value": "hello"})
+        assert result.success
+        assert result.output == {"echo": {"value": "hello"}}
+        assert result.metadata["server_id"] == "test-stdio"
+
+        error_result = await server.execute_tool("nonexistent", {})
+        assert not error_result.success
+        assert "not found" in (error_result.error or "")
+
+    finally:
+        await server.stop()
 
 
 @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")

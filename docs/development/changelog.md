@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI-first walking skeleton (Typer CLI, echo skill, agent descriptor, contract schema, and pytest coverage)
 - Documentation guardrail extension to ensure README/PLANS/SSOT/AGENTS/CHANGELOG are present
 - Runner abstraction (`agdd.runners`) with Flow Runner adapter, CLI entry points, and mirrored Flow Runner assets
-- Flow Runner observability summary tooling (`observability/summarize_runs.py`) and Typer CLI integration
+- Flow Runner observability summary tooling (`src/agdd/observability/summarize_runs.py`) and Typer CLI integration
 - Governance artifacts (`catalog/contracts/flow_summary.schema.json`, `catalog/policies/flow_governance.yaml`) and CLI command (`agdd flow gate`)
 - Vendor verification script (`ops/tools/verify_vendor.py`) and runner documentation (`docs/guides/runner-integration.md`)
 - **MAG/SAG Orchestration System v0.1**

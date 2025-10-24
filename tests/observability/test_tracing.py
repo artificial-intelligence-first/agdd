@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from observability.tracing import (
+from agdd.observability.tracing import (
     ObservabilityConfig,
     ObservabilityManager,
     initialize_observability,
@@ -103,7 +103,7 @@ def test_initialize_tracing_without_packages(
 ) -> None:
     """Test initialization when OpenTelemetry packages are not installed."""
     # Mock OTEL_AVAILABLE as False
-    import observability.tracing as tracing_module
+    import agdd.observability.tracing as tracing_module
 
     monkeypatch.setattr(tracing_module, "OTEL_AVAILABLE", False)
 
@@ -233,7 +233,7 @@ def test_multiple_initializations_are_idempotent(disabled_config: ObservabilityC
 
 def test_observe_decorator_available() -> None:
     """Test that observe decorator is available."""
-    from observability.tracing import observe
+    from agdd.observability.tracing import observe
 
     # Should be importable
     assert observe is not None

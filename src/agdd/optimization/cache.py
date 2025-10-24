@@ -157,7 +157,7 @@ class FAISSCache(SemanticCache):
             config: Cache configuration
         """
         try:
-            import faiss  # type: ignore[import-untyped]
+            import faiss
         except ImportError as e:
             msg = (
                 "FAISS backend requires faiss-cpu or faiss-gpu. "
@@ -405,7 +405,7 @@ class RedisVectorCache(SemanticCache):
         try:
             from redis import Redis
             from redis.commands.search.field import TextField, VectorField
-            from redis.commands.search.indexDefinition import (  # type: ignore[import-not-found]
+            from redis.commands.search.indexDefinition import (
                 IndexDefinition,
                 IndexType,
             )

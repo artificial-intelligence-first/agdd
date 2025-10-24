@@ -87,8 +87,8 @@ class GoogleGenerativeAIAdapter(GoogleSDKAdapter):
                 "Install with: pip install google-generativeai"
             ) from e
 
-        genai.configure(api_key=api_key)  # type: ignore[attr-defined]
-        self._model = genai.GenerativeModel(model_name)  # type: ignore[attr-defined]
+        genai.configure(api_key=api_key)
+        self._model = genai.GenerativeModel(model_name)
 
     def generate_content(self, prompt: str, **kwargs: Any) -> Any:
         """Generate content using google-generativeai SDK.

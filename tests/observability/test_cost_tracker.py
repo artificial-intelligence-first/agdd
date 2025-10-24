@@ -10,10 +10,14 @@ from pathlib import Path
 
 import pytest
 
-from observability.cost_tracker import (
+from agdd.observability.cost_tracker import (
+    DEFAULT_COSTS_DIR,
+    DEFAULT_DB_PATH,
+    DEFAULT_JSONL_PATH,
     CostRecord,
     CostSummary,
     CostTracker,
+    get_tracker,
     record_llm_cost,
 )
 
@@ -284,7 +288,7 @@ def test_record_llm_cost_convenience_function(temp_dir: Path, monkeypatch: pytes
     tracker.initialize()
 
     # Monkey-patch the global tracker
-    import observability.cost_tracker as ct_module
+    import agdd.observability.cost_tracker as ct_module
 
     monkeypatch.setattr(ct_module, "_tracker", tracker)
 
@@ -418,3 +422,24 @@ def test_concurrent_summary_reads_with_writes_jsonl_mode(temp_dir: Path) -> None
             assert summary.total_cost_usd == pytest.approx(summary.total_calls * 0.01)
 
     tracker.close()
+
+
+def test_get_tracker_uses_runs_costs_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Global tracker should initialize under .runs/costs by default."""
+    monkeypatch.chdir(tmp_path)
+    import agdd.observability.cost_tracker as ct_module
+
+    # Reset singleton before creating tracker
+    monkeypatch.setattr(ct_module, "_tracker", None)
+
+    tracker = get_tracker()
+    try:
+        assert tracker.jsonl_path == DEFAULT_JSONL_PATH
+        assert tracker.db_path == DEFAULT_DB_PATH
+        assert (tmp_path / DEFAULT_COSTS_DIR).exists()
+        assert (tmp_path / DEFAULT_DB_PATH).exists()
+    finally:
+        tracker.close()
+        monkeypatch.setattr(ct_module, "_tracker", None)

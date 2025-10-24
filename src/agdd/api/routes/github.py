@@ -12,12 +12,11 @@ from agdd.integrations.github.webhook import (
     handle_pull_request,
     handle_pull_request_review_comment,
 )
-
-logger = logging.getLogger(__name__)
-
 from ..config import Settings, get_settings
 from ..rate_limit import rate_limit_dependency
 from ..security import verify_github_signature
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["github"])
 

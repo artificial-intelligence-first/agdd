@@ -8,7 +8,6 @@ When implementing your own MCP tool, update these tests to match your use case.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
 
 import pytest
 

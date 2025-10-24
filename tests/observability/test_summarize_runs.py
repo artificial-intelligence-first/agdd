@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from observability.summarize_runs import summarize
+from agdd.observability.summarize_runs import summarize
 
 
 def test_summarize_handles_missing_directory(tmp_path: Path) -> None:

@@ -17,6 +17,8 @@ The AG-Driven Development (AGDD) HTTP API exposes agent orchestration, run obser
 | `AGDD_GITHUB_WEBHOOK_SECRET` | Secret for GitHub HMAC verification | `None` |
 | `AGDD_GITHUB_TOKEN` | Token used for posting GitHub comments | `None` |
 
+Run artifacts default to `.runs/agents`, and cost ledgers are persisted separately under `.runs/costs/` via `agdd.observability.cost_tracker`.
+
 Create a `.env` file (see `.env.example`) to override these defaults before launching `uvicorn`:
 
 ```bash

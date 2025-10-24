@@ -9,24 +9,35 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterable, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    TypeAlias,
+)
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
 
 try:  # pragma: no cover - optional dependency
-    import asyncpg  # type: ignore
+    import asyncpg
 except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    asyncpg = None  # type: ignore
+    asyncpg = None
 
 if TYPE_CHECKING:  # pragma: no cover - typing aid
-    from asyncpg import Connection, Pool, Record  # type: ignore
-else:
-    Connection = Any  # type: ignore[misc]
-    Pool = Any  # type: ignore[misc]
-    Record = Any  # type: ignore[misc]
+    from asyncpg import Pool, Record
+    from asyncpg.connection import Connection
+else:  # pragma: no cover - runtime fallback
+    Connection = Any
+    Pool = Any
+    Record = Mapping[str, Any]
 
 
-RunRow = Record
+RunRow: TypeAlias = Record
 
 
 class PostgresStorageBackend(StorageBackend):
