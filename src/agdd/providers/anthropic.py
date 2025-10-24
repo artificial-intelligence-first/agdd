@@ -542,12 +542,17 @@ class AnthropicProvider:
             # Tool use block started
             content_block = event.get("content_block", {})
             if content_block.get("type") == "tool_use":
+                tool_use_data: dict[str, Any] = {
+                    "id": content_block.get("id"),
+                    "name": content_block.get("name"),
+                }
+                # Include input if present (sent when fine-grained streaming is disabled)
+                if "input" in content_block:
+                    tool_use_data["input"] = content_block["input"]
+
                 return StreamDelta(
                     type="tool_use",
-                    tool_use={
-                        "id": content_block.get("id"),
-                        "name": content_block.get("name"),
-                    },
+                    tool_use=tool_use_data,
                     index=event.get("index"),
                 )
 

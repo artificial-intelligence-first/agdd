@@ -477,6 +477,57 @@ def test_provider_stream_tool_use(mock_client_class: Mock) -> None:
 
 
 @patch("agdd.providers.anthropic.httpx.Client")
+def test_provider_stream_tool_use_without_fine_grained(mock_client_class: Mock) -> None:
+    """Test streaming with tool_use when fine-grained streaming is disabled.
+
+    When fine-grained streaming is off, the full tool input is sent in content_block_start.
+    """
+    # Mock SSE stream with full tool input in content_block_start
+    sse_lines = [
+        'data: {"type": "message_start", "message": {"id": "msg_003"}}',
+        'data: {"type": "content_block_start", "index": 0, "content_block": {"type": "tool_use", "id": "toolu_abc", "name": "get_weather", "input": {"location": "Tokyo", "unit": "celsius"}}}',
+        'data: {"type": "content_block_stop", "index": 0}',
+        'data: {"type": "message_delta", "delta": {"stop_reason": "tool_use"}}',
+        "data: [DONE]",
+    ]
+
+    mock_response = MagicMock()
+    mock_response.iter_lines.return_value = iter(sse_lines)
+    mock_response.raise_for_status = Mock()
+    mock_response.__enter__ = Mock(return_value=mock_response)
+    mock_response.__exit__ = Mock()
+
+    mock_client = Mock()
+    mock_client.stream.return_value = mock_response
+    mock_client_class.return_value = mock_client
+
+    # Execute with fine-grained streaming disabled (default)
+    provider = AnthropicProvider(api_key="test-key")
+    request: CompletionRequest = {
+        "model": "claude-3-5-sonnet-20241022",
+        "messages": [{"role": "user", "content": "What's the weather in Tokyo?"}],
+        "tools": [
+            {
+                "type": "function",
+                "function": {"name": "get_weather", "description": "Get weather", "parameters": {}},
+            }
+        ],
+        "max_tokens": 1024,
+        "stream": True,
+    }
+
+    deltas = list(provider.stream(request, use_tool_streaming=False))
+
+    # Verify tool_use event includes full input
+    assert len(deltas) == 1
+    assert deltas[0]["type"] == "tool_use"
+    assert deltas[0]["tool_use"]["id"] == "toolu_abc"
+    assert deltas[0]["tool_use"]["name"] == "get_weather"
+    # This is the critical assertion - input must be included
+    assert deltas[0]["tool_use"]["input"] == {"location": "Tokyo", "unit": "celsius"}
+
+
+@patch("agdd.providers.anthropic.httpx.Client")
 def test_provider_headers_with_tool_streaming(mock_client_class: Mock) -> None:
     """Test that fine-grained tool streaming beta header is included when requested."""
     mock_response = Mock()
