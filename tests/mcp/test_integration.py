@@ -15,7 +15,16 @@ import yaml
 
 from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 
+# Check if asyncpg is available
+try:
+    import asyncpg  # noqa: F401
 
+    HAS_ASYNCPG = True
+except ImportError:
+    HAS_ASYNCPG = False
+
+
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
 class TestSkillsMCPIntegration:
     """Test cases for MCP integration with skills."""
 

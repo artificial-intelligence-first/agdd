@@ -15,6 +15,14 @@ from agdd.mcp import (
     MCPServerError,
 )
 
+# Check if asyncpg is available
+try:
+    import asyncpg  # noqa: F401
+
+    HAS_ASYNCPG = True
+except ImportError:
+    HAS_ASYNCPG = False
+
 
 class TestMCPConfigValidation:
     """Test cases for configuration validation."""
@@ -134,6 +142,7 @@ class TestMCPServerErrors:
             await server.execute_tool("some_tool", {})
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
     async def test_postgres_connection_without_env_var(self) -> None:
         """Test PostgreSQL connection when env var is not set."""
         config = MCPServerConfig(
@@ -145,6 +154,21 @@ class TestMCPServerErrors:
         server = MCPServer(config)
 
         with pytest.raises(MCPServerError, match="Environment variable.*not set"):
+            await server.start()
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(HAS_ASYNCPG, reason="Test for when asyncpg is not installed")
+    async def test_postgres_connection_without_asyncpg(self) -> None:
+        """Test PostgreSQL connection when asyncpg is not installed."""
+        config = MCPServerConfig(
+            server_id="test",
+            type="postgres",
+            conn={"url_env": "NONEXISTENT_PG_URL"},
+        )
+
+        server = MCPServer(config)
+
+        with pytest.raises(MCPServerError, match="requires asyncpg package"):
             await server.start()
 
     @pytest.mark.asyncio
@@ -348,6 +372,7 @@ class TestMCPRuntimeErrors:
         assert runtime.get_granted_permissions() == []
 
 
+@pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
 class TestPostgresQueryValidation:
     """Test cases for PostgreSQL query validation."""
 
