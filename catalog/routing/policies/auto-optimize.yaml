@@ -1,0 +1,103 @@
+# Auto-optimization policy for SLA-based routing
+# This policy defines thresholds and rules for selecting execution plans,
+# model tiers, caching strategies, and batching configurations.
+
+version: "1.0"
+
+# Execution mode thresholds
+execution_mode:
+  # Latency threshold for batch mode eligibility (ms)
+  batch_latency_threshold_ms: 10000
+
+  # If realtime_required=false and latency budget > threshold, use BATCH
+  default_mode: realtime
+
+# Model tier selection rules
+model_tiers:
+  # Cost thresholds (USD per request)
+  local:
+    max_cost: 0.0001
+    min_quality: 0.0
+    description: "Local models (ollama, llama.cpp) for zero-cost scenarios"
+
+  mini:
+    max_cost: 0.005
+    min_quality: 0.5
+    description: "Small models (gpt-4o-mini, claude-haiku) for low-cost tasks"
+
+  standard:
+    max_cost: 0.02
+    min_quality: 0.7
+    description: "Standard models (gpt-4o, claude-3.5-sonnet) for balanced performance"
+
+  premium:
+    max_cost: null  # No upper limit
+    min_quality: 0.9
+    description: "Premium models (claude-opus, gpt-4) for highest quality"
+
+# Cache strategy rules
+cache:
+  # When to use aggressive caching (cache everything)
+  aggressive:
+    conditions:
+      - max_cost_usd_lt: 0.005
+      - allow_cache: true
+    cache_ttl_seconds: 3600
+
+  # When to use conservative caching (cache only stable data)
+  conservative:
+    conditions:
+      - model_tier_in: [standard, premium]
+      - allow_cache: true
+    cache_ttl_seconds: 1800
+
+  # Disable caching
+  none:
+    conditions:
+      - allow_cache: false
+
+# Batch processing rules
+batch:
+  # Enable batching conditions
+  enabled:
+    conditions:
+      - execution_mode: batch
+      - allow_batch: true
+
+  # Batch size limits
+  max_batch_size: 100
+  batch_timeout_seconds: 30
+
+# Model-specific routing preferences
+model_routing:
+  # Non-realtime workloads
+  batch:
+    preferred_models:
+      - "gpt-4o-mini"
+      - "claude-3-haiku"
+      - "ollama/llama3"
+
+  # Low-cost scenarios
+  cost_optimized:
+    preferred_models:
+      - "ollama/llama3"
+      - "ollama/mistral"
+      - "gpt-4o-mini"
+
+  # Quality-focused scenarios
+  quality_focused:
+    preferred_models:
+      - "claude-3-opus"
+      - "claude-3.5-sonnet"
+      - "gpt-4"
+
+# SLA compliance checks
+sla_validation:
+  # Warn if estimated cost exceeds budget
+  enforce_cost_budget: true
+
+  # Warn if estimated latency exceeds requirement
+  enforce_latency_requirement: true
+
+  # Allow override if no viable plan meets SLA
+  allow_best_effort: true
