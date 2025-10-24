@@ -1,4 +1,11 @@
-"""Optimization utilities for AGDD framework."""
+"""
+Optimization utilities for AGDD.
+
+This module contains utilities for optimizing LLM API calls,
+including batch processing, cost reduction strategies, and semantic caching.
+"""
+
+from __future__ import annotations
 
 from agdd.optimization.cache import (
     CacheBackend,
@@ -8,6 +15,7 @@ from agdd.optimization.cache import (
 )
 
 __all__ = [
+    "batch",
     "CacheBackend",
     "CacheConfig",
     "SemanticCache",

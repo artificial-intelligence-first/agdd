@@ -16,6 +16,11 @@ risk_class: low
 budgets:
   tokens: 200000
   time_s: 60
+provider_config:
+  task_type: orchestration
+  estimated_duration: medium
+  resource_hint: standard
+  provider_hint: local
 observability:
   logs: true
   metrics: true
