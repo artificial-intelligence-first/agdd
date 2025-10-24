@@ -43,7 +43,7 @@ class Plan:
             route: Route to convert
 
         Returns:
-            Plan instance
+            Plan instance with copied metadata to prevent shared mutation
         """
         return cls(
             task_type=route.task_type,
@@ -53,7 +53,7 @@ class Plan:
             use_cache=route.use_cache,
             structured_output=route.structured_output,
             moderation=route.moderation,
-            metadata=route.metadata,
+            metadata=route.metadata.copy(),
         )
 
 

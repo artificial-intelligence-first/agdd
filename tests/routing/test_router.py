@@ -82,6 +82,30 @@ def test_plan_from_route() -> None:
     assert plan.metadata == {"key": "value"}
 
 
+def test_plan_from_route_metadata_isolation() -> None:
+    """Test that Plan metadata is isolated from Route metadata."""
+    route = Route(
+        task_type="test-task",
+        provider="anthropic",
+        model="claude-3-5-sonnet-20241022",
+        metadata={"temperature": 0.7, "max_tokens": 1000},
+    )
+
+    plan = Plan.from_route(route)
+
+    # Modify plan metadata
+    plan.metadata["temperature"] = 0.9
+    plan.metadata["new_key"] = "new_value"
+
+    # Route metadata should remain unchanged
+    assert route.metadata == {"temperature": 0.7, "max_tokens": 1000}
+    assert "new_key" not in route.metadata
+
+    # Plan should have the modified values
+    assert plan.metadata["temperature"] == 0.9
+    assert plan.metadata["new_key"] == "new_value"
+
+
 def test_get_plan_exact_match(sample_policy: RoutingPolicy) -> None:
     """Test get_plan with exact task type match."""
     plan = get_plan("offer-orchestration", policy=sample_policy)
