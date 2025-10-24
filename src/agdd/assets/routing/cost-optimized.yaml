@@ -1,0 +1,45 @@
+name: "cost-optimized"
+description: "Cost-optimized routing policy using batch API and caching"
+
+routes:
+  # Offer orchestration tasks with batch processing
+  - task_type: "offer-orchestration"
+    provider: "anthropic"
+    model: "claude-3-5-sonnet-20241022"
+    use_batch: true
+    use_cache: true
+    structured_output: true
+    moderation: false
+    priority: 100
+    metadata:
+      max_tokens: 4096
+      temperature: 0.7
+      batch_window: "24h"
+
+  # Pattern-based routing for offer generation with batch
+  - task_type: "offer.generate"
+    provider: "anthropic"
+    model: "claude-3-5-sonnet-20241022"
+    use_batch: true
+    use_cache: true
+    structured_output: true
+    moderation: false
+    priority: 90
+    metadata:
+      max_tokens: 4096
+      temperature: 0.7
+      batch_window: "24h"
+
+  # Use smaller model for general tasks
+  - task_type: "*"
+    provider: "anthropic"
+    model: "claude-3-5-haiku-20241022"
+    use_batch: true
+    use_cache: true
+    structured_output: false
+    moderation: false
+    priority: 0
+    metadata:
+      max_tokens: 2048
+      temperature: 0.5
+      batch_window: "24h"

@@ -1,353 +1,449 @@
 """
-Batch Manager for Anthropic API
+OpenAI Batch API support for cost optimization.
 
-Supports both /v1/messages and /v1/responses endpoints with automatic batching
-based on SLA requirements.
+Batch API provides:
+- 50% cost reduction compared to synchronous API calls
+- 24-hour completion time window
+- Support for both /v1/chat/completions and /v1/responses endpoints
+
+Reference: https://platform.openai.com/docs/guides/batch
 """
 
-import os
-from datetime import datetime, timedelta
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Literal
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional
 
-import httpx
-from pydantic import BaseModel, Field
+from openai import OpenAI
 
 
-class APIEndpoint(str, Enum):
-    """Supported API endpoints for batching"""
+class BatchEndpoint(str, Enum):
+    """Supported batch API endpoints"""
 
-    MESSAGES = "/v1/messages"
+    CHAT_COMPLETIONS = "/v1/chat/completions"
     RESPONSES = "/v1/responses"
 
 
-class SLA(str, Enum):
-    """Service Level Agreement types"""
-
-    REALTIME = "realtime"
-    STANDARD = "standard"
-    BATCH = "batch"
-
-
 class BatchStatus(str, Enum):
-    """Batch processing status"""
+    """Batch job status"""
 
+    VALIDATING = "validating"
+    FAILED = "failed"
     IN_PROGRESS = "in_progress"
-    ENDED = "ended"
-    CANCELING = "canceling"
-    CANCELED = "canceled"
+    FINALIZING = "finalizing"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+    CANCELLING = "cancelling"
+    CANCELLED = "cancelled"
 
 
-class BatchRequestItem(BaseModel):
+@dataclass
+class BatchRequest:
     """Single request in a batch"""
 
     custom_id: str
-    params: dict[str, Any]
+    method: Literal["POST"] = "POST"
+    url: str = BatchEndpoint.RESPONSES
+    body: Dict[str, Any] = field(default_factory=dict)
+
+    def to_jsonl(self) -> str:
+        """Convert to JSONL format for batch API"""
+        return json.dumps(
+            {
+                "custom_id": self.custom_id,
+                "method": self.method,
+                "url": self.url,
+                "body": self.body,
+            }
+        )
 
 
-class BatchRequest(BaseModel):
-    """Batch request configuration"""
-
-    requests: list[BatchRequestItem]
-
-
-class BatchResponse(BaseModel):
-    """Response from batch creation"""
-
-    id: str
-    type: Literal["message_batch"] = "message_batch"
-    processing_status: BatchStatus
-    request_counts: dict[str, int] = Field(default_factory=dict)
-    ended_at: datetime | None = None
-    created_at: datetime
-    expires_at: datetime
-    cancel_initiated_at: datetime | None = None
-    results_url: str | None = None
-
-
-class BatchResult(BaseModel):
-    """Individual result from batch processing"""
+@dataclass
+class BatchResponse:
+    """Single response from a batch"""
 
     custom_id: str
-    result: dict[str, Any]
-    error: dict[str, Any] | None = None
+    response: Dict[str, Any]
+    error: Optional[Dict[str, Any]] = None
 
 
-class PriceCalculation(BaseModel):
-    """Price calculation with batch discount"""
+@dataclass
+class BatchJob:
+    """Batch job metadata"""
 
-    original_price: float
-    batch_discount_percent: float = 50.0
-    discounted_price: float
-
-    @classmethod
-    def calculate(cls, original_price: float) -> "PriceCalculation":
-        """Calculate price with 50% batch discount"""
-        discount_percent = 50.0
-        discounted = original_price * (1 - discount_percent / 100)
-        return cls(
-            original_price=original_price,
-            batch_discount_percent=discount_percent,
-            discounted_price=discounted,
-        )
+    id: str
+    status: BatchStatus
+    endpoint: str
+    created_at: int
+    completed_at: Optional[int] = None
+    failed_at: Optional[int] = None
+    expires_at: Optional[int] = None
+    request_counts: Dict[str, int] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class BatchManager:
+class BatchAPIClient:
     """
-    Manages batch requests to Anthropic API
+    Client for OpenAI Batch API.
 
-    Supports both /v1/messages and /v1/responses endpoints with automatic
-    batching based on SLA requirements.
+    Supports both chat.completions and responses endpoints with
+    automatic cost tracking (50% discount applied).
     """
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        base_url: str = "https://api.anthropic.com",
-        timeout: float = 30.0,
-    ):
+    # Batch API cost multiplier (50% discount)
+    BATCH_COST_MULTIPLIER = 0.5
+
+    # Maximum batch size and completion time
+    MAX_BATCH_SIZE = 50000
+    COMPLETION_WINDOW_HOURS = 24
+
+    def __init__(self, client: Optional[OpenAI] = None, api_key: Optional[str] = None):
         """
-        Initialize BatchManager
+        Initialize batch API client.
 
         Args:
-            api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
-            base_url: Base URL for Anthropic API
-            timeout: Request timeout in seconds
+            client: OpenAI client instance (created if not provided)
+            api_key: API key (uses OPENAI_API_KEY env var if not provided)
         """
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
-        if not self.api_key:
+        if client:
+            self.client = client
+        else:
+            self.client = OpenAI(api_key=api_key)
+
+    def create_batch_file(
+        self,
+        requests: List[BatchRequest],
+        output_path: Optional[Path] = None,
+    ) -> Path:
+        """
+        Create JSONL file for batch processing.
+
+        Args:
+            requests: List of batch requests
+            output_path: Output file path (auto-generated if not provided)
+
+        Returns:
+            Path to created JSONL file
+
+        Raises:
+            ValueError: If batch size exceeds maximum
+        """
+        if len(requests) > self.MAX_BATCH_SIZE:
             raise ValueError(
-                "API key required: set ANTHROPIC_API_KEY environment variable "
-                "or pass api_key parameter"
+                f"Batch size {len(requests)} exceeds maximum {self.MAX_BATCH_SIZE}"
             )
 
-        self.base_url = base_url.rstrip("/")
-        self.timeout = timeout
-        self._client: httpx.AsyncClient | None = None
+        if output_path is None:
+            timestamp = int(time.time())
+            output_path = Path(f"batch_requests_{timestamp}.jsonl")
 
-    async def __aenter__(self) -> "BatchManager":
-        """Async context manager entry"""
-        # api_key should never be None here due to __init__ validation
-        assert self.api_key is not None
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            timeout=self.timeout,
-        )
-        return self
+        with open(output_path, "w", encoding="utf-8") as f:
+            for req in requests:
+                f.write(req.to_jsonl() + "\n")
 
-    async def __aexit__(self, *args: Any) -> None:
-        """Async context manager exit"""
-        if self._client:
-            await self._client.aclose()
+        return output_path
 
-    @property
-    def client(self) -> httpx.AsyncClient:
-        """Get HTTP client (must be used within async context)"""
-        if not self._client:
-            raise RuntimeError("BatchManager must be used as async context manager")
-        return self._client
-
-    @staticmethod
-    def should_batch(sla: SLA) -> bool:
+    def upload_batch_file(self, file_path: Path) -> str:
         """
-        Determine if request should be batched based on SLA
+        Upload batch file to OpenAI.
 
         Args:
-            sla: Service level agreement type
+            file_path: Path to JSONL batch file
 
         Returns:
-            True if request should be batched, False otherwise
+            File ID for uploaded batch file
         """
-        return sla != SLA.REALTIME
+        with open(file_path, "rb") as f:
+            response = self.client.files.create(file=f, purpose="batch")
+        return response.id
 
-    async def create_batch(
+    def create_batch(
         self,
-        requests: list[BatchRequestItem],
-        endpoint: APIEndpoint = APIEndpoint.MESSAGES,
-    ) -> BatchResponse:
+        input_file_id: str,
+        endpoint: BatchEndpoint = BatchEndpoint.RESPONSES,
+        completion_window: Literal["24h"] = "24h",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> BatchJob:
         """
-        Create a new batch request
+        Create batch processing job.
 
         Args:
-            requests: List of requests to batch
-            endpoint: API endpoint to use
+            input_file_id: ID of uploaded input file
+            endpoint: API endpoint (/v1/responses or /v1/chat/completions)
+            completion_window: Completion time window (currently only "24h")
+            metadata: Optional metadata for tracking
 
         Returns:
-            BatchResponse with batch ID and status
-
-        Raises:
-            httpx.HTTPStatusError: If API request fails
+            BatchJob with job metadata
         """
-        payload = {
-            "requests": [
-                {
-                    "custom_id": req.custom_id,
-                    "params": {
-                        **req.params,
-                        # Ensure endpoint is set correctly
-                        "url": endpoint.value,
-                    },
-                }
-                for req in requests
-            ]
+        batch_params: Dict[str, Any] = {
+            "input_file_id": input_file_id,
+            "endpoint": endpoint,
+            "completion_window": completion_window,
         }
+        if metadata:
+            batch_params["metadata"] = metadata
 
-        response = await self.client.post("/v1/messages/batches", json=payload)
-        response.raise_for_status()
+        response = self.client.batches.create(**batch_params)
 
-        data = response.json()
-        return BatchResponse(
-            id=data["id"],
-            processing_status=BatchStatus(data["processing_status"]),
-            request_counts=data.get("request_counts", {}),
-            created_at=datetime.fromisoformat(
-                data["created_at"].replace("Z", "+00:00")
+        return BatchJob(
+            id=response.id,
+            status=BatchStatus(response.status),
+            endpoint=response.endpoint,
+            created_at=response.created_at,
+            completed_at=response.completed_at,
+            failed_at=response.failed_at,
+            expires_at=response.expires_at,
+            request_counts=(
+                {
+                    "total": response.request_counts.total,
+                    "completed": response.request_counts.completed,
+                    "failed": response.request_counts.failed,
+                }
+                if response.request_counts
+                else {}
             ),
-            expires_at=datetime.fromisoformat(
-                data["expires_at"].replace("Z", "+00:00")
-            ),
-            ended_at=(
-                datetime.fromisoformat(data["ended_at"].replace("Z", "+00:00"))
-                if data.get("ended_at")
-                else None
-            ),
-            cancel_initiated_at=(
-                datetime.fromisoformat(
-                    data["cancel_initiated_at"].replace("Z", "+00:00")
-                )
-                if data.get("cancel_initiated_at")
-                else None
-            ),
-            results_url=data.get("results_url"),
+            metadata=response.metadata or {},
         )
 
-    async def get_batch_status(self, batch_id: str) -> BatchResponse:
+    def get_batch_status(self, batch_id: str) -> BatchJob:
         """
-        Get batch processing status
+        Get batch job status.
 
         Args:
-            batch_id: ID of the batch to check
+            batch_id: Batch job ID
 
         Returns:
-            BatchResponse with current status
-
-        Raises:
-            httpx.HTTPStatusError: If API request fails
+            BatchJob with current status
         """
-        response = await self.client.get(f"/v1/messages/batches/{batch_id}")
-        response.raise_for_status()
+        response = self.client.batches.retrieve(batch_id)
 
-        data = response.json()
-        return BatchResponse(
-            id=data["id"],
-            processing_status=BatchStatus(data["processing_status"]),
-            request_counts=data.get("request_counts", {}),
-            created_at=datetime.fromisoformat(
-                data["created_at"].replace("Z", "+00:00")
+        return BatchJob(
+            id=response.id,
+            status=BatchStatus(response.status),
+            endpoint=response.endpoint,
+            created_at=response.created_at,
+            completed_at=response.completed_at,
+            failed_at=response.failed_at,
+            expires_at=response.expires_at,
+            request_counts=(
+                {
+                    "total": response.request_counts.total,
+                    "completed": response.request_counts.completed,
+                    "failed": response.request_counts.failed,
+                }
+                if response.request_counts
+                else {}
             ),
-            expires_at=datetime.fromisoformat(
-                data["expires_at"].replace("Z", "+00:00")
-            ),
-            ended_at=(
-                datetime.fromisoformat(data["ended_at"].replace("Z", "+00:00"))
-                if data.get("ended_at")
-                else None
-            ),
-            cancel_initiated_at=(
-                datetime.fromisoformat(
-                    data["cancel_initiated_at"].replace("Z", "+00:00")
-                )
-                if data.get("cancel_initiated_at")
-                else None
-            ),
-            results_url=data.get("results_url"),
+            metadata=response.metadata or {},
         )
 
-    async def get_batch_results(self, batch_id: str) -> list[BatchResult]:
+    def cancel_batch(self, batch_id: str) -> BatchJob:
         """
-        Retrieve batch results
+        Cancel a batch job.
 
         Args:
-            batch_id: ID of the batch to retrieve results for
+            batch_id: Batch job ID
 
         Returns:
-            List of BatchResult objects
+            BatchJob with updated status
+        """
+        response = self.client.batches.cancel(batch_id)
+
+        return BatchJob(
+            id=response.id,
+            status=BatchStatus(response.status),
+            endpoint=response.endpoint,
+            created_at=response.created_at,
+            completed_at=response.completed_at,
+            failed_at=response.failed_at,
+            expires_at=response.expires_at,
+            request_counts=(
+                {
+                    "total": response.request_counts.total,
+                    "completed": response.request_counts.completed,
+                    "failed": response.request_counts.failed,
+                }
+                if response.request_counts
+                else {}
+            ),
+            metadata=response.metadata or {},
+        )
+
+    def download_results(
+        self,
+        batch_id: str,
+        output_path: Optional[Path] = None,
+    ) -> List[BatchResponse]:
+        """
+        Download batch results.
+
+        Args:
+            batch_id: Batch job ID
+            output_path: Optional path to save raw results
+
+        Returns:
+            List of BatchResponse objects
 
         Raises:
-            httpx.HTTPStatusError: If API request fails
-            RuntimeError: If batch is not complete
+            ValueError: If batch is not completed
         """
-        # First check if batch is complete
-        status = await self.get_batch_status(batch_id)
-        if status.processing_status != BatchStatus.ENDED:
-            raise RuntimeError(
-                f"Batch {batch_id} is not complete (status: {status.processing_status})"
+        batch = self.get_batch_status(batch_id)
+
+        if batch.status != BatchStatus.COMPLETED:
+            raise ValueError(f"Batch {batch_id} is not completed (status: {batch.status})")
+
+        # Get batch details to retrieve output file ID
+        batch_details = self.client.batches.retrieve(batch_id)
+        if not batch_details.output_file_id:
+            raise ValueError(f"Batch {batch_id} has no output file")
+
+        # Download output file using streaming API
+        file_response = self.client.files.content(batch_details.output_file_id)
+        file_bytes = file_response.read()
+
+        # Save to file if path provided
+        if output_path:
+            with open(output_path, "wb") as f:
+                f.write(file_bytes)
+
+        # Parse results from bytes
+        file_text = file_bytes.decode("utf-8")
+        results: List[BatchResponse] = []
+        for line in file_text.strip().split("\n"):
+            if not line:
+                continue
+            data = json.loads(line)
+            results.append(
+                BatchResponse(
+                    custom_id=data["custom_id"],
+                    response=data.get("response", {}),
+                    error=data.get("error"),
+                )
             )
-
-        if not status.results_url:
-            raise RuntimeError(f"Batch {batch_id} has no results URL")
-
-        # Fetch results from results URL
-        response = await self.client.get(status.results_url)
-        response.raise_for_status()
-
-        # Results are returned as JSONL (one JSON object per line)
-        import json
-
-        results = []
-        for line in response.text.strip().split("\n"):
-            if line:
-                data = json.loads(line)
-                results.append(
-                    BatchResult(
-                        custom_id=data["custom_id"],
-                        result=data.get("result", {}),
-                        error=data.get("error"),
-                    )
-                )
 
         return results
 
-    async def wait_for_completion(
+    def wait_for_completion(
         self,
         batch_id: str,
-        poll_interval: float = 10.0,
-        max_wait: timedelta = timedelta(hours=24),
-    ) -> BatchResponse:
+        poll_interval: int = 60,
+        timeout: Optional[int] = None,
+    ) -> BatchJob:
         """
-        Poll batch status until completion
+        Wait for batch completion with polling.
 
         Args:
-            batch_id: ID of the batch to wait for
+            batch_id: Batch job ID
             poll_interval: Seconds between status checks
-            max_wait: Maximum time to wait
+            timeout: Maximum wait time in seconds (None = no timeout)
 
         Returns:
-            Final BatchResponse
+            Completed BatchJob
 
         Raises:
-            TimeoutError: If max_wait is exceeded
-            httpx.HTTPStatusError: If API request fails
+            TimeoutError: If timeout is exceeded
+            RuntimeError: If batch fails
         """
-        import asyncio
-        from datetime import timezone
-
-        start_time = datetime.now(timezone.utc)
+        start_time = time.time()
 
         while True:
-            status = await self.get_batch_status(batch_id)
+            batch = self.get_batch_status(batch_id)
 
-            if status.processing_status in (BatchStatus.ENDED, BatchStatus.CANCELED):
-                return status
+            if batch.status == BatchStatus.COMPLETED:
+                return batch
+            elif batch.status in [BatchStatus.FAILED, BatchStatus.EXPIRED, BatchStatus.CANCELLED]:
+                raise RuntimeError(f"Batch {batch_id} ended with status: {batch.status}")
 
-            if datetime.now(timezone.utc) - start_time > max_wait:
-                raise TimeoutError(
-                    f"Batch {batch_id} did not complete within {max_wait}"
-                )
+            if timeout and (time.time() - start_time) > timeout:
+                raise TimeoutError(f"Batch {batch_id} did not complete within {timeout}s")
 
-            await asyncio.sleep(poll_interval)
+            time.sleep(poll_interval)
+
+    def submit_batch(
+        self,
+        requests: List[BatchRequest],
+        endpoint: BatchEndpoint = BatchEndpoint.RESPONSES,
+        metadata: Optional[Dict[str, Any]] = None,
+        wait: bool = False,
+        poll_interval: int = 60,
+    ) -> BatchJob:
+        """
+        High-level method to submit and optionally wait for batch.
+
+        Args:
+            requests: List of batch requests
+            endpoint: API endpoint to use
+            metadata: Optional metadata
+            wait: If True, wait for completion
+            poll_interval: Seconds between status checks if waiting
+
+        Returns:
+            BatchJob with status
+        """
+        # Create and upload file
+        file_path = self.create_batch_file(requests)
+        file_id = self.upload_batch_file(file_path)
+
+        # Create batch job
+        batch = self.create_batch(
+            input_file_id=file_id,
+            endpoint=endpoint,
+            metadata=metadata,
+        )
+
+        # Optionally wait for completion
+        if wait:
+            batch = self.wait_for_completion(batch.id, poll_interval=poll_interval)
+
+        return batch
+
+
+def create_batch_client(api_key: Optional[str] = None) -> BatchAPIClient:
+    """
+    Factory function to create batch API client.
+
+    Args:
+        api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
+
+    Returns:
+        BatchAPIClient instance
+    """
+    return BatchAPIClient(api_key=api_key)
+
+
+def calculate_batch_savings(
+    prompt_tokens: int,
+    completion_tokens: int,
+    model_pricing: Dict[str, float],
+) -> Dict[str, float]:
+    """
+    Calculate cost savings from using batch API.
+
+    Args:
+        prompt_tokens: Number of prompt tokens
+        completion_tokens: Number of completion tokens
+        model_pricing: Dict with 'prompt' and 'completion' prices per 1M tokens
+
+    Returns:
+        Dict with 'sync_cost', 'batch_cost', 'savings', 'discount_pct'
+    """
+    # Synchronous API cost
+    sync_prompt_cost = (prompt_tokens / 1_000_000) * model_pricing["prompt"]
+    sync_completion_cost = (completion_tokens / 1_000_000) * model_pricing["completion"]
+    sync_cost = sync_prompt_cost + sync_completion_cost
+
+    # Batch API cost (50% discount)
+    batch_cost = sync_cost * BatchAPIClient.BATCH_COST_MULTIPLIER
+    savings = sync_cost - batch_cost
+
+    return {
+        "sync_cost_usd": round(sync_cost, 6),
+        "batch_cost_usd": round(batch_cost, 6),
+        "savings_usd": round(savings, 6),
+        "discount_pct": 50.0,
+    }
