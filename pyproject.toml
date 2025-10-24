@@ -39,6 +39,12 @@ redis = [
 postgres = [
     "asyncpg>=0.29.0",
 ]
+observability = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "langfuse>=2.50.0",
+]
 
 
 [project.scripts]
