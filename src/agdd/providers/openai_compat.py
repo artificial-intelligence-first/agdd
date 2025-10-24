@@ -48,9 +48,7 @@ class BaseOpenAICompatProvider(ABC):
         pass
 
     @abstractmethod
-    async def chat_completion(
-        self, request: ChatCompletionRequest
-    ) -> ChatCompletionResponse:
+    async def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         """Execute chat completion request."""
         pass
 
@@ -119,9 +117,7 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
             supports_function_calling=False,
         )
 
-    async def chat_completion(
-        self, request: ChatCompletionRequest
-    ) -> ChatCompletionResponse:
+    async def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         """Execute chat completion request with automatic fallback.
 
         If the request contains features not supported by the local provider

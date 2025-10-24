@@ -134,8 +134,7 @@ async def test_response_format_fallback_warning(
             # Verify warning was logged
             assert len(caplog.records) > 0
             assert any(
-                "response_format is not supported" in record.message
-                for record in caplog.records
+                "response_format is not supported" in record.message for record in caplog.records
             )
             assert any(
                 "Falling back to standard chat completion" in record.message
@@ -179,9 +178,7 @@ async def test_streaming_fallback_warning(
             # Verify warning was logged
             warning_messages = [record.message for record in caplog.records]
             assert any("Streaming is not supported" in msg for msg in warning_messages)
-            assert any(
-                "non-streaming chat completion" in msg for msg in warning_messages
-            )
+            assert any("non-streaming chat completion" in msg for msg in warning_messages)
 
     await provider.close()
 
@@ -335,9 +332,7 @@ async def test_multiple_fallbacks(
             # Verify both warnings were logged
             warning_messages = [record.message for record in caplog.records]
             assert any("Streaming is not supported" in msg for msg in warning_messages)
-            assert any(
-                "response_format is not supported" in msg for msg in warning_messages
-            )
+            assert any("response_format is not supported" in msg for msg in warning_messages)
             assert len(caplog.records) >= 2
 
     await provider.close()
