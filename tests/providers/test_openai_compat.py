@@ -19,7 +19,7 @@ from agdd.providers.openai_compat import (
 def provider_config() -> OpenAICompatProviderConfig:
     """Create test provider configuration."""
     return OpenAICompatProviderConfig(
-        base_url="http://localhost:8000/v1",
+        base_url="http://localhost:8000/v1/",
         timeout=30.0,
         api_key="test-key",
     )
@@ -255,7 +255,7 @@ async def test_provider_default_config() -> None:
     """Test provider with default configuration."""
     provider = OpenAICompatProvider()
 
-    assert provider.config.base_url == "http://localhost:8000/v1"
+    assert provider.config.base_url == "http://localhost:8000/v1/"
     assert provider.config.timeout == 60.0
     assert provider.config.api_key is None
 

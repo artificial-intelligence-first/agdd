@@ -62,8 +62,8 @@ class OpenAICompatProviderConfig(BaseModel):
     """Configuration for OpenAI-compatible provider."""
 
     base_url: str = Field(
-        default="http://localhost:8000/v1",
-        description="Base URL for OpenAI-compatible API endpoint",
+        default="http://localhost:8000/v1/",
+        description="Base URL for OpenAI-compatible API endpoint (must end with /)",
     )
     timeout: float = Field(default=60.0, description="Request timeout in seconds")
     api_key: str | None = Field(
@@ -79,7 +79,8 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
     supported, it automatically falls back to standard chat completions with warnings.
 
     P1 Fixes Applied:
-    - Uses relative path "chat/completions" to respect base_url path
+    - base_url must end with trailing slash to ensure relative paths join correctly
+    - Uses relative path "chat/completions" which joins with base_url properly
     - Disables streaming support (supports_streaming=False) since implementation
       does not handle event-stream responses
     """
