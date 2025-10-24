@@ -2,7 +2,7 @@
 
 import logging
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -74,7 +74,7 @@ async def test_basic_chat_completion_no_fallback(
     )
 
     # Mock the HTTP client
-    with patch.object(provider._client, "post") as mock_post:
+    with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
         mock_http_response = Mock(spec=httpx.Response)
         mock_http_response.json.return_value = mock_response
         mock_http_response.raise_for_status = Mock()
@@ -119,7 +119,7 @@ async def test_response_format_fallback_warning(
     )
 
     with caplog.at_level(logging.WARNING):
-        with patch.object(provider._client, "post") as mock_post:
+        with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
             mock_http_response = Mock(spec=httpx.Response)
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = Mock()
@@ -163,7 +163,7 @@ async def test_streaming_fallback_warning(
     )
 
     with caplog.at_level(logging.WARNING):
-        with patch.object(provider._client, "post") as mock_post:
+        with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
             mock_http_response = Mock(spec=httpx.Response)
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = Mock()
@@ -205,7 +205,7 @@ async def test_structured_response_format_fallback(
     )
 
     with caplog.at_level(logging.WARNING):
-        with patch.object(provider._client, "post") as mock_post:
+        with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
             mock_http_response = Mock(spec=httpx.Response)
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = Mock()
@@ -286,7 +286,7 @@ async def test_http_error_handling(
         model="invalid-model", messages=[{"role": "user", "content": "test"}]
     )
 
-    with patch.object(provider._client, "post") as mock_post:
+    with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
         mock_http_response = Mock(spec=httpx.Response)
         mock_http_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Not Found", request=Mock(), response=Mock()
@@ -316,7 +316,7 @@ async def test_multiple_fallbacks(
     )
 
     with caplog.at_level(logging.WARNING):
-        with patch.object(provider._client, "post") as mock_post:
+        with patch.object(provider._client, "post", new_callable=AsyncMock) as mock_post:
             mock_http_response = Mock(spec=httpx.Response)
             mock_http_response.json.return_value = mock_response
             mock_http_response.raise_for_status = Mock()
