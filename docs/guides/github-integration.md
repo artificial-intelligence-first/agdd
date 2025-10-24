@@ -117,4 +117,4 @@ Use the workflow as a template for scheduled automations or manual triggers.
 - Enable FastAPI logging (`AGDD_API_DEBUG=1`) during development to inspect incoming payloads (secrets are never logged).
 - The webhook handlers log failures to post comments via Python's standard logging facility; ensure your deployment collects WARN level logs.
 
-For deeper HTTP API behaviour, refer back to [API.md](./API.md).
+For deeper HTTP API behaviour, refer back to [API Usage Guide](./api-usage.md).

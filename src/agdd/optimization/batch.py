@@ -169,6 +169,12 @@ class BatchAPIClient:
         """
         Create batch processing job.
 
+        Note: OpenAI Batch API uses a single /v1/batches endpoint for all batch
+        operations. The 'endpoint' parameter specifies which API endpoint
+        (/v1/responses or /v1/chat/completions) to use for processing the
+        requests within the batch. This is different from some other batch APIs
+        that use separate URLs for different endpoints.
+
         Args:
             input_file_id: ID of uploaded input file
             endpoint: API endpoint (/v1/responses or /v1/chat/completions)
