@@ -9,6 +9,7 @@ from __future__ import annotations
 
 # Core protocol (used by MAG/SAG)
 from agdd.providers.base import BaseLLMProvider, LLMResponse
+from agdd.providers.google import GoogleProvider
 
 # Import submodules to make them available via package namespace
 from . import anthropic, openai
@@ -25,6 +26,8 @@ __all__ = [
     # Core protocol
     "BaseLLMProvider",
     "LLMResponse",
+    # Google provider
+    "GoogleProvider",
     # Provider modules
     "anthropic",
     "openai",
