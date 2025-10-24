@@ -56,8 +56,8 @@ class CacheConfig(BaseSettings):
         dimension: Embedding dimension (default: 768 for many models)
         redis_url: Redis connection URL (required for redis backend)
         redis_index_name: Redis index name (default: "agdd_cache")
-        faiss_index_type: FAISS index type (default: "IVFFlat")
-        faiss_nlist: Number of clusters for IVF indexes (default: 100)
+        faiss_index_type: FAISS index type - "Flat" (exact) or "IVFFlat" (approximate)
+        faiss_nlist: Number of clusters for IVFFlat index (default: 100)
     """
 
     model_config = SettingsConfigDict(
@@ -84,8 +84,8 @@ class CacheConfig(BaseSettings):
         description="Redis vector index name",
     )
     faiss_index_type: str = Field(
-        default="IVFFlat",
-        description="FAISS index type (Flat, IVFFlat, HNSW)",
+        default="Flat",
+        description="FAISS index type: 'Flat' (exact search) or 'IVFFlat' (approximate)",
     )
     faiss_nlist: int = Field(
         default=100,
@@ -177,6 +177,8 @@ class FAISSCache(SemanticCache):
         self._trained = False
 
         # Create FAISS index based on configuration
+        # Note: Only Flat and IVFFlat are supported for inner product (cosine similarity)
+        # HNSW only supports L2 distance natively
         if config.faiss_index_type == "Flat":
             self.index: Any = faiss.IndexFlatIP(self.dimension)
             self._trained = True  # Flat doesn't need training
@@ -188,11 +190,11 @@ class FAISSCache(SemanticCache):
                 config.faiss_nlist,
                 faiss.METRIC_INNER_PRODUCT,
             )
-        elif config.faiss_index_type == "HNSW":
-            self.index = faiss.IndexHNSWFlat(self.dimension, 32)
-            self._trained = True  # HNSW doesn't need training
         else:
-            msg = f"Unknown FAISS index type: {config.faiss_index_type}"
+            msg = (
+                f"Unsupported FAISS index type: {config.faiss_index_type}. "
+                f"Supported types: 'Flat' (exact), 'IVFFlat' (approximate)"
+            )
             raise ValueError(msg)
 
         logger.info(

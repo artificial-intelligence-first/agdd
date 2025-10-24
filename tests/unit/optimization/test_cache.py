@@ -24,7 +24,7 @@ class TestCacheConfig:
         config = CacheConfig()
         assert config.backend == CacheBackend.FAISS
         assert config.dimension == 768
-        assert config.faiss_index_type == "IVFFlat"
+        assert config.faiss_index_type == "Flat"
         assert config.faiss_nlist == 100
 
     def test_custom_config(self) -> None:
@@ -37,6 +37,18 @@ class TestCacheConfig:
         assert config.backend == CacheBackend.REDIS
         assert config.dimension == 1024
         assert config.redis_index_name == "test_index"
+
+    def test_unsupported_index_type(self) -> None:
+        """Test error on unsupported FAISS index type."""
+        pytest.importorskip("faiss")
+
+        config = CacheConfig(
+            backend=CacheBackend.FAISS,
+            dimension=128,
+            faiss_index_type="HNSW",  # Not supported
+        )
+        with pytest.raises(ValueError, match="Unsupported FAISS index type"):
+            create_cache(config)
 
 
 class TestFAISSCache:
