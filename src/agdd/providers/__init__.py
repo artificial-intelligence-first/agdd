@@ -9,4 +9,7 @@ from __future__ import annotations
 
 from agdd.providers.base import BaseLLMProvider, LLMResponse
 
+# Import submodules to make them available via package namespace
+from . import openai
+
 __all__ = ["BaseLLMProvider", "LLMResponse", "openai"]
