@@ -174,23 +174,26 @@ class FAISSCache(SemanticCache):
         self._next_id = 0
 
         # Buffer for IVFFlat training
-        self._training_buffer: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+        self._training_buffer: list[tuple[int, np.ndarray[Any, np.dtype[np.float32]]]] = []
         self._trained = False
 
         # Create FAISS index based on configuration
         # Note: Only Flat and IVFFlat are supported for inner product (cosine similarity)
         # HNSW only supports L2 distance natively
+        # Use IndexIDMap2 for removable vectors (prevents memory leaks on key updates)
         if config.faiss_index_type == "Flat":
-            self.index: Any = faiss.IndexFlatIP(self.dimension)
+            base_index: Any = faiss.IndexFlatIP(self.dimension)
+            self.index = faiss.IndexIDMap2(base_index)
             self._trained = True  # Flat doesn't need training
         elif config.faiss_index_type == "IVFFlat":
             quantizer = faiss.IndexFlatIP(self.dimension)
-            self.index = faiss.IndexIVFFlat(
+            base_index = faiss.IndexIVFFlat(
                 quantizer,
                 self.dimension,
                 config.faiss_nlist,
                 faiss.METRIC_INNER_PRODUCT,
             )
+            self.index = base_index  # Will wrap with IndexIDMap2 after training
         else:
             msg = (
                 f"Unsupported FAISS index type: {config.faiss_index_type}. "
@@ -206,19 +209,37 @@ class FAISSCache(SemanticCache):
 
     def _ensure_trained(self) -> None:
         """Ensure IVF index is trained if needed."""
+        import faiss
+
         if self.config.faiss_index_type != "IVFFlat":
             return
 
         if not self._trained and len(self._training_buffer) >= self.config.faiss_nlist:
-            # Train the index with buffered embeddings
-            train_data = np.array(self._training_buffer, dtype=np.float32)
-            self.index.train(train_data)
-            self._trained = True
-            logger.info("Trained IVF index with %d vectors", len(train_data))
+            # Extract embeddings and IDs from buffer
+            ids_to_add = []
+            embeddings_to_add = []
+            for idx, embedding in self._training_buffer:
+                # Only add if not logically deleted
+                if self._metadata.get(idx) is not None:
+                    ids_to_add.append(idx)
+                    embeddings_to_add.append(embedding)
 
-            # Add all buffered embeddings to the index
-            for embedding in self._training_buffer:
-                self.index.add(embedding.reshape(1, -1))
+            if embeddings_to_add:
+                # Train the index with active embeddings
+                train_data = np.array(embeddings_to_add, dtype=np.float32)
+                self.index.train(train_data)
+
+                # Wrap with IndexIDMap2 for removable vectors
+                self.index = faiss.IndexIDMap2(self.index)
+
+                # Add all active buffered embeddings with their IDs
+                self.index.add_with_ids(
+                    train_data,
+                    np.array(ids_to_add, dtype=np.int64),
+                )
+
+                self._trained = True
+                logger.info("Trained IVF index with %d vectors", len(embeddings_to_add))
 
             # Clear the buffer
             self._training_buffer.clear()
@@ -232,7 +253,7 @@ class FAISSCache(SemanticCache):
         """Store an entry in the cache.
 
         If the key already exists, the old entry is logically deleted
-        and replaced with the new one.
+        and physically removed from the FAISS index to prevent memory leaks.
         """
         if embedding.shape[0] != self.dimension:
             msg = f"Embedding dimension {embedding.shape[0]} != {self.dimension}"
@@ -243,24 +264,33 @@ class FAISSCache(SemanticCache):
         if norm > 0:
             embedding = embedding / norm
 
-        # Check if key already exists and mark old entry as deleted
+        # Check if key already exists and remove old entry
         if key in self._key_to_id:
             old_id = self._key_to_id[key]
             self._metadata[old_id] = None  # Logical deletion
+
+            # Physical deletion from FAISS index (if trained)
+            if self._trained:
+                self.index.remove_ids(np.array([old_id], dtype=np.int64))
+
             logger.debug("Replacing existing cache entry for key: %s", key)
 
         # Store metadata with embedding
-        self._metadata[self._next_id] = (key, value, embedding.copy())
-        self._key_to_id[key] = self._next_id
+        current_id = self._next_id
+        self._metadata[current_id] = (key, value, embedding.copy())
+        self._key_to_id[key] = current_id
         self._next_id += 1
 
         # For IVFFlat, buffer embeddings until we have enough to train
         if self.config.faiss_index_type == "IVFFlat" and not self._trained:
-            self._training_buffer.append(embedding.copy())
+            self._training_buffer.append((current_id, embedding.copy()))
             self._ensure_trained()
         else:
-            # Add to FAISS index directly
-            self.index.add(embedding.reshape(1, -1))
+            # Add to FAISS index directly with ID
+            self.index.add_with_ids(
+                embedding.reshape(1, -1),
+                np.array([current_id], dtype=np.int64),
+            )
 
     def search(
         self,
@@ -285,11 +315,9 @@ class FAISSCache(SemanticCache):
 
         # Search buffered embeddings (for untrained IVFFlat)
         if self._training_buffer:
-            buffer_start_idx = self._next_id - len(self._training_buffer)
-            for i, emb in enumerate(self._training_buffer):
+            for idx, emb in self._training_buffer:
                 similarity = float(np.dot(query_embedding, emb))
                 if similarity >= threshold:
-                    idx = buffer_start_idx + i
                     entry = self._metadata.get(idx)
                     if entry is not None:  # Skip logically deleted entries
                         key, value, stored_emb = entry

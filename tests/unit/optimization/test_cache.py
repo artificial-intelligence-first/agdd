@@ -187,6 +187,53 @@ class TestFAISSCache:
         # Size should still be 5
         assert cache.size() == 5
 
+    def test_no_memory_leak_on_key_replacement(self, cache: SemanticCache) -> None:
+        """Test that replacing keys doesn't leak memory in FAISS index.
+
+        This test verifies that when a key is updated, the old vector is physically
+        removed from the FAISS index, not just logically deleted from metadata.
+        """
+        # Get access to the underlying FAISS cache to check index size
+        from agdd.optimization.cache import FAISSCache
+
+        assert isinstance(cache, FAISSCache), "This test requires FAISS cache"
+
+        # Add initial entry
+        embedding1 = np.random.rand(128).astype(np.float32)
+        cache.set("key1", embedding1, {"value": "v1"})
+
+        # Check initial state
+        assert cache.size() == 1
+        initial_ntotal = cache.index.ntotal
+        assert initial_ntotal == 1, "FAISS index should have 1 vector"
+
+        # Replace the same key 10 times
+        for i in range(2, 12):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set("key1", embedding, {"value": f"v{i}"})
+
+            # Verify size stays at 1
+            assert cache.size() == 1, f"Cache size should stay at 1 (iteration {i})"
+
+            # Verify FAISS index size stays at 1 (no memory leak)
+            assert cache.index.ntotal == 1, (
+                f"FAISS index size should stay at 1, got {cache.index.ntotal} "
+                f"after {i} updates (memory leak detected)"
+            )
+
+        # Verify only the latest value is searchable
+        results = cache.search(embedding, k=10, threshold=0.99)
+        assert len(results) == 1
+        assert results[0].value == {"value": "v11"}
+
+        # Add a different key
+        embedding_new = np.random.rand(128).astype(np.float32)
+        cache.set("key2", embedding_new, {"value": "key2_value"})
+
+        # Now we should have 2 entries in both cache and FAISS
+        assert cache.size() == 2
+        assert cache.index.ntotal == 2, "FAISS index should have 2 vectors"
+
     def test_invalid_dimension(self, cache: SemanticCache) -> None:
         """Test error on invalid embedding dimension."""
         wrong_embedding = np.random.rand(64).astype(np.float32)
