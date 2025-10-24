@@ -452,7 +452,8 @@ class OpenAIProvider:
         stream = self.client.chat.completions.create(**params)
 
         accumulated_content = ""
-        accumulated_tool_calls: list[Dict[str, Any]] = []
+        # Track tool calls being built incrementally by index
+        current_tool_calls: Dict[int, Dict[str, Any]] = {}
         last_id = ""
         last_model = request.model
         last_finish_reason = None
@@ -470,19 +471,37 @@ class OpenAIProvider:
                 if delta.content:
                     accumulated_content += delta.content
 
-                # Accumulate tool calls
+                # Accumulate tool calls by index
                 if delta.tool_calls:
                     for tc in delta.tool_calls:
-                        accumulated_tool_calls.append(
-                            {
+                        # Each tool call delta has an index to track which call it belongs to
+                        idx = tc.index if hasattr(tc, "index") else 0
+
+                        # Initialize tool call entry if this is the first chunk for this index
+                        if idx not in current_tool_calls:
+                            current_tool_calls[idx] = {
                                 "id": tc.id if hasattr(tc, "id") else "",
                                 "type": tc.type if hasattr(tc, "type") else "function",
                                 "function": {
-                                    "name": tc.function.name if tc.function else "",
-                                    "arguments": tc.function.arguments if tc.function else "",
+                                    "name": "",
+                                    "arguments": "",
                                 },
                             }
-                        )
+
+                        # Update tool call with delta information
+                        if hasattr(tc, "id") and tc.id:
+                            current_tool_calls[idx]["id"] = tc.id
+                        if hasattr(tc, "type") and tc.type:
+                            current_tool_calls[idx]["type"] = tc.type
+
+                        # Accumulate function name and arguments incrementally
+                        if tc.function:
+                            if hasattr(tc.function, "name") and tc.function.name:
+                                current_tool_calls[idx]["function"]["name"] = tc.function.name
+                            if hasattr(tc.function, "arguments") and tc.function.arguments:
+                                current_tool_calls[idx]["function"]["arguments"] += (
+                                    tc.function.arguments
+                                )
 
                 if choice.finish_reason:
                     last_finish_reason = choice.finish_reason
@@ -493,19 +512,22 @@ class OpenAIProvider:
                     content=delta.content,
                     finish_reason=choice.finish_reason,
                     usage=Usage(),
-                    tool_calls=list(accumulated_tool_calls) if delta.tool_calls else [],
+                    tool_calls=[],  # Don't emit partial tool calls in each chunk
                     raw_response=chunk,
                     endpoint_used=APIEndpoint.CHAT_COMPLETIONS,
                 )
 
-        # Final response
+        # Final response with accumulated tool calls
+        # Convert tool calls dict to sorted list by index
+        final_tool_calls = [current_tool_calls[i] for i in sorted(current_tool_calls.keys())]
+
         yield CompletionResponse(
             id=last_id,
             model=last_model,
             content=accumulated_content,
             finish_reason=last_finish_reason,
             usage=Usage(),
-            tool_calls=accumulated_tool_calls,
+            tool_calls=final_tool_calls,
             raw_response=None,
             endpoint_used=APIEndpoint.CHAT_COMPLETIONS,
         )
