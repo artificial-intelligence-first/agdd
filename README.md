@@ -84,6 +84,18 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
+│                     Security & Moderation                           │
+│                                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │  Content Moderation (omni-moderation-latest)                │   │
+│   │   - Input/Output safety checks                              │   │
+│   │   - Fail-closed/Fail-open strategies                        │   │
+│   │   - Multimodal content support                              │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+└──────────────┼──────────────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────────────┐
 │                        Core Components                              │
 │                                                                     │
 │   ┌─────────────┐     ┌──────────────┐     ┌──────────────────┐     │
@@ -96,15 +108,39 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
+│                   Routing & Optimization Layer                      │
+│                                                                     │
+│  ┌─────────────┐  ┌───────────────┐  ┌──────────────┐  ┌──────────┐ │
+│  │ Router      │  │ Semantic Cache│  │ Batch Manager│  │ Cost     │ │
+│  │ - SLA-based │  │ - FAISS/Redis │  │ - OpenAI     │  │ Optimizer│ │
+│  │ - Auto-opt  │  │ - Vector K-NN │  │   Batch API  │  │ - Model  │ │
+│  │ - Fallback  │  │ - 100% savings│  │ - 50% savings│  │   tiering│ │
+│  └─────────────┘  └───────────────┘  └──────────────┘  └──────────┘ │
+└──────────────┼──────────────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Multi-Provider Support                           │
+│                                                                     │
+│   ┌────────────┐   ┌───────────┐   ┌─────────┐   ┌────────────────┐ │
+│   │  OpenAI    │   │ Anthropic │   │ Google  │   │ Local (Ollama) │ │
+│   │ - Responses│   │ - Claude  │   │ - Gemini│   │ - Responses API│ │
+│   │  API       │   │   3.5/Opus│   │   Pro   │   │   w/ fallback  │ │
+│   │ - Batch    │   │           │   │         │   │                │ │
+│   └────────────┘   └───────────┘   └─────────┘   └────────────────┘ │
+└──────────────┼──────────────────────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────────────┐
 │                   Storage & Observability Layer                     │
 │                                                                     │
 │   ┌──────────────────────┐              ┌────────────────────────┐  │
 │   │   Storage Layer      │              │   Observability        │  │
-│   │  - SQLite (default)  │              │  - ObservabilityLogger │  │
-│   │  - PostgreSQL/       │              │  - Metrics & traces    │  │
+│   │  - SQLite (default)  │              │  - OpenTelemetry       │  │
+│   │  - PostgreSQL/       │              │    + Langfuse          │  │
 │   │    TimescaleDB       │              │  - Cost tracking       │  │
-│   │  - Event envelope    │              │  - Run summaries       │  │
-│   │  - FTS5 search       │              │                        │  │
+│   │  - Event envelope    │              │    (JSONL + SQLite)    │  │
+│   │  - FTS5 search       │              │  - Distributed traces  │  │
 │   └──────────┬───────────┘              └───────────┬────────────┘  │
 └──────────────┼──────────────────────────────────────┼───────────────┘
                │                                      │
