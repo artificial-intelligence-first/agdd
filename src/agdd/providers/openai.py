@@ -313,7 +313,9 @@ class OpenAIProvider:
                                     },
                                 }
                             # Accumulate arguments incrementally
-                            current_tool_calls[idx]["function"]["arguments"] += str(event_any.delta)
+                            current_tool_calls[idx]["function"]["arguments"] += str(
+                                event_any.delta
+                            )
 
                     # Handle function call arguments done
                     elif event_type == "response.function_call_arguments.done":
@@ -422,7 +424,9 @@ class OpenAIProvider:
             endpoint_used=APIEndpoint.CHAT_COMPLETIONS,
         )
 
-    def _chat_completions_stream(self, request: CompletionRequest) -> Iterator[CompletionResponse]:
+    def _chat_completions_stream(
+        self, request: CompletionRequest
+    ) -> Iterator[CompletionResponse]:
         """Execute streaming request using Chat Completions API"""
         params: Dict[str, Any] = {
             "model": request.model,
