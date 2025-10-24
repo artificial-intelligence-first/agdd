@@ -35,20 +35,22 @@ export OLLAMA_BASE_URL="http://localhost:11434"
 
 ### Model Selection in Agent Code
 
-Agents can specify model preferences in their implementations:
+Agents specify model preferences by including them in the payload or context:
 
 ```python
 # In your MAG or SAG code
 def run(payload: dict, *, registry=None, skills=None, runner=None, obs=None) -> dict:
-    # Invoke skill with specific model
-    result = skills.invoke(
-        "skill.analysis",
-        payload,
-        model="gpt-4o",  # Specify model
-        provider="openai"  # Optional provider hint
-    )
+    # Option 1: Include model preference in payload
+    analysis_payload = {
+        **payload,
+        "model_config": {
+            "model": "gpt-4o",
+            "provider": "openai"
+        }
+    }
+    result = skills.invoke("skill.analysis", analysis_payload)
 
-    # Or delegate to SAG with model preference
+    # Option 2: Delegate to SAG with model preference in context
     delegation = Delegation(
         task_id="analyze-1",
         sag_id="data-analysis-sag",
@@ -77,6 +79,14 @@ MODEL_ROUTING = {
 
 def select_model(task_type: str) -> str:
     return MODEL_ROUTING.get(task_type, "gpt-4o")
+
+# Use in agent code
+def run(payload: dict, **deps) -> dict:
+    task_type = payload.get("task_type", "analysis")
+    model = select_model(task_type)
+
+    analysis_payload = {**payload, "model_config": {"model": model}}
+    return deps['skills'].invoke("skill.analysis", analysis_payload)
 ```
 
 ### Strategy 2: Cost-Based Selection
@@ -106,12 +116,14 @@ FALLBACK_CHAIN = [
     "gpt-4o-mini"                   # Fallback 2 (last resort)
 ]
 
-def invoke_with_fallback(skill_id: str, payload: dict, skills) -> dict:
+def invoke_with_fallback(skill_id: str, payload: dict, skills, obs) -> dict:
     last_error = None
 
     for model in FALLBACK_CHAIN:
         try:
-            result = skills.invoke(skill_id, payload, model=model)
+            # Include model in payload
+            model_payload = {**payload, "model_config": {"model": model}}
+            result = skills.invoke(skill_id, model_payload)
             if obs:
                 obs.log("model_success", {"model": model, "skill": skill_id})
             return result
@@ -198,12 +210,14 @@ Always implement graceful degradation:
 def robust_invoke(skill_id: str, payload: dict, skills, obs) -> dict:
     try:
         # Try premium model first
-        return skills.invoke(skill_id, payload, model="gpt-4o")
+        gpt4_payload = {**payload, "model_config": {"model": "gpt-4o"}}
+        return skills.invoke(skill_id, gpt4_payload)
     except RateLimitError:
         if obs:
             obs.log("rate_limit", {"model": "gpt-4o"})
         # Fall back to alternative provider
-        return skills.invoke(skill_id, payload, model="claude-3-5-sonnet-20241022")
+        claude_payload = {**payload, "model_config": {"model": "claude-3-5-sonnet-20241022"}}
+        return skills.invoke(skill_id, claude_payload)
     except Exception as e:
         if obs:
             obs.log("error", {"model": "gpt-4o", "error": str(e)})
@@ -247,52 +261,62 @@ def invoke_with_retry(skill_id: str, payload: dict, skills, max_retries: int = 3
 
 ```python
 # Function calling
-result = skills.invoke(
-    "skill.analysis",
-    payload,
-    model="gpt-4o",
-    tools=[{"type": "function", "function": {...}}]
-)
+analysis_payload = {
+    **payload,
+    "model_config": {
+        "model": "gpt-4o",
+        "tools": [{"type": "function", "function": {...}}]
+    }
+}
+result = skills.invoke("skill.analysis", analysis_payload)
 
 # JSON mode
-result = skills.invoke(
-    "skill.extraction",
-    payload,
-    model="gpt-4o",
-    response_format={"type": "json_object"}
-)
+extraction_payload = {
+    **payload,
+    "model_config": {
+        "model": "gpt-4o",
+        "response_format": {"type": "json_object"}
+    }
+}
+result = skills.invoke("skill.extraction", extraction_payload)
 ```
 
 ### Anthropic
 
 ```python
 # Extended context (200K tokens)
-result = skills.invoke(
-    "skill.document-analysis",
-    payload,
-    model="claude-3-5-sonnet-20241022",
-    max_tokens=4096
-)
+doc_payload = {
+    **payload,
+    "model_config": {
+        "model": "claude-3-5-sonnet-20241022",
+        "max_tokens": 4096
+    }
+}
+result = skills.invoke("skill.document-analysis", doc_payload)
 
 # System prompts (separate from user content)
-result = skills.invoke(
-    "skill.assistant",
-    payload,
-    model="claude-3-5-sonnet-20241022",
-    system="You are a helpful coding assistant..."
-)
+assistant_payload = {
+    **payload,
+    "model_config": {
+        "model": "claude-3-5-sonnet-20241022",
+        "system": "You are a helpful coding assistant..."
+    }
+}
+result = skills.invoke("skill.assistant", assistant_payload)
 ```
 
 ### Local Models (Ollama)
 
 ```python
 # Use local models for privacy-sensitive tasks
-result = skills.invoke(
-    "skill.pii-redaction",
-    payload,
-    model="llama3.1:70b",
-    base_url="http://localhost:11434"
-)
+pii_payload = {
+    **payload,
+    "model_config": {
+        "model": "llama3.1:70b",
+        "base_url": "http://localhost:11434"
+    }
+}
+result = skills.invoke("skill.pii-redaction", pii_payload)
 ```
 
 ## Governance and Compliance
@@ -360,12 +384,14 @@ def run(payload: dict, **deps) -> dict:
 
     # Try primary model
     try:
-        result = skills.invoke("skill.analysis", payload, model="gpt-4o")
+        gpt4_payload = {**payload, "model_config": {"model": "gpt-4o"}}
+        result = skills.invoke("skill.analysis", gpt4_payload)
         obs.log("model_used", {"model": "gpt-4o"})
         return result
     except Exception as e:
         obs.log("fallback", {"from": "gpt-4o", "to": "claude-3-5-sonnet-20241022", "reason": str(e)})
-        return skills.invoke("skill.analysis", payload, model="claude-3-5-sonnet-20241022")
+        claude_payload = {**payload, "model_config": {"model": "claude-3-5-sonnet-20241022"}}
+        return skills.invoke("skill.analysis", claude_payload)
 ```
 
 ## Troubleshooting

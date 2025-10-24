@@ -71,12 +71,11 @@ cat summary.json | jq '.model_stats'
 # Query specific run costs
 uv run agdd data query --run-id mag-abc123
 
-# Search high-cost runs
-uv run agdd data search "cost_usd > 5.0" --limit 20
+# Query runs by agent
+uv run agdd data query --agent my-mag --limit 100
 
-# Daily cost aggregation
-uv run agdd data query --agent my-mag --since 1d | \
-  jq '[.[] | .cost_usd] | add'
+# Search for cost-related events
+uv run agdd data search "cost_usd" --limit 50
 ```
 
 ### Programmatic Access
@@ -87,11 +86,16 @@ from agdd.storage import get_storage_backend
 async def calculate_daily_cost(agent_slug: str) -> float:
     storage = await get_storage_backend()
 
-    # Query runs for the last 24 hours
+    # Query recent runs for the agent
     runs = await storage.list_runs(agent_slug=agent_slug, limit=1000)
 
     total_cost = 0.0
     for run in runs:
+        # Filter runs from last 24 hours
+        run_age_hours = (datetime.now() - run.start_time).total_seconds() / 3600
+        if run_age_hours > 24:
+            continue
+
         events = await storage.get_events(run.run_id, event_type="metric")
         async for event in events:
             if "cost_usd" in event.payload:
@@ -456,14 +460,23 @@ REPORT_FILE="reports/costs_${DATE}.json"
 # Generate daily summary
 uv run python -c "
 import asyncio
+import json
+from datetime import datetime, timedelta
 from agdd.storage import get_storage_backend
 
 async def daily_report():
     storage = await get_storage_backend()
-    runs = await storage.list_runs(since='1d', limit=10000)
+    # Query recent runs (note: no time filter, so we filter in code)
+    runs = await storage.list_runs(limit=10000)
 
     costs_by_agent = {}
+    cutoff = datetime.now() - timedelta(days=1)
+
     for run in runs:
+        # Skip old runs
+        if run.start_time < cutoff:
+            continue
+
         agent = run.agent_slug
         if agent not in costs_by_agent:
             costs_by_agent[agent] = 0.0
@@ -482,7 +495,7 @@ asyncio.run(daily_report())
 # Alert if total exceeds threshold
 TOTAL=$(cat "$REPORT_FILE" | jq '[.[] | values] | add')
 if (( $(echo "$TOTAL > 100.0" | bc -l) )); then
-  echo "ALERT: Daily cost exceeded $100: $TOTAL"
+  echo "ALERT: Daily cost exceeded \$100: \$TOTAL"
   # Send notification (email, Slack, PagerDuty, etc.)
 fi
 ```
@@ -576,12 +589,15 @@ result = skills.invoke(
 Track cost trends over time:
 
 ```bash
-# Weekly cost trend
-for week in {1..4}; do
-  START=$(date -d "${week} weeks ago" +%Y-%m-%d)
-  END=$(date -d "$((week-1)) weeks ago" +%Y-%m-%d)
-  COST=$(uv run agdd data query --since "$START" --until "$END" | jq '[.[] | .cost_usd] | add')
-  echo "Week $week ($START to $END): $$COST"
+# Analyze cost trends from run summaries
+# Note: Requires custom script to aggregate costs over time windows
+python ops/scripts/analyze_cost_trends.py --weeks 4
+
+# Or manually review recent run costs
+for agent in offer-orchestrator-mag compensation-advisor-sag; do
+  echo "Agent: $agent"
+  uv run agdd data query --agent "$agent" --limit 100 | \
+    jq -r '.[] | "\(.run_id): \(.total_cost_usd // 0)"'
 done
 ```
 
@@ -633,15 +649,16 @@ jobs:
 ### Unexpected High Costs
 
 ```bash
-# Identify expensive runs
-uv run agdd data query --limit 100 | \
-  jq 'sort_by(.cost_usd) | reverse | .[0:10]'
+# Query recent runs to find expensive ones
+uv run agdd data query --limit 100
 
-# Analyze token usage patterns
-uv run agdd data search "cost_usd" | \
-  jq '.[] | {run_id, agent, input_tokens, output_tokens, cost_usd}'
+# Search for cost metrics
+uv run agdd data search "cost_usd" --limit 100
 
-# Check for token usage anomalies
+# Analyze specific agent's cost patterns
+uv run agdd data query --agent my-mag --limit 50
+
+# Use custom script for detailed analysis
 uv run python ops/scripts/analyze_token_usage.py --agent my-mag
 ```
 
@@ -649,7 +666,11 @@ uv run python ops/scripts/analyze_token_usage.py --agent my-mag
 
 ```bash
 # Review recent spending
-uv run agdd data query --agent my-mag --since 1d
+uv run agdd data query --agent my-mag --limit 50
+
+# Analyze cost trends in summaries
+uv run agdd flow summarize --output summary.json
+cat summary.json | jq '.model_stats'
 
 # Adjust budget limits
 vim catalog/policies/cost_governance.yaml
