@@ -267,6 +267,8 @@ class OpenAIProvider:
         # Use stream() method for Responses API as context manager
         accumulated_content = ""
         accumulated_tool_calls: list[Dict[str, Any]] = []
+        # Track tool calls being built incrementally
+        current_tool_calls: Dict[int, Dict[str, Any]] = {}
         last_id = ""
         last_model = request.model
         last_finish_reason = None
@@ -296,6 +298,38 @@ class OpenAIProvider:
                                 raw_response=event_any,
                                 endpoint_used=APIEndpoint.RESPONSES,
                             )
+
+                    # Handle function call arguments delta
+                    elif event_type == "response.function_call_arguments.delta":
+                        if hasattr(event_any, "index") and hasattr(event_any, "delta"):
+                            idx = event_any.index
+                            if idx not in current_tool_calls:
+                                current_tool_calls[idx] = {
+                                    "id": getattr(event_any, "call_id", f"call_{idx}"),
+                                    "type": "function",
+                                    "function": {
+                                        "name": getattr(event_any, "name", ""),
+                                        "arguments": "",
+                                    },
+                                }
+                            # Accumulate arguments incrementally
+                            current_tool_calls[idx]["function"]["arguments"] += str(
+                                event_any.delta
+                            )
+
+                    # Handle function call arguments done
+                    elif event_type == "response.function_call_arguments.done":
+                        if hasattr(event_any, "index"):
+                            idx = event_any.index
+                            if idx in current_tool_calls:
+                                # Finalize this tool call
+                                tool_call = current_tool_calls[idx]
+                                # Update with complete information if available
+                                if hasattr(event_any, "name"):
+                                    tool_call["function"]["name"] = event_any.name
+                                if hasattr(event_any, "arguments"):
+                                    tool_call["function"]["arguments"] = event_any.arguments
+                                accumulated_tool_calls.append(tool_call)
 
                     # Handle completion event
                     elif event_type == "response.completed":
