@@ -39,6 +39,12 @@ redis = [
 postgres = [
     "asyncpg>=0.29.0",
 ]
+faiss = [
+    "faiss-cpu>=1.8.0",
+]
+cache = [
+    "numpy>=1.24.0",
+]
 
 
 [project.scripts]
