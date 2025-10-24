@@ -130,13 +130,60 @@ def convert_messages(
                 for block in content:
                     if isinstance(block, dict) and block.get("type") == "text":
                         system_parts.append(cast(str, block.get("text", "")))
-        elif role == "user" or role == "assistant":
-            # Convert to Anthropic message format
+        elif role == "user":
+            # Convert user message to Anthropic format
             anthropic_msg: AnthropicMessage = {
-                "role": role,
+                "role": "user",
                 "content": content if isinstance(content, str) else content,
             }
             anthropic_messages.append(anthropic_msg)
+        elif role == "assistant":
+            # Convert assistant message, handling tool_calls if present
+            tool_calls = msg.get("tool_calls")
+
+            if tool_calls:
+                # Build content blocks with text and tool_use
+                content_blocks: list[dict[str, Any]] = []
+
+                # Add text content if present
+                if content:
+                    if isinstance(content, str):
+                        content_blocks.append({"type": "text", "text": content})
+                    elif isinstance(content, list):
+                        # Already in block format
+                        content_blocks.extend(content)
+
+                # Convert each tool_call to tool_use block
+                for tool_call in tool_calls:
+                    if tool_call.get("type") == "function":
+                        func = tool_call.get("function", {})
+                        arguments = func.get("arguments", "{}")
+                        # Parse JSON arguments if string
+                        if isinstance(arguments, str):
+                            import json
+
+                            try:
+                                arguments = json.loads(arguments)
+                            except json.JSONDecodeError:
+                                arguments = {}
+
+                        tool_use_block = {
+                            "type": "tool_use",
+                            "id": tool_call.get("id", ""),
+                            "name": func.get("name", ""),
+                            "input": arguments,
+                        }
+                        content_blocks.append(tool_use_block)
+
+                anthropic_msg = {"role": "assistant", "content": content_blocks}
+                anthropic_messages.append(anthropic_msg)
+            else:
+                # No tool calls, pass content as-is
+                anthropic_msg = {
+                    "role": "assistant",
+                    "content": content if isinstance(content, str) else content,
+                }
+                anthropic_messages.append(anthropic_msg)
         elif role == "tool":
             # Convert tool response to user message with tool_result content
             tool_call_id = msg.get("tool_call_id", "")

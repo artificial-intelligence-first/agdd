@@ -63,6 +63,47 @@ def test_convert_messages_user_assistant() -> None:
     assert anthropic_messages[1]["content"] == "Hi there!"
 
 
+def test_convert_messages_assistant_with_tool_calls() -> None:
+    """Test conversion of assistant messages with tool_calls to tool_use blocks."""
+    messages: list[OpenAIMessage] = [
+        {"role": "user", "content": "What's the weather?"},
+        {
+            "role": "assistant",
+            "content": "Let me check the weather for you.",
+            "tool_calls": [
+                {
+                    "id": "call_123",
+                    "type": "function",
+                    "function": {"name": "get_weather", "arguments": '{"location": "NYC"}'},
+                }
+            ],
+        },
+    ]
+
+    system_prompt, anthropic_messages = convert_messages(messages)
+
+    assert system_prompt is None
+    assert len(anthropic_messages) == 2
+
+    # Assistant message should have content blocks
+    assistant_msg = anthropic_messages[1]
+    assert assistant_msg["role"] == "assistant"
+    assert isinstance(assistant_msg["content"], list)
+    assert len(assistant_msg["content"]) == 2
+
+    # First block should be text
+    text_block = assistant_msg["content"][0]
+    assert text_block["type"] == "text"
+    assert text_block["text"] == "Let me check the weather for you."
+
+    # Second block should be tool_use
+    tool_use_block = assistant_msg["content"][1]
+    assert tool_use_block["type"] == "tool_use"
+    assert tool_use_block["id"] == "call_123"
+    assert tool_use_block["name"] == "get_weather"
+    assert tool_use_block["input"] == {"location": "NYC"}
+
+
 def test_convert_messages_tool_response() -> None:
     """Test conversion of tool response messages."""
     messages: list[OpenAIMessage] = [
@@ -89,10 +130,21 @@ def test_convert_messages_tool_response() -> None:
 
     assert system_prompt is None
     assert len(anthropic_messages) == 3
-    # Last message should be tool_result
-    assert anthropic_messages[2]["role"] == "user"
-    assert isinstance(anthropic_messages[2]["content"], list)
-    tool_result = anthropic_messages[2]["content"][0]
+
+    # Assistant message with tool_use
+    assistant_msg = anthropic_messages[1]
+    assert assistant_msg["role"] == "assistant"
+    assert isinstance(assistant_msg["content"], list)
+    tool_use_block = assistant_msg["content"][0]
+    assert tool_use_block["type"] == "tool_use"
+    assert tool_use_block["id"] == "call_123"
+    assert tool_use_block["name"] == "get_weather"
+
+    # Tool result should be in user message
+    tool_result_msg = anthropic_messages[2]
+    assert tool_result_msg["role"] == "user"
+    assert isinstance(tool_result_msg["content"], list)
+    tool_result = tool_result_msg["content"][0]
     assert tool_result["type"] == "tool_result"
     assert tool_result["tool_use_id"] == "call_123"
 
