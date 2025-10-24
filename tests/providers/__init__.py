@@ -1,1 +1,1 @@
-"""Tests for LLM provider abstractions."""
+"""Tests for LLM provider abstractions and adapters."""

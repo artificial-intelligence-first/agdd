@@ -11,7 +11,7 @@ from __future__ import annotations
 from agdd.providers.base import BaseLLMProvider, LLMResponse
 
 # Import submodules to make them available via package namespace
-from . import openai
+from . import anthropic, openai
 
 # OpenAI-compatible providers (vLLM, Ollama)
 from agdd.providers.openai_compat import (
@@ -25,7 +25,8 @@ __all__ = [
     # Core protocol
     "BaseLLMProvider",
     "LLMResponse",
-    # OpenAI provider module
+    # Provider modules
+    "anthropic",
     "openai",
     # OpenAI-compatible providers (vLLM, Ollama)
     "OpenAICompatProvider",
