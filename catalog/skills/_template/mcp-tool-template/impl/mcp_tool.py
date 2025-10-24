@@ -23,7 +23,7 @@ import jsonschema
 import yaml
 
 # Update these paths to match your contract files
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<input-contract>.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<output-contract>.json"
 

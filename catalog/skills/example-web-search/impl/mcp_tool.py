@@ -20,7 +20,7 @@ from typing import Any, Dict
 import jsonschema
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_query.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_result.json"
 
