@@ -254,6 +254,31 @@ class TestFAISSCache:
         results = cache.search(embedding, k=1, threshold=0.99)
         assert len(results) == 1
 
+    def test_float32_dtype_preservation(self, cache: SemanticCache) -> None:
+        """Test that normalization preserves float32 dtype.
+
+        Division by norm promotes arrays to float64, but FAISS and Redis
+        require float32. This test verifies that dtype is preserved.
+        """
+        # Create unnormalized float32 embedding
+        embedding = np.array([3.0, 4.0] + [1.0] * 126, dtype=np.float32)
+        assert embedding.dtype == np.float32
+
+        # Setting should work without dtype errors
+        cache.set("key1", embedding, {"value": "test1"})
+        assert cache.size() == 1
+
+        # Searching should work without dtype errors
+        query = np.array([2.0, 3.0] + [0.5] * 126, dtype=np.float32)
+        assert query.dtype == np.float32
+        results = cache.search(query, k=5, threshold=0.0)
+
+        # Should find the entry
+        assert len(results) >= 1
+
+        # Verify returned embeddings are float32
+        assert results[0].embedding.dtype == np.float32
+
 
 class TestCacheEntry:
     """Test cache entry dataclass."""

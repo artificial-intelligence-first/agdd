@@ -261,10 +261,10 @@ class FAISSCache(SemanticCache):
             msg = f"Embedding dimension {embedding.shape[0]} != {self.dimension}"
             raise ValueError(msg)
 
-        # Normalize embedding for cosine similarity
+        # Normalize embedding for cosine similarity (preserve float32 dtype)
         norm = np.linalg.norm(embedding)
         if norm > 0:
-            embedding = embedding / norm
+            embedding = (embedding / norm).astype(np.float32, copy=False)
 
         # Check if key already exists and remove old entry
         if key in self._key_to_id:
@@ -308,10 +308,10 @@ class FAISSCache(SemanticCache):
         if self._next_id == 0:
             return []
 
-        # Normalize query
+        # Normalize query (preserve float32 dtype)
         norm = np.linalg.norm(query_embedding)
         if norm > 0:
-            query_embedding = query_embedding / norm
+            query_embedding = (query_embedding / norm).astype(np.float32, copy=False)
 
         results: list[CacheEntry] = []
 
@@ -465,10 +465,10 @@ class RedisVectorCache(SemanticCache):
             msg = f"Embedding dimension {embedding.shape[0]} != {self.dimension}"
             raise ValueError(msg)
 
-        # Normalize embedding for cosine similarity
+        # Normalize embedding for cosine similarity (preserve float32 dtype)
         norm = np.linalg.norm(embedding)
         if norm > 0:
-            embedding = embedding / norm
+            embedding = (embedding / norm).astype(np.float32, copy=False)
 
         # Store in Redis
         redis_key = f"{self.index_name}:{key}"
@@ -496,10 +496,10 @@ class RedisVectorCache(SemanticCache):
             msg = f"Query dimension {query_embedding.shape[0]} != {self.dimension}"
             raise ValueError(msg)
 
-        # Normalize query
+        # Normalize query (preserve float32 dtype)
         norm = np.linalg.norm(query_embedding)
         if norm > 0:
-            query_embedding = query_embedding / norm
+            query_embedding = (query_embedding / norm).astype(np.float32, copy=False)
 
         # Convert threshold to range (Redis uses distance, not similarity)
         # For cosine distance: distance = 1 - similarity
