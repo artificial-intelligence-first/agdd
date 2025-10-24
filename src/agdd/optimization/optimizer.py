@@ -161,18 +161,67 @@ class CostOptimizer:
         )
 
     def _select_model_tier(self, sla: SLAParameters) -> ModelTier:
-        """Select model tier based on cost and quality requirements."""
-        # Cost-driven selection
-        if sla.max_cost_usd is not None and sla.max_cost_usd < 0.001:
-            return ModelTier.LOCAL
+        """
+        Select model tier based on cost and quality requirements.
 
-        # Quality-driven selection
-        if sla.min_quality >= 0.9:
-            return ModelTier.PREMIUM
-        elif sla.min_quality >= 0.7:
-            return ModelTier.STANDARD
+        Selection strategy:
+        1. Find tiers within budget (if specified)
+        2. Among those, pick the one that best meets quality requirement
+        3. If no tier meets both, prioritize based on which constraint is stricter
+
+        Cost is estimated without caching (worst case) to ensure
+        the budget is respected even if caching is disabled.
+        """
+        # Base costs without caching (worst case for budget compliance)
+        base_costs = {
+            ModelTier.LOCAL: 0.0,
+            ModelTier.MINI: 0.002,
+            ModelTier.STANDARD: 0.01,
+            ModelTier.PREMIUM: 0.03,
+        }
+
+        # Tier quality capabilities (estimated)
+        # These represent the typical quality level each tier can achieve
+        tier_quality = {
+            ModelTier.LOCAL: 0.5,
+            ModelTier.MINI: 0.8,
+            ModelTier.STANDARD: 0.9,
+            ModelTier.PREMIUM: 0.95,
+        }
+
+        # All tiers in cost priority order
+        all_tiers = [
+            ModelTier.LOCAL,
+            ModelTier.MINI,
+            ModelTier.STANDARD,
+            ModelTier.PREMIUM,
+        ]
+
+        # Filter by budget (if specified)
+        if sla.max_cost_usd is not None:
+            affordable = [t for t in all_tiers if base_costs[t] <= sla.max_cost_usd]
         else:
-            return ModelTier.MINI
+            affordable = all_tiers
+
+        # Among affordable tiers, find the cheapest one that meets quality
+        for tier in affordable:
+            if tier_quality[tier] >= sla.min_quality:
+                return tier
+
+        # No affordable tier meets quality - decide which constraint to violate
+        if sla.max_cost_usd is not None:
+            # Cost constraint is strict - return best quality within budget
+            if affordable:
+                # Return highest quality tier we can afford (last in affordable list)
+                return affordable[-1]
+
+        # Quality constraint is strict - return cheapest tier that meets quality
+        for tier in all_tiers:
+            if tier_quality[tier] >= sla.min_quality:
+                return tier
+
+        # No tier meets quality requirement - return LOCAL (cheapest)
+        return ModelTier.LOCAL
 
     def _select_cache_strategy(self, sla: SLAParameters, model_tier: ModelTier) -> CacheStrategy:
         """Select caching strategy based on SLA and model tier."""

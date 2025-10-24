@@ -63,7 +63,7 @@ class TestCostOptimizer:
         assert "Low cost budget" in plan.reasoning
 
     def test_standard_quality_balanced(self) -> None:
-        """Test balanced scenario → REALTIME + STANDARD"""
+        """Test balanced scenario → REALTIME + MINI (cost-efficient)"""
         sla = SLAParameters(
             max_latency_ms=3000,
             max_cost_usd=0.015,
@@ -77,13 +77,14 @@ class TestCostOptimizer:
         plan = optimizer.optimize(sla)
 
         assert plan.mode == ExecutionMode.REALTIME
-        assert plan.model_tier == ModelTier.STANDARD
+        # MINI (0.8 quality) meets 0.75 requirement and is more cost-efficient
+        assert plan.model_tier == ModelTier.MINI
         assert plan.cache_strategy in (CacheStrategy.CONSERVATIVE, CacheStrategy.AGGRESSIVE)
 
     def test_aggressive_caching_for_low_cost(self) -> None:
         """Test aggressive caching is selected for low-cost scenarios"""
         sla = SLAParameters(
-            max_cost_usd=0.001,
+            max_cost_usd=0.003,  # Allows MINI (cost 0.002)
             min_quality=0.6,
             allow_cache=True,
         )
@@ -92,7 +93,8 @@ class TestCostOptimizer:
         plan = optimizer.optimize(sla)
 
         assert plan.cache_strategy == CacheStrategy.AGGRESSIVE
-        assert plan.estimated_cost_usd < 0.001
+        assert sla.max_cost_usd is not None
+        assert plan.estimated_cost_usd <= sla.max_cost_usd
 
     def test_no_caching_when_disabled(self) -> None:
         """Test caching is disabled when allow_cache=False"""
@@ -131,7 +133,8 @@ class TestCostOptimizer:
         # Verify optimizer still works with policy loaded
         sla = SLAParameters(min_quality=0.8)
         plan = optimizer.optimize(sla)
-        assert plan.model_tier == ModelTier.STANDARD
+        # MINI (0.8) exactly meets requirement and is most cost-efficient
+        assert plan.model_tier == ModelTier.MINI
 
     def test_convenience_function(self) -> None:
         """Test optimize_for_sla convenience function"""
@@ -167,7 +170,7 @@ class TestSLAParameterSwitching:
             (
                 {"realtime_required": True, "min_quality": 0.75},
                 ExecutionMode.REALTIME,
-                ModelTier.STANDARD,
+                ModelTier.MINI,  # MINI (0.8) meets 0.75 and is cost-efficient
             ),
             (
                 {"realtime_required": True, "max_cost_usd": 0.0005},
@@ -178,7 +181,7 @@ class TestSLAParameterSwitching:
             (
                 {"realtime_required": False, "min_quality": 0.6},
                 ExecutionMode.BATCH,
-                ModelTier.MINI,
+                ModelTier.MINI,  # MINI (0.8) meets 0.6
             ),
             (
                 {"realtime_required": False, "max_cost_usd": 0.0001},
@@ -207,36 +210,48 @@ class TestSLAParameterSwitching:
 
     def test_cost_constraint_switches_tier(self) -> None:
         """Test that tightening cost constraint switches to cheaper tier"""
-        # Expensive budget → premium tier
+        # Expensive budget → premium tier (quality requirement is high)
         sla_expensive = SLAParameters(max_cost_usd=0.05, min_quality=0.95)
         plan_expensive = optimize_for_sla(sla_expensive)
 
-        # Cheap budget → local/mini tier
+        # Cheap budget → LOCAL (cost ceiling enforced)
         sla_cheap = SLAParameters(max_cost_usd=0.0005, min_quality=0.95)
         plan_cheap = optimize_for_sla(sla_cheap)
 
-        # Despite same quality requirement, cost constraint changes tier
+        # Expensive budget allows PREMIUM (meets quality + cost)
         assert plan_expensive.model_tier == ModelTier.PREMIUM
+
+        # Cheap budget selects LOCAL (only tier within budget)
+        # Cost ceiling is enforced even though quality requirement can't be met
         assert plan_cheap.model_tier == ModelTier.LOCAL
-        assert plan_expensive.estimated_cost_usd > plan_cheap.estimated_cost_usd
+
+        # With lower quality requirement that LOCAL can meet
+        sla_low_quality_cheap = SLAParameters(max_cost_usd=0.0005, min_quality=0.5)
+        plan_low_quality_cheap = optimize_for_sla(sla_low_quality_cheap)
+        assert plan_low_quality_cheap.model_tier == ModelTier.LOCAL
 
     def test_quality_requirement_switches_tier(self) -> None:
         """Test that increasing quality requirement switches to better tier"""
-        # Low quality → mini tier
+        # Low quality → LOCAL tier (0.5 quality)
         sla_low_quality = SLAParameters(min_quality=0.5)
         plan_low = optimize_for_sla(sla_low_quality)
 
-        # Medium quality → standard tier
+        # Medium quality → MINI tier (0.8 quality)
         sla_medium_quality = SLAParameters(min_quality=0.75)
         plan_medium = optimize_for_sla(sla_medium_quality)
 
-        # High quality → premium tier
-        sla_high_quality = SLAParameters(min_quality=0.95)
+        # High quality → STANDARD tier (0.9 quality)
+        sla_high_quality = SLAParameters(min_quality=0.85)
         plan_high = optimize_for_sla(sla_high_quality)
 
-        assert plan_low.model_tier == ModelTier.MINI
-        assert plan_medium.model_tier == ModelTier.STANDARD
-        assert plan_high.model_tier == ModelTier.PREMIUM
+        # Very high quality → PREMIUM tier (0.95 quality)
+        sla_very_high_quality = SLAParameters(min_quality=0.95)
+        plan_very_high = optimize_for_sla(sla_very_high_quality)
+
+        assert plan_low.model_tier == ModelTier.LOCAL
+        assert plan_medium.model_tier == ModelTier.MINI
+        assert plan_high.model_tier == ModelTier.STANDARD
+        assert plan_very_high.model_tier == ModelTier.PREMIUM
 
     def test_realtime_flag_switches_mode_and_batch(self) -> None:
         """Test that realtime_required flag controls mode and batching"""
@@ -266,15 +281,15 @@ class TestSLAParameterSwitching:
         """Test that cache strategy adapts to cost constraints"""
         # Very low cost → aggressive caching
         sla_ultra_cheap = SLAParameters(
-            max_cost_usd=0.001,
+            max_cost_usd=0.003,  # Allows MINI
             allow_cache=True,
         )
         plan_ultra_cheap = optimize_for_sla(sla_ultra_cheap)
 
-        # Higher cost → conservative caching
+        # Higher cost with STANDARD tier → conservative caching
         sla_moderate = SLAParameters(
-            max_cost_usd=0.01,
-            min_quality=0.8,
+            max_cost_usd=0.015,
+            min_quality=0.9,  # Requires STANDARD
             allow_cache=True,
         )
         plan_moderate = optimize_for_sla(sla_moderate)
@@ -288,3 +303,59 @@ class TestSLAParameterSwitching:
         assert plan_ultra_cheap.cache_strategy == CacheStrategy.AGGRESSIVE
         assert plan_moderate.cache_strategy == CacheStrategy.CONSERVATIVE
         assert plan_no_cache.cache_strategy == CacheStrategy.NONE
+
+    def test_cost_ceiling_prevents_expensive_tier(self) -> None:
+        """
+        Test that cost ceiling prevents selecting expensive tiers.
+
+        Regression test for P1 review comment:
+        SLAParameters(max_cost_usd=0.005, min_quality=0.8) should select
+        MINI (not STANDARD) because STANDARD base cost is 0.01 > budget.
+        """
+        sla = SLAParameters(
+            max_cost_usd=0.005,
+            min_quality=0.8,
+        )
+        plan = optimize_for_sla(sla)
+
+        # Should select MINI because STANDARD (0.01) exceeds budget
+        assert plan.model_tier == ModelTier.MINI
+        # Final cost should be within budget even without caching
+        assert sla.max_cost_usd is not None
+        assert plan.estimated_cost_usd <= sla.max_cost_usd
+
+    def test_cost_ceiling_enforced_when_quality_unattainable(self) -> None:
+        """Test that cost ceiling is enforced even when quality can't be met."""
+        sla = SLAParameters(
+            max_cost_usd=0.0001,  # Only LOCAL is affordable (cost 0.0)
+            min_quality=0.9,  # Requires STANDARD+ quality
+        )
+        plan = optimize_for_sla(sla)
+
+        # Should select LOCAL (best quality within budget)
+        # Even though it doesn't meet quality requirement, cost ceiling is respected
+        assert plan.model_tier == ModelTier.LOCAL
+
+    def test_cost_ceiling_with_multiple_quality_levels(self) -> None:
+        """Test cost ceiling respects budget across different quality levels."""
+        test_cases = [
+            # (max_cost, min_quality, expected_tier)
+            # With tier_quality: LOCAL=0.5, MINI=0.8, STANDARD=0.9, PREMIUM=0.95
+            (0.015, 0.6, ModelTier.MINI),  # MINI (0.8) meets 0.6 and fits budget
+            (0.005, 0.6, ModelTier.MINI),  # MINI (0.8) meets 0.6 and fits budget
+            (0.001, 0.6, ModelTier.LOCAL),  # Only LOCAL fits budget (cost ceiling enforced)
+            (0.025, 0.85, ModelTier.STANDARD),  # STANDARD (0.9) meets 0.85, fits budget
+            (0.005, 0.85, ModelTier.MINI),  # STANDARD needed, but only MINI fits budget
+            (0.015, 0.9, ModelTier.STANDARD),  # STANDARD (0.9) exactly meets 0.9, fits budget
+        ]
+
+        for max_cost, min_quality, expected_tier in test_cases:
+            sla = SLAParameters(
+                max_cost_usd=max_cost,
+                min_quality=min_quality,
+            )
+            plan = optimize_for_sla(sla)
+            assert plan.model_tier == expected_tier, (
+                f"Failed for max_cost={max_cost}, min_quality={min_quality}: "
+                f"expected {expected_tier}, got {plan.model_tier}"
+            )
