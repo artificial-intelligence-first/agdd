@@ -149,6 +149,57 @@ class TestCostOptimizer:
         assert plan.mode == ExecutionMode.BATCH
         assert plan.model_tier == ModelTier.LOCAL
 
+    def test_latency_constraint_forces_realtime(self) -> None:
+        """Test that tight latency constraint forces REALTIME even when not required"""
+        # Batch mode would add ~5000ms overhead, exceeding 1000ms budget
+        sla = SLAParameters(
+            realtime_required=False,  # BATCH preferred
+            max_latency_ms=1000,  # But tight latency constraint
+            min_quality=0.7,
+        )
+
+        optimizer = CostOptimizer()
+        plan = optimizer.optimize(sla)
+
+        # Should select REALTIME to meet latency constraint
+        assert plan.mode == ExecutionMode.REALTIME
+        assert sla.max_latency_ms is not None
+        assert plan.estimated_latency_ms <= sla.max_latency_ms
+        assert "Tight latency constraint" in plan.reasoning
+
+    def test_latency_constraint_allows_batch(self) -> None:
+        """Test that loose latency constraint allows BATCH"""
+        # Batch mode latency (~5000-6000ms) fits within 10000ms budget
+        sla = SLAParameters(
+            realtime_required=False,
+            max_latency_ms=10000,  # Loose constraint
+            min_quality=0.7,
+        )
+
+        optimizer = CostOptimizer()
+        plan = optimizer.optimize(sla)
+
+        # Should select BATCH since it fits latency budget
+        assert plan.mode == ExecutionMode.BATCH
+        assert sla.max_latency_ms is not None
+        assert plan.estimated_latency_ms <= sla.max_latency_ms
+        assert "allows BATCH mode" in plan.reasoning
+
+    def test_realtime_required_overrides_latency(self) -> None:
+        """Test that realtime_required=True takes precedence"""
+        sla = SLAParameters(
+            realtime_required=True,
+            max_latency_ms=10000,  # Loose enough for BATCH
+            min_quality=0.7,
+        )
+
+        optimizer = CostOptimizer()
+        plan = optimizer.optimize(sla)
+
+        # Should select REALTIME due to explicit requirement
+        assert plan.mode == ExecutionMode.REALTIME
+        assert "Realtime required" in plan.reasoning
+
 
 class TestSLAParameterSwitching:
     """

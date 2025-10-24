@@ -131,11 +131,11 @@ class CostOptimizer:
         Returns:
             Optimized execution plan
         """
-        # Determine execution mode
-        mode = ExecutionMode.BATCH if not sla.realtime_required else ExecutionMode.REALTIME
-
-        # Determine model tier based on cost and quality requirements
+        # Determine model tier first (needed for latency estimation)
         model_tier = self._select_model_tier(sla)
+
+        # Determine execution mode based on latency constraints
+        mode = self._select_execution_mode(sla, model_tier)
 
         # Determine cache strategy
         cache_strategy = self._select_cache_strategy(sla, model_tier)
@@ -159,6 +159,41 @@ class CostOptimizer:
             estimated_latency_ms=estimated_latency_ms,
             reasoning=reasoning,
         )
+
+    def _select_execution_mode(self, sla: SLAParameters, model_tier: ModelTier) -> ExecutionMode:
+        """
+        Select execution mode based on latency constraints.
+
+        Selection logic:
+        1. If realtime_required=True -> REALTIME
+        2. If max_latency_ms is specified and BATCH mode would exceed it -> REALTIME
+        3. Otherwise -> BATCH (if allowed)
+
+        Args:
+            sla: SLA parameters
+            model_tier: Selected model tier (for latency estimation)
+
+        Returns:
+            Selected execution mode
+        """
+        # Realtime explicitly required
+        if sla.realtime_required:
+            return ExecutionMode.REALTIME
+
+        # If no latency constraint, prefer BATCH for cost optimization
+        if sla.max_latency_ms is None:
+            return ExecutionMode.BATCH
+
+        # Estimate latency for BATCH mode
+        # Assume batching enabled for this estimation
+        batch_latency = self._estimate_latency(ExecutionMode.BATCH, model_tier, enable_batch=True)
+
+        # If BATCH exceeds latency constraint, fall back to REALTIME
+        if batch_latency > sla.max_latency_ms:
+            return ExecutionMode.REALTIME
+
+        # BATCH mode fits within latency budget
+        return ExecutionMode.BATCH
 
     def _select_model_tier(self, sla: SLAParameters) -> ModelTier:
         """
@@ -293,9 +328,17 @@ class CostOptimizer:
 
         # Mode reasoning
         if mode == ExecutionMode.BATCH:
-            parts.append("Non-realtime workload → BATCH mode")
+            if sla.max_latency_ms is not None:
+                parts.append(f"Latency budget ({sla.max_latency_ms}ms) allows BATCH mode")
+            else:
+                parts.append("Non-realtime workload → BATCH mode")
         else:
-            parts.append("Realtime required → REALTIME mode")
+            if sla.realtime_required:
+                parts.append("Realtime required → REALTIME mode")
+            elif sla.max_latency_ms is not None:
+                parts.append(f"Tight latency constraint ({sla.max_latency_ms}ms) → REALTIME mode")
+            else:
+                parts.append("REALTIME mode")
 
         # Model tier reasoning
         if sla.max_cost_usd and sla.max_cost_usd < 0.001:
