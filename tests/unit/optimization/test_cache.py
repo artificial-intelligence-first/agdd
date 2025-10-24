@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from agdd.optimization.cache import (
+# Skip all tests if numpy is not installed
+np = pytest.importorskip("numpy")
+
+from agdd.optimization.cache import (  # noqa: E402
     CacheBackend,
     CacheConfig,
     CacheEntry,
+    SemanticCache,
     create_cache,
 )
 
@@ -49,7 +52,7 @@ class TestFAISSCache:
         )
 
     @pytest.fixture
-    def cache(self, cache_config: CacheConfig) -> None:
+    def cache(self, cache_config: CacheConfig) -> SemanticCache:
         """Create test cache instance."""
         pytest.importorskip("faiss")
         return create_cache(cache_config)
@@ -60,7 +63,7 @@ class TestFAISSCache:
         cache = create_cache(cache_config)
         assert cache.size() == 0
 
-    def test_set_and_size(self, cache: None) -> None:
+    def test_set_and_size(self, cache: SemanticCache) -> None:
         """Test setting entries and checking size."""
         embedding = np.random.rand(128).astype(np.float32)
         cache.set("key1", embedding, {"value": "test1"})
@@ -69,7 +72,7 @@ class TestFAISSCache:
         cache.set("key2", embedding, {"value": "test2"})
         assert cache.size() == 2
 
-    def test_search_exact_match(self, cache: None) -> None:
+    def test_search_exact_match(self, cache: SemanticCache) -> None:
         """Test searching for exact match."""
         embedding = np.random.rand(128).astype(np.float32)
         cache.set("key1", embedding, {"value": "test1"})
@@ -80,7 +83,7 @@ class TestFAISSCache:
         assert results[0].key == "key1"
         assert results[0].value == {"value": "test1"}
 
-    def test_search_top_k(self, cache: None) -> None:
+    def test_search_top_k(self, cache: SemanticCache) -> None:
         """Test top-K search."""
         # Add multiple entries
         for i in range(10):
@@ -95,7 +98,7 @@ class TestFAISSCache:
         assert len(results) <= 5
         assert len(results) > 0
 
-    def test_search_with_threshold(self, cache: None) -> None:
+    def test_search_with_threshold(self, cache: SemanticCache) -> None:
         """Test search with similarity threshold."""
         embedding1 = np.random.rand(128).astype(np.float32)
         embedding2 = np.random.rand(128).astype(np.float32)
@@ -107,7 +110,7 @@ class TestFAISSCache:
         results = cache.search(embedding1, k=10, threshold=0.999)
         assert len(results) <= 2
 
-    def test_clear(self, cache: None) -> None:
+    def test_clear(self, cache: SemanticCache) -> None:
         """Test clearing cache."""
         embedding = np.random.rand(128).astype(np.float32)
         cache.set("key1", embedding, {"value": "test1"})
@@ -121,7 +124,7 @@ class TestFAISSCache:
         results = cache.search(embedding, k=5)
         assert len(results) == 0
 
-    def test_invalid_dimension(self, cache: None) -> None:
+    def test_invalid_dimension(self, cache: SemanticCache) -> None:
         """Test error on invalid embedding dimension."""
         wrong_embedding = np.random.rand(64).astype(np.float32)
 
@@ -131,7 +134,7 @@ class TestFAISSCache:
         with pytest.raises(ValueError, match="dimension"):
             cache.search(wrong_embedding, k=5)
 
-    def test_normalization(self, cache: None) -> None:
+    def test_normalization(self, cache: SemanticCache) -> None:
         """Test that embeddings are normalized."""
         # Create unnormalized embedding
         embedding = np.array([3.0, 4.0] + [0.0] * 126, dtype=np.float32)
