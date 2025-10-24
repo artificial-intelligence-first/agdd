@@ -1,18 +1,9 @@
 """Tests for routing.router module."""
 
-from pathlib import Path
-
 import pytest
 
 from agdd.routing.policy import Route, RoutingPolicy
 from agdd.routing.router import Plan, get_plan, load_policy
-
-
-@pytest.fixture
-def base_path() -> Path:
-    """Get project root path."""
-    # tests/routing/ -> tests/ -> root
-    return Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
@@ -165,9 +156,9 @@ def test_get_plan_no_match() -> None:
     assert plan is None
 
 
-def test_load_policy_default(base_path: Path) -> None:
-    """Test loading default policy from YAML."""
-    policy = load_policy("default", base_path=base_path)
+def test_load_policy_default() -> None:
+    """Test loading default policy from package resources."""
+    policy = load_policy("default")
 
     assert policy.name == "default"
     assert len(policy.routes) > 0
@@ -177,9 +168,9 @@ def test_load_policy_default(base_path: Path) -> None:
     assert priorities == sorted(priorities, reverse=True)
 
 
-def test_load_policy_cost_optimized(base_path: Path) -> None:
-    """Test loading cost-optimized policy."""
-    policy = load_policy("cost-optimized", base_path=base_path)
+def test_load_policy_cost_optimized() -> None:
+    """Test loading cost-optimized policy from package resources."""
+    policy = load_policy("cost-optimized")
 
     assert policy.name == "cost-optimized"
     assert len(policy.routes) > 0
@@ -189,17 +180,16 @@ def test_load_policy_cost_optimized(base_path: Path) -> None:
     assert len(batch_routes) > 0
 
 
-def test_load_policy_auto_optimize(base_path: Path) -> None:
-    """Test loading auto-optimize policy."""
-    policy = load_policy("auto-optimize", base_path=base_path)
+def test_load_policy_auto_optimize() -> None:
+    """Test loading auto-optimize policy from package resources."""
+    policy = load_policy("auto-optimize")
 
     assert policy.name == "auto-optimize"
     assert len(policy.routes) > 0
 
 
-def test_get_plan_default_policy(base_path: Path) -> None:
-    """Test get_plan with default policy."""
-    # This will use the default policy from catalog/routing/default.yaml
+def test_get_plan_default_policy() -> None:
+    """Test get_plan with default policy from package resources."""
     from agdd.routing import router
 
     # Reset default policy to force reload

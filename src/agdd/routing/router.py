@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import tempfile
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path
 from typing import Any, Optional
 
@@ -62,18 +64,29 @@ _default_policy: Optional[RoutingPolicy] = None
 
 
 def _get_default_policy() -> RoutingPolicy:
-    """Get or load default routing policy."""
+    """Get or load default routing policy from package resources."""
     global _default_policy
     if _default_policy is None:
-        # Default to project root (3 levels up from routing module)
-        # src/agdd/routing/ -> src/agdd/ -> src/ -> root
-        base_path = Path(__file__).resolve().parents[3]
-        default_yaml = base_path / "catalog" / "routing" / "default.yaml"
-
-        if default_yaml.exists():
-            _default_policy = RoutingPolicy.from_yaml(default_yaml)
-        else:
-            # Fallback: create empty policy
+        try:
+            # Load from package resources (works in both dev and installed environments)
+            resource = files("agdd.assets.routing").joinpath("default.yaml")
+            if hasattr(resource, "read_text"):
+                # Python 3.9+ Traversable API
+                yaml_content = resource.read_text(encoding="utf-8")
+                # Create a temporary file for RoutingPolicy.from_yaml
+                with tempfile.NamedTemporaryFile(
+                    mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+                ) as tmp:
+                    tmp.write(yaml_content)
+                    tmp_path = Path(tmp.name)
+                try:
+                    _default_policy = RoutingPolicy.from_yaml(tmp_path)
+                finally:
+                    tmp_path.unlink()
+            else:
+                raise FileNotFoundError("default.yaml not found in package resources")
+        except (FileNotFoundError, ModuleNotFoundError):
+            # Fallback: create empty policy if resources not available
             _default_policy = RoutingPolicy(
                 name="default",
                 description="Default routing policy (empty)",
@@ -117,11 +130,11 @@ def get_plan(
 
 def load_policy(policy_name: str, base_path: Optional[Path] = None) -> RoutingPolicy:
     """
-    Load routing policy by name.
+    Load routing policy by name from package resources or custom path.
 
     Args:
         policy_name: Policy name (e.g., "default", "cost-optimized", "auto-optimize")
-        base_path: Optional base path (defaults to project root)
+        base_path: Optional base path for custom policies. If None, loads from package resources.
 
     Returns:
         RoutingPolicy instance
@@ -133,9 +146,34 @@ def load_policy(policy_name: str, base_path: Optional[Path] = None) -> RoutingPo
     Examples:
         >>> policy = load_policy("cost-optimized")
         >>> plan = get_plan("offer-orchestration", policy=policy)
-    """
-    if base_path is None:
-        base_path = Path(__file__).resolve().parents[3]
 
-    policy_yaml = base_path / "catalog" / "routing" / f"{policy_name}.yaml"
-    return RoutingPolicy.from_yaml(policy_yaml)
+        >>> # Load custom policy
+        >>> custom_policy = load_policy("my-policy", base_path=Path("/custom/path"))
+    """
+    if base_path is not None:
+        # Load from custom path
+        policy_yaml = base_path / f"{policy_name}.yaml"
+        return RoutingPolicy.from_yaml(policy_yaml)
+
+    # Load from package resources
+    try:
+        resource = files("agdd.assets.routing").joinpath(f"{policy_name}.yaml")
+        if hasattr(resource, "read_text"):
+            yaml_content = resource.read_text(encoding="utf-8")
+            # Create a temporary file for RoutingPolicy.from_yaml
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".yaml", delete=False, encoding="utf-8"
+            ) as tmp:
+                tmp.write(yaml_content)
+                tmp_path = Path(tmp.name)
+            try:
+                return RoutingPolicy.from_yaml(tmp_path)
+            finally:
+                tmp_path.unlink()
+        else:
+            raise FileNotFoundError(f"Policy '{policy_name}.yaml' not found in package resources")
+    except (FileNotFoundError, ModuleNotFoundError) as e:
+        raise FileNotFoundError(
+            f"Policy '{policy_name}' not found in package resources. "
+            f"Available policies: default, cost-optimized, auto-optimize"
+        ) from e
