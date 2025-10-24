@@ -3,12 +3,20 @@ Authoritative source for terminology, policies, and permissions. When conflicts 
 
 ## Glossary
 - **Agent**: AI-first orchestrator defined in `registry/agents/*.yaml` that wires skills together to fulfil a task.
+- **MAG (Main Agent)**: Top-level orchestrator responsible for task decomposition, delegation to SAGs, and result aggregation. MAG identifiers use the `-mag` suffix (e.g., `offer-orchestrator-mag`).
+- **SAG (Sub-Agent)**: Specialized agent focused on domain-specific tasks, invoked by MAGs via delegation. SAG identifiers use the `-sag` suffix (e.g., `compensation-advisor-sag`).
+- **Delegation**: The act of a MAG assigning a task to a SAG, encapsulated in a `Delegation` object containing task_id, sag_id, input, and context.
+- **A2A Communication**: Agent-to-Agent communication pattern where MAGs orchestrate work by delegating to specialized SAGs, enabling task decomposition and parallel execution.
 - **Skill**: Reusable capability packaged under `agdd.skills` (source) and referenced by agents via identifier.
 - **Contract**: JSON Schema (stored in `contracts/`) that expresses the invariants for agent and skill descriptors.
 - **Registry**: Canonical mapping of tasks -> agents (`registry/agents.yaml`) and skills (`registry/skills.yaml`), plus per-agent descriptors.
 - **Walking Skeleton**: Minimal end-to-end path (registry -> contract validation -> skill execution -> logging/CI) proving the AGDD pipeline works.
 - **Runner**: Execution boundary defined under `agdd.runners.*` that orchestrates flows for agents. Flow Runner is the default adapter.
 - **Run Artifact**: Structured logs emitted to `.runs/<RUN_ID>/` by Flow Runner (e.g., `summary.json`, `runs.jsonl`, `mcp_calls.jsonl`) used for observability and governance.
+- **MCP (Model Context Protocol)**: Open protocol for standardizing AI application interactions with external tools and data sources. AGDD integrates MCP servers for filesystem, git, memory, web fetching, and database access.
+- **MCP Server**: External service providing tools via the Model Context Protocol (e.g., filesystem operations, git commands, knowledge graph queries).
+- **Multi-Provider**: Support for multiple LLM providers (OpenAI, Anthropic, local models) within the same workflow, enabling provider diversity, fallback strategies, and cost optimization.
+- **Cost Tracking**: Automatic tracking of token usage and costs per model, agent, and run, captured in observability artifacts and queryable via the storage layer.
 - **Flow Runner Python Path**: When Flow Runner is installed in editable mode, `FLOW_RUNNER_PYTHONPATH` must include the `packages/flowrunner/src` and `packages/mcprouter/src` locations so `flowctl` can import its modules.
 
 ## Policies
