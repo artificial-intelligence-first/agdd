@@ -310,6 +310,8 @@ class TestGoogleProvider:
         assert result.input_tokens == 10
         assert result.output_tokens == 20
         assert result.metadata["sdk_type"] == "google-generativeai"
+        # Should be called once for default model in __init__
+        assert mock_factory.call_count >= 1
         mock_adapter.generate_content.assert_called_once()
 
     @patch("agdd.providers.google.create_google_adapter")
@@ -369,3 +371,57 @@ class TestGoogleProvider:
         mock_factory.return_value = mock_adapter_new
         provider_new = GoogleProvider(api_key="test-key", sdk_type="google-genai")
         assert provider_new.sdk_type == "google-genai"
+
+    @patch("agdd.providers.google.create_google_adapter")
+    def test_per_request_model_selection(
+        self, mock_factory: MagicMock, mock_adapter: MagicMock
+    ) -> None:
+        """Test that different models can be used per request."""
+        mock_adapter_pro = MagicMock()
+        mock_adapter_pro.generate_content = MagicMock(return_value=MagicMock())
+        mock_adapter_pro.extract_text = MagicMock(return_value="Pro response")
+        mock_adapter_pro.extract_usage = MagicMock(return_value=(10, 20))
+
+        mock_adapter_flash = MagicMock()
+        mock_adapter_flash.generate_content = MagicMock(return_value=MagicMock())
+        mock_adapter_flash.extract_text = MagicMock(return_value="Flash response")
+        mock_adapter_flash.extract_usage = MagicMock(return_value=(5, 10))
+
+        def adapter_factory(sdk_type: str, api_key: str, model_name: str) -> MagicMock:
+            if model_name == "gemini-1.5-pro":
+                return mock_adapter_pro
+            elif model_name == "gemini-1.5-flash":
+                return mock_adapter_flash
+            return mock_adapter_pro
+
+        mock_factory.side_effect = adapter_factory
+
+        provider = GoogleProvider(api_key="test-key")
+
+        # Use gemini-1.5-pro
+        result_pro = provider.generate("Test prompt", model="gemini-1.5-pro")
+        assert result_pro.model == "gemini-1.5-pro"
+        assert result_pro.content == "Pro response"
+
+        # Use gemini-1.5-flash
+        result_flash = provider.generate("Test prompt", model="gemini-1.5-flash")
+        assert result_flash.model == "gemini-1.5-flash"
+        assert result_flash.content == "Flash response"
+
+        # Verify adapters were created for both models
+        assert mock_factory.call_count == 2
+
+    @patch("agdd.providers.google.create_google_adapter")
+    def test_adapter_caching(self, mock_factory: MagicMock, mock_adapter: MagicMock) -> None:
+        """Test that adapters are cached and reused."""
+        mock_factory.return_value = mock_adapter
+
+        provider = GoogleProvider(api_key="test-key")
+
+        # Call generate with same model multiple times
+        provider.generate("Test 1", model="gemini-1.5-pro")
+        provider.generate("Test 2", model="gemini-1.5-pro")
+        provider.generate("Test 3", model="gemini-1.5-pro")
+
+        # Adapter should only be created once (during __init__)
+        assert mock_factory.call_count == 1

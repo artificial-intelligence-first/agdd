@@ -283,10 +283,26 @@ class GoogleProvider:
             model_name or os.getenv("GOOGLE_MODEL_NAME", "gemini-1.5-pro") or "gemini-1.5-pro"
         )
 
-        # Create adapter using factory
-        self._adapter = create_google_adapter(
-            sdk_type=self._sdk_type, api_key=self._api_key, model_name=self._model_name
-        )
+        # Cache adapters by model name to allow per-request model selection
+        self._adapters: dict[str, GoogleSDKAdapter] = {}
+
+        # Create default adapter
+        self._get_adapter(self._model_name)
+
+    def _get_adapter(self, model: str) -> GoogleSDKAdapter:
+        """Get or create an adapter for the specified model.
+
+        Args:
+            model: Model name
+
+        Returns:
+            GoogleSDKAdapter instance for the model
+        """
+        if model not in self._adapters:
+            self._adapters[model] = create_google_adapter(
+                sdk_type=self._sdk_type, api_key=self._api_key, model_name=model
+            )
+        return self._adapters[model]
 
     def generate(
         self,
@@ -319,6 +335,9 @@ class GoogleProvider:
         Returns:
             LLMResponse containing the completion and metadata.
         """
+        # Get adapter for the requested model
+        adapter = self._get_adapter(model)
+
         # Build generation config
         generation_config = {
             "max_output_tokens": max_tokens,
@@ -326,13 +345,11 @@ class GoogleProvider:
         }
 
         # Generate content using adapter
-        response = self._adapter.generate_content(
-            prompt, generation_config=generation_config, **kwargs
-        )
+        response = adapter.generate_content(prompt, generation_config=generation_config, **kwargs)
 
         # Extract text and usage
-        content = self._adapter.extract_text(response)
-        input_tokens, output_tokens = self._adapter.extract_usage(response)
+        content = adapter.extract_text(response)
+        input_tokens, output_tokens = adapter.extract_usage(response)
 
         return LLMResponse(
             content=content,
