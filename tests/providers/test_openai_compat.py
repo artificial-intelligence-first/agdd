@@ -1,4 +1,4 @@
-"""Tests for LocalProvider with fallback behavior."""
+"""Tests for OpenAICompatProvider with fallback behavior."""
 
 import logging
 from typing import Any
@@ -7,14 +7,18 @@ from unittest.mock import Mock, patch
 import httpx
 import pytest
 
-from agdd.providers.base import ChatCompletionRequest, ProviderCapabilities
-from agdd.providers.local import LocalProvider, LocalProviderConfig
+from agdd.providers.openai_compat import (
+    ChatCompletionRequest,
+    OpenAICompatProvider,
+    OpenAICompatProviderConfig,
+    ProviderCapabilities,
+)
 
 
 @pytest.fixture
-def provider_config() -> LocalProviderConfig:
+def provider_config() -> OpenAICompatProviderConfig:
     """Create test provider configuration."""
-    return LocalProviderConfig(
+    return OpenAICompatProviderConfig(
         base_url="http://localhost:8000/v1",
         timeout=30.0,
         api_key="test-key",
@@ -39,15 +43,17 @@ def mock_response() -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
-async def test_local_provider_capabilities(provider_config: LocalProviderConfig) -> None:
-    """Test that LocalProvider reports correct capabilities."""
-    provider = LocalProvider(config=provider_config)
+async def test_provider_capabilities(
+    provider_config: OpenAICompatProviderConfig,
+) -> None:
+    """Test that OpenAICompatProvider reports correct capabilities."""
+    provider = OpenAICompatProvider(config=provider_config)
     capabilities = provider.get_capabilities()
 
     assert isinstance(capabilities, ProviderCapabilities)
     assert capabilities.supports_chat is True
     assert capabilities.supports_responses is False
-    assert capabilities.supports_streaming is True
+    assert capabilities.supports_streaming is False  # P1 fix: disabled
     assert capabilities.supports_function_calling is False
 
     await provider.close()
@@ -55,10 +61,10 @@ async def test_local_provider_capabilities(provider_config: LocalProviderConfig)
 
 @pytest.mark.asyncio
 async def test_basic_chat_completion_no_fallback(
-    provider_config: LocalProviderConfig, mock_response: dict[str, Any]
+    provider_config: OpenAICompatProviderConfig, mock_response: dict[str, Any]
 ) -> None:
-    """Test basic chat completion without fallback (no response_format)."""
-    provider = LocalProvider(config=provider_config)
+    """Test basic chat completion without fallback (no response_format or stream)."""
+    provider = OpenAICompatProvider(config=provider_config)
 
     request = ChatCompletionRequest(
         model="llama-2-7b",
@@ -76,14 +82,15 @@ async def test_basic_chat_completion_no_fallback(
 
         response = await provider.chat_completion(request)
 
-        # Verify request was made correctly
+        # Verify request was made correctly with relative path (P1 fix)
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert call_args[0][0] == "/chat/completions"
+        assert call_args[0][0] == "chat/completions"  # P1 fix: relative path
 
-        # Verify payload does not contain response_format
+        # Verify payload does not contain response_format or stream
         payload = call_args[1]["json"]
         assert "response_format" not in payload
+        assert "stream" not in payload
         assert payload["model"] == "llama-2-7b"
         assert payload["temperature"] == 0.7
         assert payload["max_tokens"] == 100
@@ -97,13 +104,13 @@ async def test_basic_chat_completion_no_fallback(
 
 
 @pytest.mark.asyncio
-async def test_chat_completion_with_fallback_warning(
-    provider_config: LocalProviderConfig,
+async def test_response_format_fallback_warning(
+    provider_config: OpenAICompatProviderConfig,
     mock_response: dict[str, Any],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test chat completion with response_format triggers fallback and warning."""
-    provider = LocalProvider(config=provider_config)
+    provider = OpenAICompatProvider(config=provider_config)
 
     request = ChatCompletionRequest(
         model="llama-2-7b",
@@ -127,7 +134,8 @@ async def test_chat_completion_with_fallback_warning(
             # Verify warning was logged
             assert len(caplog.records) > 0
             assert any(
-                "response_format is not supported" in record.message for record in caplog.records
+                "response_format is not supported" in record.message
+                for record in caplog.records
             )
             assert any(
                 "Falling back to standard chat completion" in record.message
@@ -141,13 +149,51 @@ async def test_chat_completion_with_fallback_warning(
 
 
 @pytest.mark.asyncio
+async def test_streaming_fallback_warning(
+    provider_config: OpenAICompatProviderConfig,
+    mock_response: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that streaming request triggers fallback and warning (P1 fix)."""
+    provider = OpenAICompatProvider(config=provider_config)
+
+    request = ChatCompletionRequest(
+        model="llama-2-7b",
+        messages=[{"role": "user", "content": "Hello"}],
+        stream=True,  # This should trigger fallback
+    )
+
+    with caplog.at_level(logging.WARNING):
+        with patch.object(provider._client, "post") as mock_post:
+            mock_http_response = Mock(spec=httpx.Response)
+            mock_http_response.json.return_value = mock_response
+            mock_http_response.raise_for_status = Mock()
+            mock_post.return_value = mock_http_response
+
+            await provider.chat_completion(request)
+
+            # Verify stream was NOT sent to the server (fallback)
+            payload = mock_post.call_args[1]["json"]
+            assert "stream" not in payload
+
+            # Verify warning was logged
+            warning_messages = [record.message for record in caplog.records]
+            assert any("Streaming is not supported" in msg for msg in warning_messages)
+            assert any(
+                "non-streaming chat completion" in msg for msg in warning_messages
+            )
+
+    await provider.close()
+
+
+@pytest.mark.asyncio
 async def test_structured_response_format_fallback(
-    provider_config: LocalProviderConfig,
+    provider_config: OpenAICompatProviderConfig,
     mock_response: dict[str, Any],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Test that structured response_format with schema triggers fallback."""
-    provider = LocalProvider(config=provider_config)
+    provider = OpenAICompatProvider(config=provider_config)
 
     request = ChatCompletionRequest(
         model="llama-2-7b",
@@ -184,8 +230,8 @@ async def test_structured_response_format_fallback(
 @pytest.mark.asyncio
 async def test_provider_with_api_key() -> None:
     """Test that API key is included in headers when configured."""
-    config = LocalProviderConfig(api_key="secret-key")
-    provider = LocalProvider(config=config)
+    config = OpenAICompatProviderConfig(api_key="secret-key")
+    provider = OpenAICompatProvider(config=config)
 
     headers = provider._build_headers()
     assert "Authorization" in headers
@@ -197,8 +243,8 @@ async def test_provider_with_api_key() -> None:
 @pytest.mark.asyncio
 async def test_provider_without_api_key() -> None:
     """Test that Authorization header is omitted when no API key."""
-    config = LocalProviderConfig(api_key=None)
-    provider = LocalProvider(config=config)
+    config = OpenAICompatProviderConfig(api_key=None)
+    provider = OpenAICompatProvider(config=config)
 
     headers = provider._build_headers()
     assert "Authorization" not in headers
@@ -210,7 +256,7 @@ async def test_provider_without_api_key() -> None:
 @pytest.mark.asyncio
 async def test_provider_default_config() -> None:
     """Test provider with default configuration."""
-    provider = LocalProvider()
+    provider = OpenAICompatProvider()
 
     assert provider.config.base_url == "http://localhost:8000/v1"
     assert provider.config.timeout == 60.0
@@ -220,24 +266,24 @@ async def test_provider_default_config() -> None:
 
 
 @pytest.mark.asyncio
-async def test_provider_context_manager(provider_config: LocalProviderConfig) -> None:
+async def test_provider_context_manager(
+    provider_config: OpenAICompatProviderConfig,
+) -> None:
     """Test provider as async context manager."""
-    async with LocalProvider(config=provider_config) as provider:
+    async with OpenAICompatProvider(config=provider_config) as provider:
         assert provider is not None
         capabilities = provider.get_capabilities()
         assert capabilities.supports_chat is True
 
     # Client should be closed after context exit
-    # We can't directly test this without implementation details,
-    # but we verify no errors occur
 
 
 @pytest.mark.asyncio
 async def test_http_error_handling(
-    provider_config: LocalProviderConfig,
+    provider_config: OpenAICompatProviderConfig,
 ) -> None:
     """Test that HTTP errors are properly raised."""
-    provider = LocalProvider(config=provider_config)
+    provider = OpenAICompatProvider(config=provider_config)
 
     request = ChatCompletionRequest(
         model="invalid-model", messages=[{"role": "user", "content": "test"}]
@@ -257,27 +303,41 @@ async def test_http_error_handling(
 
 
 @pytest.mark.asyncio
-async def test_stream_parameter_passthrough(
-    provider_config: LocalProviderConfig, mock_response: dict[str, Any]
+async def test_multiple_fallbacks(
+    provider_config: OpenAICompatProviderConfig,
+    mock_response: dict[str, Any],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that stream parameter is correctly passed through."""
-    provider = LocalProvider(config=provider_config)
+    """Test multiple unsupported features trigger multiple warnings."""
+    provider = OpenAICompatProvider(config=provider_config)
 
     request = ChatCompletionRequest(
         model="llama-2-7b",
-        messages=[{"role": "user", "content": "Hello"}],
+        messages=[{"role": "user", "content": "Test"}],
+        response_format={"type": "json_object"},
         stream=True,
     )
 
-    with patch.object(provider._client, "post") as mock_post:
-        mock_http_response = Mock(spec=httpx.Response)
-        mock_http_response.json.return_value = mock_response
-        mock_http_response.raise_for_status = Mock()
-        mock_post.return_value = mock_http_response
+    with caplog.at_level(logging.WARNING):
+        with patch.object(provider._client, "post") as mock_post:
+            mock_http_response = Mock(spec=httpx.Response)
+            mock_http_response.json.return_value = mock_response
+            mock_http_response.raise_for_status = Mock()
+            mock_post.return_value = mock_http_response
 
-        await provider.chat_completion(request)
+            await provider.chat_completion(request)
 
-        payload = mock_post.call_args[1]["json"]
-        assert payload["stream"] is True
+            # Verify both unsupported features were stripped
+            payload = mock_post.call_args[1]["json"]
+            assert "stream" not in payload
+            assert "response_format" not in payload
+
+            # Verify both warnings were logged
+            warning_messages = [record.message for record in caplog.records]
+            assert any("Streaming is not supported" in msg for msg in warning_messages)
+            assert any(
+                "response_format is not supported" in msg for msg in warning_messages
+            )
+            assert len(caplog.records) >= 2
 
     await provider.close()

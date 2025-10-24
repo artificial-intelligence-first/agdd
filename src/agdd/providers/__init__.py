@@ -1,6 +1,23 @@
-"""Provider abstraction layer for LLM integrations."""
+"""LLM provider abstractions for AGDD."""
 
-from agdd.providers.base import BaseProvider, ProviderCapabilities
-from agdd.providers.local import LocalProvider
+# Core protocol (used by MAG/SAG)
+from agdd.providers.base import BaseLLMProvider, LLMResponse
 
-__all__ = ["BaseProvider", "ProviderCapabilities", "LocalProvider"]
+# OpenAI-compatible providers (vLLM, Ollama)
+from agdd.providers.openai_compat import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    OpenAICompatProvider,
+    ProviderCapabilities,
+)
+
+__all__ = [
+    # Core protocol
+    "BaseLLMProvider",
+    "LLMResponse",
+    # OpenAI-compatible
+    "OpenAICompatProvider",
+    "ChatCompletionRequest",
+    "ChatCompletionResponse",
+    "ProviderCapabilities",
+]

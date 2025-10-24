@@ -1,54 +1,88 @@
-"""Base provider interface for LLM integrations."""
+"""LLM provider abstraction for AGDD."""
 
-from abc import ABC, abstractmethod
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel
-
-
-class ProviderCapabilities(BaseModel):
-    """Capabilities supported by a provider."""
-
-    supports_chat: bool = True
-    supports_responses: bool = False
-    supports_streaming: bool = False
-    supports_function_calling: bool = False
+from dataclasses import dataclass, field
+from typing import Any, Optional, Protocol
 
 
-class ChatCompletionRequest(BaseModel):
-    """Request for chat completion."""
+@dataclass(slots=True)
+class LLMResponse:
+    """Response from an LLM provider."""
+
+    content: str
+    """The main text content of the response."""
 
     model: str
-    messages: list[dict[str, Any]]
-    temperature: float | None = None
-    max_tokens: int | None = None
-    response_format: dict[str, Any] | None = None
-    stream: bool = False
+    """The model identifier used for this completion."""
+
+    input_tokens: int
+    """Number of tokens in the input/prompt."""
+
+    output_tokens: int
+    """Number of tokens in the output/completion."""
+
+    tool_calls: Optional[list[dict[str, Any]]] = None
+    """Tool/function calls requested by the model, if any."""
+
+    response_format_ok: bool = True
+    """Whether the response conformed to the requested format."""
+
+    raw_output_blocks: Optional[list[dict[str, Any]]] = None
+    """Raw output blocks from the provider (e.g., for structured outputs)."""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    """Additional provider-specific metadata."""
 
 
-class ChatCompletionResponse(BaseModel):
-    """Response from chat completion."""
+class BaseLLMProvider(Protocol):
+    """Protocol describing the LLM provider surface expected by AGDD."""
 
-    id: str
-    model: str
-    choices: list[dict[str, Any]]
-    usage: dict[str, int] | None = None
+    def generate(
+        self,
+        prompt: str,
+        *,
+        model: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        tools: Optional[list[dict[str, Any]]] = None,
+        tool_choice: Optional[str | dict[str, Any]] = None,
+        response_format: Optional[dict[str, Any]] = None,
+        reasoning: Optional[dict[str, Any]] = None,
+        mcp_tools: Optional[list[dict[str, Any]]] = None,
+        **kwargs: Any,
+    ) -> LLMResponse:  # pragma: no cover - interface contract
+        """Generate a completion from the LLM.
 
+        Args:
+            prompt: The input prompt/message.
+            model: The model identifier to use.
+            max_tokens: Maximum tokens to generate.
+            temperature: Sampling temperature (0.0-2.0).
+            tools: Tool definitions for function calling.
+            tool_choice: Strategy for tool selection (e.g., "auto", "required", specific tool).
+            response_format: Desired response format (e.g., JSON schema).
+            reasoning: Reasoning configuration (e.g., extended thinking mode).
+            mcp_tools: MCP (Model Context Protocol) tool definitions.
+            **kwargs: Additional provider-specific parameters.
 
-class BaseProvider(ABC):
-    """Base class for LLM providers."""
+        Returns:
+            LLMResponse containing the completion and metadata.
+        """
 
-    @abstractmethod
-    def get_capabilities(self) -> ProviderCapabilities:
-        """Get provider capabilities."""
-        pass
+    def get_cost(
+        self,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> float:  # pragma: no cover - interface contract
+        """Calculate the cost for a completion.
 
-    @abstractmethod
-    async def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
-        """Execute chat completion request."""
-        pass
+        Args:
+            model: The model identifier.
+            input_tokens: Number of input tokens.
+            output_tokens: Number of output tokens.
 
-    @abstractmethod
-    async def close(self) -> None:
-        """Clean up provider resources."""
-        pass
+        Returns:
+            Cost in USD.
+        """
