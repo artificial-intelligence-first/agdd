@@ -226,4 +226,4 @@ Common error payloads:
 - **`404 Run not found`:** The MAG may still be running. Poll `/runs/{run_id}` and confirm run artifacts under `.runs/agents/`.
 - **SSE drops:** Some proxies buffer Server-Sent Events. Use `tail` polling as a fallback when streaming is not supported.
 
-For GitHub-specific diagnostics, refer to [GITHUB.md](./GITHUB.md).
+For GitHub-specific diagnostics, refer to [GitHub Integration Guide](./github-integration.md).

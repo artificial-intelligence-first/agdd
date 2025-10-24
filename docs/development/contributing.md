@@ -266,7 +266,7 @@ All PRs must pass the CI pipeline:
 
 This project adheres to the Contributor Covenant Code of Conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior through GitHub Discussions or by contacting repository maintainers.
 
-See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for details.
+See [CODE_OF_CONDUCT.md](../policies/code-of-conduct.md) for details.
 
 ## License
 

@@ -374,13 +374,22 @@ uv run agdd flow gate flow_summary.json \
 
 ## Documentation
 
+### Core Guides
 - [docs/guides/agent-development.md](./docs/guides/agent-development.md) - Development playbook and workflow guide
 - [docs/guides/api-usage.md](./docs/guides/api-usage.md) - HTTP API reference and authentication guide
+- [docs/guides/runner-integration.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
+- [docs/guides/github-integration.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
+
+### Advanced Capabilities
+- [docs/guides/multi-provider.md](./docs/guides/multi-provider.md) - Multi-provider LLM support and model selection
+- [docs/guides/cost-optimization.md](./docs/guides/cost-optimization.md) - Cost tracking and optimization strategies
+- [docs/guides/mcp-integration.md](./docs/guides/mcp-integration.md) - Model Context Protocol integration
+- [docs/guides/a2a-communication.md](./docs/guides/a2a-communication.md) - Agent-to-Agent communication patterns (MAG/SAG)
+
+### Reference
 - [docs/storage.md](./docs/storage.md) - Storage layer and data management
 - [docs/reference/ssot.md](./docs/reference/ssot.md) - Terminology and policies reference
 - [docs/development/roadmap.md](./docs/development/roadmap.md) - Roadmap and execution plans
-- [docs/guides/runner-integration.md](./docs/guides/runner-integration.md) - Runner capabilities and integration
-- [docs/guides/github-integration.md](./docs/guides/github-integration.md) - GitHub webhook integration guide
 - [docs/development/changelog.md](./docs/development/changelog.md) - Version history
 
 ## Development
