@@ -1,3 +1,11 @@
+---
+title: Contributor Covenant Code of Conduct
+last_synced: 2025-10-24
+description: Community guidelines and standards for participation
+change_log:
+  - 2025-10-24: Added front-matter for documentation consistency
+---
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
