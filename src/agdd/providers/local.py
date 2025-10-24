@@ -11,6 +11,7 @@ import httpx
 
 from agdd.providers.base import LLMResponse
 from agdd.providers.openai_compat import OpenAICompatProvider, OpenAICompatProviderConfig
+from agdd.security.moderation import get_content_moderator, result_to_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class LocalLLMProvider:
         if compat_close is None:
             return
         if asyncio.iscoroutinefunction(compat_close):
+
             async def _close_async() -> None:
                 await compat_close()
 
@@ -114,6 +116,15 @@ class LocalLLMProvider:
         **kwargs: Any,
     ) -> LLMResponse:
         """Generate a completion using local LLM with safe fallback."""
+        moderator = get_content_moderator()
+        moderation_notes: dict[str, Any] = {}
+        input_result = moderator.review_texts(
+            [prompt],
+            stage="input",
+            metadata={"provider": "local", "model": model},
+        )
+        moderation_notes["input"] = result_to_metadata(input_result, "input")
+
         requires_responses = any(
             [
                 tools,
@@ -199,6 +210,14 @@ class LocalLLMProvider:
             existing_warnings.extend(warnings)
             llm_response.metadata["warnings"] = existing_warnings
 
+        output_result = moderator.review_texts(
+            [llm_response.content],
+            stage="output",
+            metadata={"provider": "local", "model": model},
+        )
+        moderation_notes["output"] = result_to_metadata(output_result, "output")
+        llm_response.metadata.setdefault("moderation", {}).update(moderation_notes)
+
         return llm_response
 
     def get_cost(
@@ -213,7 +232,9 @@ class LocalLLMProvider:
             return 0.0
         prompt_rate = pricing.get("prompt", 0.0)
         completion_rate = pricing.get("completion", 0.0)
-        return (input_tokens / 1_000_000) * prompt_rate + (output_tokens / 1_000_000) * completion_rate
+        return (input_tokens / 1_000_000) * prompt_rate + (
+            output_tokens / 1_000_000
+        ) * completion_rate
 
     def _invoke_responses(
         self,

@@ -45,6 +45,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - Observability: Comprehensive metrics, traces, and cost tracking
 - Plan-Aware Routing: Agent Runner respects `Plan` flags (`use_batch`, `use_cache`, `structured_output`, `moderation`) and annotates runs for auditability
 - Local LLM Fallback: Responses API preference with automatic chat completions downgrade for legacy endpoints
+- Safety Guardrails: omni-moderation-latest checks are applied to prompts and completions across OpenAI and local providers
 - Governance Gates: Policy-based validation and compliance checks
 
 ### Developer Experience

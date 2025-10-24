@@ -67,6 +67,17 @@ uv run agdd data query --run-id <RUN_ID>
 
 The JSONL ledger and SQLite database are maintained by `agdd.observability.cost_tracker` and initialize automatically on first use.
 
+### Execution Plans and SLA-Aware Routing
+
+Cost optimization is driven by the router (`agdd.routing.router`) and the SLA-aware optimizer (`agdd.optimization.optimizer`). Every agent invocation receives a `Plan` object with the fields `use_batch`, `use_cache`, `structured_output`, and `moderation`. Agent Runner honors these flags by:
+
+- batching background jobs through the OpenAI Batch API (50% discount for 24h windows),
+- using the semantic cache (FAISS or Redis) when `use_cache` is enabled,
+- enforcing `structured_output` contracts, and
+- applying moderation even when a cheaper local provider is selected.
+
+When defining policies or overrides, update the plan metadata rather than hard-coding provider calls—this keeps optimization rules centralized.
+
 ## Viewing Cost Data
 
 ### CLI Commands

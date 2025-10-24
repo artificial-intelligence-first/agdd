@@ -12,6 +12,10 @@ AGDD implements a hierarchical agent architecture where Main Agents (MAGs) orche
 - **Fault tolerance**: Graceful handling of partial failures
 - **Observability**: Full tracing of agent interactions
 
+### Protocol Compliance
+
+The A2A layer is specified in `src/agdd/protocols/a2a/` and uses JSON-RPC 2.0 messages for all cross-agent calls. `AgentCard` describes capabilities, required authorization scopes, and signature placeholders so that future security upgrades do not break backwards compatibility. Discovery metadata is exchanged before invocation, ensuring that MAGs can select compatible SAGs and negotiate features such as structured output or moderation support.
+
 ## Architecture
 
 ```

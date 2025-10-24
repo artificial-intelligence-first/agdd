@@ -10,6 +10,7 @@ The AGDD framework tracks model usage across different providers through observa
 - **Fallback strategies**: Automatic failover when primary provider is unavailable
 - **Cost optimization**: Route tasks to cost-effective models based on requirements
 - **Performance tuning**: Select models based on latency, throughput, and accuracy needs
+- **Safety guardrails**: Prompts and completions are checked with OpenAI's `omni-moderation-latest` before execution and prior to publishing responses
 
 ## Provider Configuration
 
@@ -34,6 +35,8 @@ export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
 AGDD's local provider (`src/agdd/providers/local.py`) prefers the OpenAI Responses API. If the endpoint rejects Responses or returns a legacy status code, the provider automatically falls back to chat completions while recording a warning in the response metadata.
+
+Content moderation is applied across both OpenAI-hosted and OpenAI-compatible local endpoints. Set `AGDD_MODERATION_ENABLED=false` in your environment only when you have an alternative safety filter in front of the provider.
 
 ### Model Selection in Agent Code
 

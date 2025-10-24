@@ -19,6 +19,13 @@ from openai import NOT_GIVEN, NotGiven, OpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.responses import Response as OpenAIResponse
 
+from agdd.security.moderation import (
+    ContentModerator,
+    ModerationResult,
+    get_content_moderator,
+    result_to_metadata,
+)
+
 
 class APIEndpoint(str, Enum):
     """Supported OpenAI API endpoints"""
@@ -108,6 +115,7 @@ class CompletionResponse:
     tool_calls: list[Dict[str, Any]] = field(default_factory=list)
     raw_response: Any = None
     endpoint_used: APIEndpoint = APIEndpoint.RESPONSES
+    moderation: dict[str, Any] | None = None
 
 
 class OpenAIProvider:
@@ -127,6 +135,77 @@ class OpenAIProvider:
             timeout=self.config.timeout,
             max_retries=self.config.max_retries,
         )
+
+    @staticmethod
+    def _extract_texts_from_messages(messages: list[Dict[str, Any]]) -> list[str]:
+        texts: list[str] = []
+        for message in messages:
+            content = message.get("content")
+            if isinstance(content, str):
+                texts.append(content)
+                continue
+            if isinstance(content, list):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    for key in ("text", "input_text", "output_text"):
+                        value = block.get(key)
+                        if isinstance(value, str):
+                            texts.append(value)
+        return texts
+
+    def _moderate_request(self, request: CompletionRequest, moderator: ContentModerator) -> None:
+        texts = self._extract_texts_from_messages(request.messages)
+        if not texts:
+            return
+        result = moderator.review_texts(
+            texts,
+            stage="input",
+            metadata={"provider": "openai", "model": request.model},
+            client=self.client,
+        )
+        request.metadata.setdefault("moderation", {})["input"] = result_to_metadata(result, "input")
+
+    def _apply_output_moderation(
+        self,
+        response: CompletionResponse,
+        moderator: ContentModerator,
+        *,
+        stage: str = "output",
+    ) -> CompletionResponse:
+        if response.content:
+            result = moderator.review_texts(
+                [response.content],
+                stage=stage,
+                metadata={"provider": "openai", "model": response.model},
+                client=self.client,
+            )
+        else:
+            result = ModerationResult(
+                flagged=False, categories=tuple(), raw_response=None, checked=False
+            )
+        response.moderation = result_to_metadata(result, stage)
+        return response
+
+    def _wrap_stream_with_moderation(
+        self,
+        iterator: Iterator[CompletionResponse],
+        moderator: ContentModerator,
+        *,
+        model: str,
+    ) -> Iterator[CompletionResponse]:
+        accumulated = ""
+        for response in iterator:
+            if response.content:
+                accumulated += response.content
+                result = moderator.review_texts(
+                    [accumulated],
+                    stage="output_stream",
+                    metadata={"provider": "openai", "model": model, "stream": True},
+                    client=self.client,
+                )
+                response.moderation = result_to_metadata(result, "output_stream")
+            yield response
 
     def _calculate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> Usage:
         """Calculate usage and cost based on token counts"""
@@ -313,9 +392,7 @@ class OpenAIProvider:
                                     },
                                 }
                             # Accumulate arguments incrementally
-                            current_tool_calls[idx]["function"]["arguments"] += str(
-                                event_any.delta
-                            )
+                            current_tool_calls[idx]["function"]["arguments"] += str(event_any.delta)
 
                     # Handle function call arguments done
                     elif event_type == "response.function_call_arguments.done":
@@ -424,9 +501,7 @@ class OpenAIProvider:
             endpoint_used=APIEndpoint.CHAT_COMPLETIONS,
         )
 
-    def _chat_completions_stream(
-        self, request: CompletionRequest
-    ) -> Iterator[CompletionResponse]:
+    def _chat_completions_stream(self, request: CompletionRequest) -> Iterator[CompletionResponse]:
         """Execute streaming request using Chat Completions API"""
         params: Dict[str, Any] = {
             "model": request.model,
@@ -544,19 +619,25 @@ class OpenAIProvider:
         Returns:
             CompletionResponse for non-streaming, Iterator[CompletionResponse] for streaming
         """
+        moderator = get_content_moderator()
+        moderator.bind_client(self.client)
+        self._moderate_request(request, moderator)
+
         # Select endpoint based on policy
         endpoint = self.config.preferred_endpoint
 
         if request.stream:
             if endpoint == APIEndpoint.RESPONSES:
-                return self._responses_api_stream(request)
+                iterator = self._responses_api_stream(request)
             else:
-                return self._chat_completions_stream(request)
+                iterator = self._chat_completions_stream(request)
+            return self._wrap_stream_with_moderation(iterator, moderator, model=request.model)
         else:
             if endpoint == APIEndpoint.RESPONSES:
-                return self._responses_api_complete(request)
+                response = self._responses_api_complete(request)
             else:
-                return self._chat_completions_complete(request)
+                response = self._chat_completions_complete(request)
+            return self._apply_output_moderation(response, moderator)
 
 
 def create_provider(

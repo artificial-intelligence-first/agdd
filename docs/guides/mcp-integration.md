@@ -46,8 +46,11 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how AI ap
 - **MCP Server**: External service providing tools (filesystem, git, database, etc.)
 - **MCP Client**: LLM runtime that invokes MCP servers based on agent instructions
 - **Tool Discovery**: Automatic exposure of available tools to agents
+- **JSON Schema Contracts**: `MCPTool` definitions include machine-readable schemas for validation and auto-generated docs
 - **Rate Limiting**: Per-server request throttling
 - **Observability**: MCP call tracking in `.runs/` artifacts
+
+`agdd.mcp.registry.MCPRegistry` scans `.mcp/servers/*.yaml` on startup, validates each server configuration, and lazily starts servers as agents request them. Tools are described via `MCPToolSchema`, so agents receive full JSON Schema contracts for parameter validation. Tool execution in `agdd.mcp.server.MCPServer` is asynchronous—calls do not block the agent event loop and stderr streams are drained in the background for diagnostics.
 
 ## Available MCP Servers
 
