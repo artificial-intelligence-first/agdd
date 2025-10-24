@@ -1,0 +1,7 @@
+{
+  "query": "sample query",
+  "limit": 10,
+  "filters": {
+    "category": "example"
+  }
+}
