@@ -17,15 +17,19 @@ contracts:
 risk_class: "low"
 
 budgets:
-  max_tokens: 50000
-  max_cost_usd: 0.50
-  timeout_seconds: 10
+  tokens: 50000
+  time_s: 10
+
+provider_config:
+  task_type: "computation"
+  estimated_duration: "short"
+  resource_hint: "standard"
+  provider_hint: "local"
 
 observability:
-  log_level: "info"
-  metrics:
-    - "latency_ms"
-    - "tokens"
+  logs: true
+  metrics: true
+  traces: "basic"
 
 evaluation:
   success_criteria:
