@@ -28,6 +28,10 @@ class ExecutionPlan:
     enable_otel: bool  # Enable OpenTelemetry tracing
     span_context: Dict[str, str] = field(default_factory=dict)  # OTel span context
     metadata: Dict[str, Any] = field(default_factory=dict)  # Additional metadata
+    use_batch: bool = False
+    use_cache: bool = False
+    structured_output: bool = False
+    moderation: bool = False
 
 
 class Router:
@@ -74,6 +78,32 @@ class Router:
         resource_hint = provider_config.get("resource_hint", "standard")
         provider_hint = provider_config.get("provider_hint", self.default_provider)
 
+        overrides = provider_config.get("llm_overrides", {})
+
+        def _bool_from_config(key: str) -> bool:
+            """Coerce configuration values into booleans."""
+
+            for source in (provider_config, overrides):
+                if not isinstance(source, dict):
+                    continue
+                value = source.get(key)
+                if isinstance(value, bool):
+                    return value
+                if isinstance(value, str):
+                    lowered = value.strip().lower()
+                    if lowered in {"1", "true", "yes", "on"}:
+                        return True
+                    if lowered in {"0", "false", "no", "off"}:
+                        return False
+                if isinstance(value, (int, float)):
+                    return bool(value)
+            return False
+
+        use_batch = _bool_from_config("use_batch")
+        use_cache = _bool_from_config("use_cache")
+        structured_output = _bool_from_config("structured_output")
+        moderation = _bool_from_config("moderation")
+
         # Extract budgets
         budgets = agent.budgets or {}
         token_budget = budgets.get("tokens", 100_000)
@@ -114,6 +144,10 @@ class Router:
             enable_otel=enable_otel,
             span_context=span_context,
             metadata=metadata,
+            use_batch=use_batch,
+            use_cache=use_cache,
+            structured_output=structured_output,
+            moderation=moderation,
         )
 
 

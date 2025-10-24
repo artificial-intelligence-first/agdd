@@ -25,6 +25,11 @@ from agdd.observability.tracing import initialize_observability
 from agdd.registry import AgentDescriptor, Registry, get_registry
 from agdd.router import ExecutionPlan, Router, get_router
 from agdd.routing.router import Plan as LLMPlan, get_plan as get_llm_plan
+from agdd.security.moderation import (
+    ContentModerator,
+    ModerationViolationError,
+    get_content_moderator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,12 +265,14 @@ class AgentRunner:
         registry: Optional[Registry] = None,
         base_dir: Optional[Path] = None,
         router: Optional[Router] = None,
+        moderator: Optional[ContentModerator] = None,
     ):
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         self.skills = SkillRuntime(registry=self.registry)
         self.router: Router = router or get_router()
         self._task_index: dict[str, list[str]] | None = None
+        self._moderator = moderator or get_content_moderator()
 
     def _load_task_index(self) -> dict[str, list[str]]:
         if self._task_index is None:
@@ -320,6 +327,10 @@ class AgentRunner:
             "enable_otel": plan.enable_otel,
             "span_context": dict(plan.span_context),
             "metadata": dict(plan.metadata),
+            "use_batch": plan.use_batch,
+            "use_cache": plan.use_cache,
+            "structured_output": plan.structured_output,
+            "moderation": plan.moderation,
         }
 
     def _determine_task_type(self, agent: AgentDescriptor, context: Dict[str, Any]) -> str:
@@ -376,6 +387,83 @@ class AgentRunner:
                     overrides[key] = value
 
         return overrides or None
+
+    @staticmethod
+    def _stringify_for_moderation(payload: Any) -> str:
+        if isinstance(payload, str):
+            return payload
+        try:
+            return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        except (TypeError, ValueError):
+            return str(payload)
+
+    def _maybe_moderate_content(
+        self,
+        *,
+        agent_slug: str,
+        stage: str,
+        content: Any,
+        llm_plan: Optional[LLMPlan],
+        obs: Optional[ObservabilityLogger],
+    ) -> None:
+        if llm_plan is None or not llm_plan.moderation:
+            return
+
+        moderator = self._moderator
+        if moderator is None or not moderator.enabled:
+            if obs is not None:
+                obs.log(
+                    "moderation",
+                    {
+                        "stage": stage,
+                        "status": "skipped",
+                        "reason": "moderator-disabled",
+                    },
+                )
+            return
+
+        text = self._stringify_for_moderation(content)
+        if not text.strip():
+            if obs is not None:
+                obs.log(
+                    "moderation",
+                    {
+                        "stage": stage,
+                        "status": "skipped",
+                        "reason": "empty-content",
+                    },
+                )
+            return
+
+        result = moderator.moderate(
+            text,
+            context={
+                "agent": agent_slug,
+                "stage": stage,
+                "provider": llm_plan.provider,
+                "model": llm_plan.model,
+            },
+        )
+
+        status = "flagged" if result.flagged else "passed"
+        if obs is not None:
+            obs.log(
+                "moderation",
+                {
+                    "stage": stage,
+                    "status": status,
+                    "flagged": result.flagged,
+                    "categories": result.categories,
+                    "scores": result.scores,
+                    "skipped": result.skipped,
+                },
+            )
+
+        if result.flagged:
+            raise ModerationViolationError(
+                f"Content failed moderation during stage '{stage}'.",
+                result=result,
+            )
 
     def _build_default_llm_plan(
         self,
@@ -490,6 +578,14 @@ class AgentRunner:
                 },
             )
 
+            self._maybe_moderate_content(
+                agent_slug=slug,
+                stage="mag:input",
+                content=payload,
+                llm_plan=llm_plan,
+                obs=obs,
+            )
+
             # Resolve entrypoint
             run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(agent.entrypoint))
 
@@ -503,6 +599,14 @@ class AgentRunner:
                 obs=obs,
             )
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+            self._maybe_moderate_content(
+                agent_slug=slug,
+                stage="mag:output",
+                content=output,
+                llm_plan=llm_plan,
+                obs=obs,
+            )
 
             # Record metrics and cost (placeholder - actual cost from LLM provider)
             obs.metric("duration_ms", duration_ms)
@@ -607,6 +711,14 @@ class AgentRunner:
                 },
             )
 
+            self._maybe_moderate_content(
+                agent_slug=delegation.sag_id,
+                stage=f"sag:{delegation.task_id}:input",
+                content=delegation.input,
+                llm_plan=llm_plan,
+                obs=obs,
+            )
+
             # Retry policy
             retry_policy = agent.evaluation.get("retry_policy", {})
             max_attempts = retry_policy.get("max_attempts", 1)
@@ -622,6 +734,14 @@ class AgentRunner:
                     t0 = time.time()
                     output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
                     duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+                    self._maybe_moderate_content(
+                        agent_slug=delegation.sag_id,
+                        stage=f"sag:{delegation.task_id}:output",
+                        content=output,
+                        llm_plan=llm_plan,
+                        obs=obs,
+                    )
 
                     # Record metrics and cost
                     obs.metric("duration_ms", duration_ms)
@@ -674,6 +794,8 @@ class AgentRunner:
                         metrics=metrics,
                     )
 
+                except ModerationViolationError:
+                    raise
                 except Exception as e:
                     last_error = e
                     obs.log(
