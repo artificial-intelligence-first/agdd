@@ -9,6 +9,14 @@ depends_on:
 contracts:
   input_schema: catalog/contracts/comp_advisor_input.schema.json
   output_schema: catalog/contracts/comp_advisor_output.schema.json
+budgets:
+  tokens: 50000
+  time_s: 30
+provider_config:
+  task_type: computation
+  estimated_duration: short
+  resource_hint: standard
+  provider_hint: local
 evaluation:
   retry_policy:
     max_attempts: 2
@@ -16,3 +24,4 @@ evaluation:
 observability:
   logs: true
   metrics: true
+  traces: basic

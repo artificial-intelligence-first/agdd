@@ -20,17 +20,19 @@ contracts:
 risk_class: "low"
 
 budgets:
-  max_tokens: 100000
-  max_cost_usd: 1.00
-  timeout_seconds: 30
+  tokens: 100000
+  time_s: 30
+
+provider_config:
+  task_type: "orchestration"
+  estimated_duration: "medium"
+  resource_hint: "standard"
+  provider_hint: "local"
 
 observability:
-  log_level: "info"
-  trace_delegations: true
-  metrics:
-    - "latency_ms"
-    - "task_count"
-    - "success_count"
+  logs: true
+  metrics: true
+  traces: "basic"
 
 evaluation:
   success_criteria:
