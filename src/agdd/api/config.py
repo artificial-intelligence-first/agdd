@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     API_PREFIX: str = Field(default="/api/v1", description="API route prefix")
     API_HOST: str = Field(default="0.0.0.0", description="API server host")
     API_PORT: int = Field(default=8000, description="API server port")
+    API_MAX_REQUEST_BYTES: int = Field(
+        default=10 * 1024 * 1024,
+        description="Maximum allowed request body size in bytes",
+    )
 
     # Authentication
     API_KEY: str | None = Field(default=None, description="API key for authentication (optional)")

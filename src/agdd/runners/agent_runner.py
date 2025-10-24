@@ -8,8 +8,10 @@ dependency resolution, and metrics collection.
 from __future__ import annotations
 
 import json
+import os
 import time
 import uuid
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, cast
@@ -56,6 +58,17 @@ class ObservabilityLogger:
         self.logs: list[dict[str, Any]] = []
         self.metrics: dict[str, list[dict[str, Any]]] = {}
 
+    def _atomic_write(self, path: Path, payload: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile("w", delete=False, dir=path.parent, encoding="utf-8") as tmp:
+            tmp.write(payload)
+            tmp_path = Path(tmp.name)
+        os.replace(tmp_path, path)
+
+    def _write_json(self, path: Path, content: Any) -> None:
+        payload = json.dumps(content, ensure_ascii=False, indent=2)
+        self._atomic_write(path, payload + "\n")
+
     def log(self, event: str, data: Dict[str, Any]) -> None:
         """Log an event"""
         entry = {
@@ -77,8 +90,7 @@ class ObservabilityLogger:
         self.metrics[key].append({"run_id": self.run_id, "value": value, "timestamp": time.time()})
         # Write metrics
         metrics_file = self.run_dir / "metrics.json"
-        with open(metrics_file, "w", encoding="utf-8") as f:
-            json.dump(self.metrics, f, ensure_ascii=False, indent=2)
+        self._write_json(metrics_file, self.metrics)
 
     def finalize(self) -> None:
         """Write final summary"""
@@ -92,8 +104,7 @@ class ObservabilityLogger:
         # Include slug if provided (for run tracking/identification)
         if self.slug:
             summary["slug"] = self.slug
-        with open(summary_file, "w", encoding="utf-8") as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
+        self._write_json(summary_file, summary)
 
 
 class SkillRuntime:

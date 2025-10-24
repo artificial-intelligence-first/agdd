@@ -1,7 +1,7 @@
 """
 YourOrchestratorMAG - Template for Main Agent orchestration
 
-TODO: Customize this template for your specific use case.
+Customize this template with your orchestration workflow before production use.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         tasks = []
         if skills and skills.exists("skill.task-decomposition"):
             try:
-                # TODO: Customize task decomposition input
+                # Adjust the task decomposition payload to match your input contract.
                 tasks = skills.invoke("skill.task-decomposition", {"input": payload})
                 if obs:
                     obs.log("decomposition", {"task_count": len(tasks), "tasks": tasks})
@@ -179,7 +179,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                     break
 
         # ===== Phase 4: Enrich with Metadata =====
-        # TODO: Customize output structure to match your_output schema
+        # Adapt the output envelope to align with your downstream schema expectations.
         final_output = {
             "result": output,
             "metadata": {

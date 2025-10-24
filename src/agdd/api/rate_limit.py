@@ -172,6 +172,7 @@ class RedisRateLimiter:
 
 # Global rate limiter instance
 _rate_limiter: InMemoryRateLimiter | RedisRateLimiter | None = None
+_warned_inmemory = False
 
 
 def get_rate_limiter(
@@ -198,6 +199,12 @@ def get_rate_limiter(
         if settings.REDIS_URL:
             _rate_limiter = RedisRateLimiter(settings.RATE_LIMIT_QPS, settings.REDIS_URL)
         else:
+            global _warned_inmemory
+            if not _warned_inmemory:
+                logger.warning(
+                    "Using in-memory rate limiting. Configure REDIS_URL for multi-process deployments."
+                )
+                _warned_inmemory = True
             _rate_limiter = InMemoryRateLimiter(settings.RATE_LIMIT_QPS)
 
     return _rate_limiter

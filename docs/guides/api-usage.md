@@ -51,6 +51,10 @@ Exceeding the limit returns HTTP 429 with:
 }
 ```
 
+## Request Size Limits
+
+Configure `AGDD_API_MAX_REQUEST_BYTES` (default: 10 MiB) to reject oversized payloads early. Requests exceeding the limit respond with HTTP 413 and `{"detail": "Request body too large"}`; malformed `Content-Length` headers return HTTP 400. Adjust the limit to match your expected request sizes.
+
 ## Endpoints
 
 All routes below are prefixed with `AGDD_API_PREFIX` (`/api/v1` by default) unless otherwise noted.

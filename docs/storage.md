@@ -61,7 +61,7 @@ export AGDD_STORAGE_BACKEND=sqlite  # sqlite, postgres, timescale
 export AGDD_STORAGE_DB_PATH=.agdd/storage.db  # SQLite only
 export AGDD_STORAGE_ENABLE_FTS=true  # Enable full-text search
 
-# PostgreSQL/TimescaleDB (future)
+# PostgreSQL/TimescaleDB backend
 export AGDD_STORAGE_DSN=postgresql://user:pass@localhost/agdd
 
 # Data lifecycle
@@ -235,7 +235,7 @@ class MyCustomBackend(StorageBackend):
 - Use Litestream for automatic S3 replication
 - Suitable for up to ~10,000 runs/day
 
-### PostgreSQL/TimescaleDB (Future)
+### PostgreSQL/TimescaleDB
 
 **Best for:**
 - Production deployments
@@ -244,15 +244,14 @@ class MyCustomBackend(StorageBackend):
 
 **Features:**
 - JSONB with GIN indexes
-- Full-text search with `tsvector`
-- pgvector for similarity search
-- TimescaleDB for automatic partitioning/compression
-- Automatic lifecycle management
+- Full-text search via `to_tsvector`
+- Connection pooling with `asyncpg`
+- Compatible with TimescaleDB compression/retention policies
 
 **Recommendations:**
-- Use TimescaleDB extension for time-series optimization
-- Configure retention policies for automatic cleanup
-- Suitable for millions of runs
+- Install the `asyncpg` extra (`pip install agdd[postgres]`)
+- Enable TimescaleDB extension for large-scale retention
+- Apply retention/compression policies for long-term storage
 
 ### ClickHouse (Future)
 
@@ -303,7 +302,7 @@ export AGDD_STORAGE_ARCHIVE_ENABLED=true
 export AGDD_STORAGE_ARCHIVE_DESTINATION=s3://my-bucket/archive
 ```
 
-### TimescaleDB Policies (Future)
+### TimescaleDB Policies (Optional)
 
 ```sql
 -- Auto-compress chunks older than 3 days

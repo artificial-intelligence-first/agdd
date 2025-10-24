@@ -449,7 +449,7 @@ class SQLiteStorageBackend(StorageBackend):
             SELECT e.*
             FROM events_fts fts
             JOIN events e ON e.id = fts.rowid
-            WHERE events_fts MATCH ?
+            WHERE fts MATCH ?
         """
         params: List[Any] = [query]
 

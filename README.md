@@ -355,7 +355,7 @@ uv run agdd data vacuum --hot-days 7
 
 **Key Features:**
 - **SQLite backend** (default): Zero-config local storage with FTS5 full-text search
-- **PostgreSQL/TimescaleDB** (future): Production-ready with automatic lifecycle management
+- **PostgreSQL/TimescaleDB backend** (beta): Production-grade storage via `asyncpg` (enable with `pip install agdd[postgres]`)
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
 - **Migration tool**: Import legacy `.runs/agents/` data for analysis
 

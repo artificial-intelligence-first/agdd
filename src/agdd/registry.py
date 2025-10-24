@@ -108,6 +108,24 @@ class Registry:
             FileNotFoundError: If agent.yaml not found
             ValueError: If YAML is malformed
         """
+        return self._load_agent(slug, ancestry=())
+
+    @staticmethod
+    def _normalize_agent_ref(reference: Any) -> Optional[str]:
+        if not isinstance(reference, str):
+            return None
+        ref = reference.strip()
+        if ref.startswith("agdd://"):
+            ref = ref.replace("agdd://", "", 1)
+            ref = ref.split("@", 1)[0]
+            ref = ref.split(".", 1)[-1]
+        return ref or None
+
+    def _load_agent(self, slug: str, ancestry: tuple[str, ...]) -> AgentDescriptor:
+        if slug in ancestry:
+            cycle = " -> ".join(ancestry + (slug,))
+            raise ValueError(f"Circular dependency detected: {cycle}")
+
         if slug in self._agent_cache:
             return self._agent_cache[slug]
 
@@ -141,6 +159,13 @@ class Registry:
                     raw=dict(data),
                 )
                 self._agent_cache[slug] = descriptor
+
+                # Recursively validate sub-agent dependencies to prevent cycles
+                sub_agents = descriptor.depends_on.get("sub_agents", [])
+                for ref in sub_agents:
+                    normalized = self._normalize_agent_ref(ref)
+                    if normalized:
+                        self._load_agent(normalized, ancestry + (slug,))
                 return descriptor
 
         raise FileNotFoundError(
@@ -263,21 +288,48 @@ class Registry:
             raise ValueError(f"Agent registry at {registry_path} must be a mapping")
 
         tasks = raw.get("tasks", [])
+
+        def _extract_slug(reference: Any, key: str) -> Optional[str]:
+            if reference is None:
+                return None
+            if not isinstance(reference, str):
+                raise ValueError(f"Task '{task_id}' {key} reference must be a string")
+            if reference.startswith("agdd://"):
+                agent_ref = reference.replace("agdd://", "").split("@", 1)[0]
+                return agent_ref.split(".", 1)[-1]
+            return reference
+
+        exact_matches: dict[str, str] = {}
+        pattern_matches: list[tuple[str, str]] = []
+
         for task_data in tasks:
             if not isinstance(task_data, Mapping):
                 continue
-            if task_data.get("id") == task_id:
-                default_agent_raw = task_data.get("default", "")
-                if not isinstance(default_agent_raw, str):
-                    raise ValueError(f"Task '{task_id}' default reference must be a string")
-                default_agent = default_agent_raw
-                # Parse "agdd://main.offer-orchestrator-mag@>=0.1.0" -> "offer-orchestrator-mag"
-                if default_agent.startswith("agdd://"):
-                    agent_ref = default_agent.replace("agdd://", "").split("@")[0]
-                    # Remove role prefix (main./sub.)
-                    slug = agent_ref.split(".", 1)[-1]
+
+            default_ref = _extract_slug(task_data.get("default"), "default")
+            main_ref = _extract_slug(task_data.get("main_agent"), "main_agent")
+            target_ref = default_ref or main_ref
+            if not target_ref:
+                continue
+
+            task_identifier = task_data.get("id")
+            if isinstance(task_identifier, str):
+                exact_matches[task_identifier] = target_ref
+
+            pattern = task_data.get("match")
+            if isinstance(pattern, str):
+                pattern_matches.append((pattern, target_ref))
+
+        if task_id in exact_matches:
+            return exact_matches[task_id]
+
+        from fnmatch import fnmatch
+
+        if pattern_matches:
+            # Deterministic selection for overlapping patterns: choose longest pattern first
+            for pattern, slug in sorted(pattern_matches, key=lambda item: len(item[0]), reverse=True):
+                if fnmatch(task_id, pattern):
                     return slug
-                return default_agent
 
         raise ValueError(f"Task '{task_id}' not found in {registry_path}")
 

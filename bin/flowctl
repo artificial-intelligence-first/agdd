@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Minimal Flow Runner CLI stub used for tests and docs."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import uuid
+from pathlib import Path
+from typing import Any, Dict, List
+
+import jsonschema
+import yaml
+
+
+def _load_flow(path: Path) -> Dict[str, Any]:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Flow file not found: {path}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit("Flow definition must be a mapping")
+    return data
+
+
+def _render_output_dir(config: Dict[str, Any], run_id: str) -> Path:
+    run_cfg = config.get("run")
+    output_template = None
+    if isinstance(run_cfg, dict):
+        candidate = run_cfg.get("output_dir")
+        if isinstance(candidate, str):
+            output_template = candidate
+    if not output_template:
+        output_template = f".runs/{run_id}"
+    expanded = output_template.replace("${RUN_ID}", run_id).replace("$RUN_ID", run_id)
+    return Path(expanded).resolve()
+
+
+def _write_json(path: Path, payload: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _write_runs_log(path: Path, steps: List[Dict[str, Any]], run_id: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for index, step in enumerate(steps, start=1):
+        record = {
+            "event": "end",
+            "run_id": run_id,
+            "step": step.get("id", f"step-{index}"),
+            "status": "ok",
+            "latency_ms": 100,
+        }
+        lines.append(json.dumps(record, ensure_ascii=False))
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    flow_path = Path(args.flow_path)
+    flow = _load_flow(flow_path)
+    run_id = os.environ.get("RUN_ID") or f"flow-{uuid.uuid4().hex[:8]}"
+    os.environ["RUN_ID"] = run_id
+
+    steps_raw = flow.get("steps")
+    steps = steps_raw if isinstance(steps_raw, list) else []
+
+    output_dir = _render_output_dir(flow, run_id)
+    summary = {
+        "run_id": run_id,
+        "status": "succeeded",
+        "failures": [],
+        "dry_run": bool(args.dry_run),
+        "only": args.only,
+        "continue_from": args.continue_from,
+    }
+
+    _write_runs_log(output_dir / "runs.jsonl", steps, run_id)
+    _write_json(output_dir / "summary.json", summary)
+
+    print(f"run {run_id} completed", flush=True)
+    return 0
+
+
+def _validate_against_schema(flow: Dict[str, Any], schema_path: Path) -> int:
+    schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    if not isinstance(schema, dict):
+        raise SystemExit("Schema must be a JSON object")
+    try:
+        jsonschema.validate(flow, schema)
+    except jsonschema.ValidationError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    flow_path = Path(args.flow_path)
+    flow = _load_flow(flow_path)
+    schema = args.schema
+    if schema is not None:
+        status = _validate_against_schema(flow, Path(schema))
+        if status == 0:
+            print("OK", flush=True)
+        return status
+    return _cmd_run(
+        argparse.Namespace(
+            flow_path=flow_path,
+            dry_run=True,
+            only=None,
+            continue_from=None,
+        )
+    )
+
+
+def _cmd_available(_args: argparse.Namespace) -> int:
+    print("yes (flow-runner stub 0.0.0; capabilities: dry-run, artifacts)")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="flowctl")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    run_parser = sub.add_parser("run", help="Execute a flow definition")
+    run_parser.add_argument("flow_path")
+    run_parser.add_argument("--dry-run", action="store_true")
+    run_parser.add_argument("--only")
+    run_parser.add_argument("--continue-from")
+    run_parser.set_defaults(func=_cmd_run)
+
+    validate_parser = sub.add_parser("validate", help="Validate a flow definition")
+    validate_parser.add_argument("flow_path")
+    validate_parser.add_argument("--schema")
+    validate_parser.set_defaults(func=_cmd_validate)
+
+    available_parser = sub.add_parser("available", help="Report Flow Runner availability")
+    available_parser.set_defaults(func=_cmd_available)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

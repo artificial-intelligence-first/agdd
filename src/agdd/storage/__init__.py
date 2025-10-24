@@ -7,7 +7,7 @@ for production.
 """
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
-from agdd.storage.backends import SQLiteStorageBackend
+from agdd.storage.backends import PostgresStorageBackend, SQLiteStorageBackend
 from agdd.storage.factory import (
     close_storage_backend,
     create_storage_backend,
@@ -26,6 +26,7 @@ __all__ = [
     "StorageBackend",
     "StorageCapabilities",
     "SQLiteStorageBackend",
+    "PostgresStorageBackend",
     "Event",
     "Run",
     "MCPCallEvent",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from agdd.storage.backends.postgres import PostgresStorageBackend
 from agdd.storage.backends.sqlite import SQLiteStorageBackend
 
 if TYPE_CHECKING:
@@ -37,11 +38,9 @@ async def create_storage_backend(settings: Settings) -> StorageBackend:
             enable_fts=settings.STORAGE_ENABLE_FTS,
         )
     elif backend_type in ("postgres", "postgresql", "timescale", "timescaledb"):
-        # Future: PostgreSQL/TimescaleDB backend
-        raise NotImplementedError(
-            f"Backend '{backend_type}' not yet implemented. "
-            "Currently supported: sqlite"
-        )
+        if not settings.STORAGE_DSN:
+            raise ValueError("STORAGE_DSN must be provided for PostgreSQL/TimescaleDB backend")
+        backend = PostgresStorageBackend(settings.STORAGE_DSN)
     else:
         raise ValueError(
             f"Unsupported storage backend: {backend_type}. "
