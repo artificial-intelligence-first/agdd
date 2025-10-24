@@ -136,6 +136,57 @@ class TestFAISSCache:
         results = cache.search(embedding, k=5)
         assert len(results) == 0
 
+    def test_key_overwrite(self, cache: SemanticCache) -> None:
+        """Test that setting the same key twice overwrites the old value."""
+        embedding1 = np.random.rand(128).astype(np.float32)
+        embedding2 = np.random.rand(128).astype(np.float32)
+
+        # Set initial value
+        cache.set("key1", embedding1, {"value": "original"})
+        assert cache.size() == 1
+
+        # Overwrite with new value
+        cache.set("key1", embedding2, {"value": "updated"})
+        assert cache.size() == 1  # Size should stay the same
+
+        # Search should only return the new value
+        results = cache.search(embedding2, k=10, threshold=0.99)
+        assert len(results) == 1
+        assert results[0].key == "key1"
+        assert results[0].value == {"value": "updated"}
+
+        # Old embedding should not be found
+        results = cache.search(embedding1, k=10, threshold=0.99)
+        # May or may not find it depending on similarity, but should have updated value
+        for result in results:
+            if result.key == "key1":
+                assert result.value == {"value": "updated"}
+
+    def test_multiple_key_overwrites(self, cache: SemanticCache) -> None:
+        """Test multiple overwrites maintain correct size."""
+        # Add multiple entries
+        for i in range(5):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i, "version": 1})
+
+        assert cache.size() == 5
+
+        # Overwrite some keys
+        for i in range(3):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set(f"key_{i}", embedding, {"index": i, "version": 2})
+
+        # Size should still be 5 (no duplicates)
+        assert cache.size() == 5
+
+        # Overwrite the same key multiple times
+        for version in range(3, 6):
+            embedding = np.random.rand(128).astype(np.float32)
+            cache.set("key_0", embedding, {"index": 0, "version": version})
+
+        # Size should still be 5
+        assert cache.size() == 5
+
     def test_invalid_dimension(self, cache: SemanticCache) -> None:
         """Test error on invalid embedding dimension."""
         wrong_embedding = np.random.rand(64).astype(np.float32)

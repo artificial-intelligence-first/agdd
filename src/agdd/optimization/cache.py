@@ -168,8 +168,9 @@ class FAISSCache(SemanticCache):
         self.config = config
         self.dimension = config.dimension
         self._metadata: dict[
-            int, tuple[str, dict[str, Any], np.ndarray[Any, np.dtype[np.float32]]]
+            int, tuple[str, dict[str, Any], np.ndarray[Any, np.dtype[np.float32]]] | None
         ] = {}
+        self._key_to_id: dict[str, int] = {}  # Track key uniqueness
         self._next_id = 0
 
         # Buffer for IVFFlat training
@@ -228,7 +229,11 @@ class FAISSCache(SemanticCache):
         embedding: np.ndarray[Any, np.dtype[np.float32]],
         value: dict[str, Any],
     ) -> None:
-        """Store an entry in the cache."""
+        """Store an entry in the cache.
+
+        If the key already exists, the old entry is logically deleted
+        and replaced with the new one.
+        """
         if embedding.shape[0] != self.dimension:
             msg = f"Embedding dimension {embedding.shape[0]} != {self.dimension}"
             raise ValueError(msg)
@@ -238,8 +243,15 @@ class FAISSCache(SemanticCache):
         if norm > 0:
             embedding = embedding / norm
 
+        # Check if key already exists and mark old entry as deleted
+        if key in self._key_to_id:
+            old_id = self._key_to_id[key]
+            self._metadata[old_id] = None  # Logical deletion
+            logger.debug("Replacing existing cache entry for key: %s", key)
+
         # Store metadata with embedding
         self._metadata[self._next_id] = (key, value, embedding.copy())
+        self._key_to_id[key] = self._next_id
         self._next_id += 1
 
         # For IVFFlat, buffer embeddings until we have enough to train
@@ -278,15 +290,17 @@ class FAISSCache(SemanticCache):
                 similarity = float(np.dot(query_embedding, emb))
                 if similarity >= threshold:
                     idx = buffer_start_idx + i
-                    key, value, stored_emb = self._metadata[idx]
-                    results.append(
-                        CacheEntry(
-                            key=key,
-                            embedding=stored_emb,
-                            value=value,
-                            distance=1.0 - similarity,
+                    entry = self._metadata.get(idx)
+                    if entry is not None:  # Skip logically deleted entries
+                        key, value, stored_emb = entry
+                        results.append(
+                            CacheEntry(
+                                key=key,
+                                embedding=stored_emb,
+                                value=value,
+                                distance=1.0 - similarity,
+                            )
                         )
-                    )
 
         # Search FAISS index if trained
         if self._trained and self.index.ntotal > 0:
@@ -297,15 +311,17 @@ class FAISSCache(SemanticCache):
                 # FAISS inner product returns similarity (higher is better)
                 similarity = float(dist)
                 if similarity >= threshold:
-                    key, value, emb = self._metadata[int(idx)]
-                    results.append(
-                        CacheEntry(
-                            key=key,
-                            embedding=emb,
-                            value=value,
-                            distance=1.0 - similarity,  # Convert to distance
+                    entry = self._metadata.get(int(idx))
+                    if entry is not None:  # Skip logically deleted entries
+                        key, value, emb = entry
+                        results.append(
+                            CacheEntry(
+                                key=key,
+                                embedding=emb,
+                                value=value,
+                                distance=1.0 - similarity,  # Convert to distance
+                            )
                         )
-                    )
 
         # Sort by distance and limit to k results
         results.sort(key=lambda x: x.distance)
@@ -315,14 +331,18 @@ class FAISSCache(SemanticCache):
         """Clear all entries from the cache."""
         self.index.reset()
         self._metadata.clear()
+        self._key_to_id.clear()
         self._next_id = 0
         self._training_buffer.clear()
         if self.config.faiss_index_type == "IVFFlat":
             self._trained = False
 
     def size(self) -> int:
-        """Get the number of entries in the cache."""
-        return self._next_id
+        """Get the number of unique entries in the cache.
+
+        Returns the count of unique keys (excluding logically deleted entries).
+        """
+        return len(self._key_to_id)
 
 
 class RedisVectorCache(SemanticCache):
