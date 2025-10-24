@@ -434,7 +434,73 @@ def test_a2a_server_no_params() -> None:
     request = JsonRpcRequest(method="status", params=None, id="req-001")
     response = server.handle_request(request)
 
+    assert response is not None
     assert response.result == {"status": "ok"}
+
+
+def test_a2a_server_notification_success() -> None:
+    """Test that successful notifications return None (no response)."""
+    server = A2AServer()
+
+    invoked = False
+
+    def notification_handler(message: str) -> None:
+        nonlocal invoked
+        invoked = True
+
+    server.register_method("notify", notification_handler)
+
+    # Create notification (id=None)
+    notification = JsonRpcRequest(method="notify", params={"message": "test"}, id=None)
+    response = server.handle_request(notification)
+
+    # Notifications must not generate a response
+    assert response is None
+    assert invoked is True  # But the handler should still be invoked
+
+
+def test_a2a_server_notification_method_not_found() -> None:
+    """Test that notifications for non-existent methods return None."""
+    server = A2AServer()
+
+    notification = JsonRpcRequest(method="unknown", params={}, id=None)
+    response = server.handle_request(notification)
+
+    # Notifications must not generate a response, even for errors
+    assert response is None
+
+
+def test_a2a_server_notification_with_error() -> None:
+    """Test that notifications with errors return None (no error response)."""
+    server = A2AServer()
+
+    def failing_handler() -> None:
+        raise RuntimeError("Error in notification handler")
+
+    server.register_method("fail", failing_handler)
+
+    notification = JsonRpcRequest(method="fail", params=None, id=None)
+    response = server.handle_request(notification)
+
+    # Notifications must not generate a response, even when handler fails
+    assert response is None
+
+
+def test_a2a_server_notification_invalid_params() -> None:
+    """Test that notifications with invalid params return None."""
+    server = A2AServer()
+
+    def handler(required_param: str) -> None:
+        pass
+
+    server.register_method("test", handler)
+
+    # Missing required parameter
+    notification = JsonRpcRequest(method="test", params={}, id=None)
+    response = server.handle_request(notification)
+
+    # Notifications must not generate a response, even for parameter errors
+    assert response is None
 
 
 def test_a2a_client_create_request() -> None:

@@ -74,7 +74,7 @@ class MessageHandler:
         """
         return name in self._methods
 
-    def handle_request(self, request: JsonRpcRequest) -> JsonRpcResponse:
+    def handle_request(self, request: JsonRpcRequest) -> JsonRpcResponse | None:
         """
         Handle a JSON-RPC request.
 
@@ -82,10 +82,16 @@ class MessageHandler:
             request: JSON-RPC request to handle
 
         Returns:
-            JSON-RPC response
+            JSON-RPC response, or None for notifications (request.id is None)
         """
+        # JSON-RPC 2.0: Notifications (id=None) must not generate a response
+        is_notification = request.id is None
+
         # Check if method exists
         if not self.has_method(request.method):
+            if is_notification:
+                # Silently ignore notifications for non-existent methods
+                return None
             return JsonRpcResponse(
                 id=request.id,
                 error=JsonRpcError(
@@ -106,6 +112,8 @@ class MessageHandler:
             elif isinstance(request.params, list):
                 result = handler(*request.params)
             else:
+                if is_notification:
+                    return None
                 return JsonRpcResponse(
                     id=request.id,
                     error=JsonRpcError(
@@ -114,10 +122,16 @@ class MessageHandler:
                     ),
                 )
 
+            # Notifications do not return a response
+            if is_notification:
+                return None
+
             return JsonRpcResponse(id=request.id, result=result)
 
         except TypeError as e:
             # Parameter mismatch
+            if is_notification:
+                return None
             return JsonRpcResponse(
                 id=request.id,
                 error=JsonRpcError(
@@ -127,6 +141,8 @@ class MessageHandler:
             )
         except Exception as e:
             # Internal error
+            if is_notification:
+                return None
             return JsonRpcResponse(
                 id=request.id,
                 error=JsonRpcError(
@@ -264,7 +280,7 @@ class A2AServer:
         """
         self._handler.unregister_method(name)
 
-    def handle_request_dict(self, request_data: dict[str, Any]) -> dict[str, Any]:
+    def handle_request_dict(self, request_data: dict[str, Any]) -> dict[str, Any] | None:
         """
         Handle a JSON-RPC request from raw data.
 
@@ -272,7 +288,7 @@ class A2AServer:
             request_data: Raw request data (dict)
 
         Returns:
-            Response data (dict)
+            Response data (dict), or None for notifications
         """
         try:
             # Parse request
@@ -281,10 +297,14 @@ class A2AServer:
             # Handle request
             response = self._handler.handle_request(request)
 
+            # Notifications do not return a response
+            if response is None:
+                return None
+
             return response.model_dump(exclude_none=True)
 
         except Exception as e:
-            # Invalid request
+            # Invalid request - always return error (even if id is unknown)
             return JsonRpcResponse(
                 id=None,
                 error=JsonRpcError(
@@ -293,7 +313,7 @@ class A2AServer:
                 ),
             ).model_dump(exclude_none=True)
 
-    def handle_request(self, request: JsonRpcRequest) -> JsonRpcResponse:
+    def handle_request(self, request: JsonRpcRequest) -> JsonRpcResponse | None:
         """
         Handle a JSON-RPC request object.
 
@@ -301,7 +321,7 @@ class A2AServer:
             request: JSON-RPC request
 
         Returns:
-            JSON-RPC response
+            JSON-RPC response, or None for notifications
         """
         return self._handler.handle_request(request)
 
