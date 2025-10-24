@@ -312,12 +312,30 @@ class AgentRunner:
             "agent_slug": plan.agent_slug,
             "task_type": plan.task_type,
             "provider_hint": plan.provider_hint,
+            "provider": plan.provider,
+            "model": plan.model,
             "resource_tier": plan.resource_tier,
             "estimated_duration": plan.estimated_duration,
             "timeout_ms": plan.timeout_ms,
             "token_budget": plan.token_budget,
             "time_budget_s": plan.time_budget_s,
             "enable_otel": plan.enable_otel,
+            "use_batch": plan.use_batch,
+            "use_cache": plan.use_cache,
+            "structured_output": plan.structured_output,
+            "moderation": plan.moderation,
+            "cache_strategy": plan.cache_strategy.value,
+            "estimated_cost_usd": plan.estimated_cost_usd,
+            "estimated_latency_ms": plan.estimated_latency_ms,
+            "optimization": {
+                "mode": plan.optimization.mode.value,
+                "model_tier": plan.optimization.model_tier.value,
+                "cache_strategy": plan.optimization.cache_strategy.value,
+                "enable_batch": plan.optimization.enable_batch,
+                "estimated_cost_usd": plan.optimization.estimated_cost_usd,
+                "estimated_latency_ms": plan.optimization.estimated_latency_ms,
+                "reasoning": plan.optimization.reasoning,
+            },
             "span_context": dict(plan.span_context),
             "metadata": dict(plan.metadata),
         }
@@ -392,18 +410,29 @@ class AgentRunner:
             default_model = provider_config.get("model")
 
         provider_name = provider_hint or agent_plan_snapshot.get("provider_hint") or "local"
+        provider_name = str(agent_plan_snapshot.get("provider", provider_name))
         metadata = dict(agent_plan_snapshot.get("metadata", {}))
         metadata.setdefault("source", "fallback")
-        model_name = metadata.get("model") or default_model or "unknown"
+        model_name = (
+            agent_plan_snapshot.get("model")
+            or metadata.get("model")
+            or default_model
+            or "unknown"
+        )
+
+        use_batch = bool(agent_plan_snapshot.get("use_batch", False))
+        use_cache = bool(agent_plan_snapshot.get("use_cache", False))
+        structured_output = bool(agent_plan_snapshot.get("structured_output", False))
+        moderation = bool(agent_plan_snapshot.get("moderation", False))
 
         return LLMPlan(
             task_type=task_type,
             provider=str(provider_name),
             model=str(model_name),
-            use_batch=False,
-            use_cache=False,
-            structured_output=False,
-            moderation=False,
+            use_batch=use_batch,
+            use_cache=use_cache,
+            structured_output=structured_output,
+            moderation=moderation,
             metadata=metadata,
         )
 
@@ -479,8 +508,13 @@ class AgentRunner:
                     "plan": {
                         "task_type": execution_plan.task_type,
                         "provider_hint": execution_plan.provider_hint,
+                        "provider": execution_plan.provider,
+                        "model": execution_plan.model,
                         "timeout_ms": execution_plan.timeout_ms,
                         "token_budget": execution_plan.token_budget,
+                        "cache_strategy": execution_plan.cache_strategy.value,
+                        "estimated_cost_usd": execution_plan.estimated_cost_usd,
+                        "estimated_latency_ms": execution_plan.estimated_latency_ms,
                         "use_batch": llm_plan.use_batch,
                         "use_cache": llm_plan.use_cache,
                         "structured_output": llm_plan.structured_output,
