@@ -71,7 +71,7 @@ def test_webhook_signature_verification_fails(client_with_github: TestClient) ->
 
     assert response.status_code == 401
     data = response.json()
-    assert data["detail"]["code"] == "invalid_signature"
+    assert data["code"] == "invalid_signature"
 
 
 def test_webhook_signature_verification_succeeds(client_with_github: TestClient) -> None:

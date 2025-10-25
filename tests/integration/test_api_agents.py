@@ -47,4 +47,5 @@ def test_run_agent_not_found() -> None:
     )
     assert response.status_code == 404
     error = response.json()
-    assert "detail" in error
+    assert "code" in error
+    assert error["code"] == "agent_not_found"

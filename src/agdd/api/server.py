@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Awaitable, Callable
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -48,16 +48,56 @@ async def enforce_request_size(
         except ValueError:
             return JSONResponse(
                 status_code=400,
-                content={"detail": "Invalid Content-Length header"},
+                content={"code": "invalid_payload", "message": "Invalid Content-Length header"},
             )
         if content_length > max_bytes:
             return JSONResponse(
                 status_code=413,
-                content={"detail": "Request body too large"},
+                content={"code": "invalid_payload", "message": "Request body too large"},
             )
 
     response = await call_next(request)
     return response
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """
+    Convert HTTPException to ApiError schema format.
+
+    This ensures all errors follow the documented format:
+    {"code": "...", "message": "...", "details": {...}}
+    instead of FastAPI's default {"detail": ...}
+    """
+    # If detail is already a dict with code/message, use it directly (ApiError format)
+    if isinstance(exc.detail, dict) and "code" in exc.detail and "message" in exc.detail:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail,
+            headers=exc.headers,
+        )
+
+    # Otherwise convert string detail to ApiError format
+    # Map status codes to error codes
+    code_map = {
+        400: "invalid_payload",
+        401: "unauthorized",
+        403: "unauthorized",
+        404: "not_found",
+        413: "invalid_payload",
+        429: "rate_limit_exceeded",
+        500: "internal_error",
+    }
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "code": code_map.get(exc.status_code, "internal_error"),
+            "message": str(exc.detail),
+        },
+        headers=exc.headers,
+    )
+
 
 # Include routers
 app.include_router(agents.router, prefix=settings.API_PREFIX)

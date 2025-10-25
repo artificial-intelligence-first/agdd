@@ -202,7 +202,8 @@ class TestA2ADiscoveryInvoke:
 
         assert response.status_code == 404
         error = response.json()
-        assert "detail" in error
+        assert "code" in error
+        assert error["code"] == "agent_not_found"
 
     def test_a2a_invoke_invalid_payload(self) -> None:
         """Test that invalid payload structure is handled gracefully"""

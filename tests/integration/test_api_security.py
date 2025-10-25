@@ -53,7 +53,7 @@ class TestDirectoryTraversalProtection:
         assert response.status_code in [400, 404]
         if response.status_code == 400:
             data = response.json()
-            assert data["detail"]["code"] == "invalid_run_id"
+            assert data["code"] == "invalid_run_id"
 
     def test_get_run_blocks_absolute_path(self, client_with_runs_dir: TestClient) -> None:
         """Test that absolute paths are blocked."""
@@ -75,7 +75,7 @@ class TestDirectoryTraversalProtection:
         response = client_with_runs_dir.get(f"/api/v1/runs/{run_id}")
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["code"] == "invalid_run_id"
+        assert data["code"] == "invalid_run_id"
 
     def test_get_run_blocks_forward_slash(self, client_with_runs_dir: TestClient) -> None:
         """Test that forward slashes in run_id are blocked."""
@@ -94,7 +94,7 @@ class TestDirectoryTraversalProtection:
         assert response.status_code in [400, 404]
         if response.status_code == 400:
             data = response.json()
-            assert data["detail"]["code"] == "invalid_run_id"
+            assert data["code"] == "invalid_run_id"
 
     def test_get_logs_blocks_directory_traversal(self, client_with_runs_dir: TestClient) -> None:
         """Test that directory traversal is blocked in get_logs."""
@@ -117,7 +117,7 @@ class TestDirectoryTraversalProtection:
         assert response.status_code in [400, 404]
         if response.status_code == 400:
             data = response.json()
-            assert data["detail"]["code"] == "invalid_run_id"
+            assert data["code"] == "invalid_run_id"
 
 
 class TestValidRunIdFormats:
@@ -131,7 +131,7 @@ class TestValidRunIdFormats:
         if response.status_code == 404:
             data = response.json()
             # Should be not_found, not invalid_run_id
-            assert data["detail"]["code"] == "not_found"
+            assert data["code"] == "not_found"
 
     def test_get_run_accepts_run_with_hyphens(self, client_with_runs_dir: TestClient) -> None:
         """Test that run_id with hyphens is accepted."""
@@ -166,7 +166,7 @@ class TestValidRunIdFormats:
         response = client_with_runs_dir.get(f"/api/v1/runs/{long_name}")
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"]["code"] == "invalid_run_id"
+        assert data["code"] == "invalid_run_id"
 
 
 class TestRunTrackerValidation:
