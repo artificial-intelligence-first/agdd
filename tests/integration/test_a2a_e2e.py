@@ -213,8 +213,12 @@ class TestA2ADiscoveryInvoke:
             json={"invalid": "structure"}
         )
 
-        # Should return 422 (Unprocessable Entity) for schema validation error
-        assert response.status_code == 422
+        # Should return 400 with ApiError schema for validation error
+        assert response.status_code == 400
+        error = response.json()
+        assert error["code"] == "invalid_payload"
+        assert "message" in error
+        assert "validation" in error["message"].lower()  # Message should mention validation
 
     def test_a2a_multiple_sequential_invocations(self) -> None:
         """Test multiple A2A invocations in sequence"""

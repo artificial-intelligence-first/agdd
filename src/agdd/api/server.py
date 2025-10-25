@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Awaitable, Callable
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
@@ -96,6 +97,38 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "message": str(exc.detail),
         },
         headers=exc.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """
+    Convert Pydantic validation errors to ApiError schema format.
+
+    FastAPI's default validation error response is 422 with {"detail": [...]}.
+    This handler converts to 400 with {"code": "invalid_payload", "message": "...", "details": {...}}
+    to match the documented ApiError schema.
+    """
+    # Extract first error for message (most relevant)
+    errors = exc.errors()
+    first_error = errors[0] if errors else {}
+
+    # Build human-readable message from first error
+    field = " -> ".join(str(loc) for loc in first_error.get("loc", []))
+    error_type = first_error.get("type", "validation_error")
+    error_msg = first_error.get("msg", "Validation error")
+
+    message = f"Validation error: {field}: {error_msg}" if field else error_msg
+
+    return JSONResponse(
+        status_code=400,  # Use 400 instead of 422 for consistency
+        content={
+            "code": "invalid_payload",
+            "message": message,
+            "details": {"validation_errors": errors},
+        },
     )
 
 
