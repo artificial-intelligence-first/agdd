@@ -4,6 +4,7 @@ last_synced: 2025-10-24
 description: Multiple LLM provider support with flexible configuration and model selection strategies
 change_log:
   - 2025-10-24: Added front-matter and provider configuration overview
+  - 2025-10-24: Added unified provider selection via AGDD_PROVIDER environment variable
 ---
 
 # Multi-Provider LLM Support
@@ -42,6 +43,70 @@ export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
 AGDD's local provider (`src/agdd/providers/local.py`) prefers the OpenAI Responses API. If the endpoint rejects Responses or returns a legacy status code, the provider automatically falls back to chat completions while recording a warning in the response metadata.
+
+### Unified Provider Selection
+
+AGDD supports unified provider selection through environment variables, allowing you to switch providers globally without modifying routing policies or agent code:
+
+```bash
+# Override provider for all tasks
+export AGDD_PROVIDER=openai           # Use OpenAI for all tasks
+export AGDD_PROVIDER=anthropic        # Use Anthropic (Claude) for all tasks
+export AGDD_PROVIDER=google           # Use Google (Gemini) for all tasks
+export AGDD_PROVIDER=local            # Use local LLM server
+export AGDD_PROVIDER=compat           # Use OpenAI-compatible provider
+
+# Optional: Override model for all tasks
+export AGDD_MODEL=gpt-4               # Use GPT-4 (OpenAI)
+export AGDD_MODEL=claude-3-5-sonnet-20241022  # Use Claude Sonnet (Anthropic)
+export AGDD_MODEL=gemini-1.5-pro      # Use Gemini Pro (Google)
+```
+
+**Supported Provider Values:**
+- `openai` - OpenAI models (GPT-4, GPT-3.5, etc.)
+- `anthropic` - Anthropic Claude models
+- `google` - Google Gemini models
+- `local` - Local LLM server (vLLM, Ollama)
+- `compat` - OpenAI-compatible providers
+
+**How It Works:**
+1. If `AGDD_PROVIDER` is set, it overrides the provider specified in routing policies for all tasks
+2. If `AGDD_MODEL` is set, it overrides the model specified in routing policies for all tasks
+3. Explicit overrides in agent code take precedence over environment variables
+4. If neither environment variable is set, routing policies are used as defined
+
+**Use Cases:**
+- **Testing**: Quickly test agents with different providers without modifying code
+- **Development**: Use cheaper models (e.g., `gpt-4o-mini`) during development
+- **Staging**: Validate behavior with production models before deployment
+- **Multi-tenant**: Different deployments use different providers via environment configuration
+
+**Example Configurations:**
+
+```bash
+# Development: Use fast, cheap models
+export AGDD_PROVIDER=openai
+export AGDD_MODEL=gpt-4o-mini
+
+# Production: Use high-quality models
+export AGDD_PROVIDER=anthropic
+export AGDD_MODEL=claude-3-5-sonnet-20241022
+
+# Local/Offline: Use self-hosted models
+export AGDD_PROVIDER=local
+export AGDD_MODEL=llama3.1:70b
+export AGDD_LOCAL_LLM_BASE_URL=http://localhost:8000/v1/
+
+# Testing: Override just the provider, keep policy-defined models
+export AGDD_PROVIDER=openai
+# AGDD_MODEL not set - uses models from routing policy
+```
+
+**Priority Order (highest to lowest):**
+1. Explicit overrides in agent code (e.g., `llm_overrides` in context)
+2. Environment variables (`AGDD_PROVIDER`, `AGDD_MODEL`)
+3. Routing policy configuration (YAML files)
+4. Default fallback (if routing policy has no matching route)
 
 ### Model Selection in Agent Code
 

@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .types import AgentEndpoint, AgentIdentity, AgentMetadata, Capability
+from .types import A2A_SCHEMA_VERSION, AgentEndpoint, AgentIdentity, AgentMetadata, Capability
 
 
 class AgentCard(BaseModel):
@@ -21,9 +21,35 @@ class AgentCard(BaseModel):
 
     Combines identity, capabilities, endpoints, and metadata into a single
     transferable object for agent discovery and registration.
+
+    Schema Version: 1.0.0
+
+    Required Fields:
+    - identity: Agent identity information (agent_id, name, version)
+
+    Optional Fields:
+    - capabilities: List of capabilities/methods offered (default: [])
+    - endpoints: Communication endpoints (default: [])
+    - metadata: Extended metadata (default: None)
+    - schema_version: A2A protocol schema version (default: current version)
+    - signature: Digital signature for verification (default: None)
+
+    Backward Compatibility:
+    - Adding new optional fields: Minor version bump
+    - Removing fields or changing types: Major version bump
+    - Clients should ignore unknown fields for forward compatibility
     """
 
+    # Protocol schema version
+    schema_version: str = Field(
+        default=A2A_SCHEMA_VERSION,
+        description="A2A protocol schema version (SemVer format)",
+    )
+
+    # Required fields
     identity: AgentIdentity = Field(..., description="Agent identity information")
+
+    # Optional fields
     capabilities: list[Capability] = Field(
         default_factory=list, description="List of capabilities/methods offered"
     )

@@ -4,6 +4,20 @@ A2A Protocol Types - JSON-RPC 2.0 compliant message types.
 This module defines core types for Agent-to-Agent (A2A) communication
 following the JSON-RPC 2.0 specification with extensions for agent metadata,
 discovery, and authentication/authorization hooks.
+
+## Protocol Versioning
+
+A2A protocol types follow semantic versioning (SemVer) for schema evolution:
+
+**Schema Version**: 1.0.0
+
+**Backward Compatibility Policy**:
+- **Adding optional fields**: Minor version bump (e.g., 1.0.0 -> 1.1.0)
+- **Removing fields**: Major version bump (e.g., 1.0.0 -> 2.0.0)
+- **Changing field types**: Major version bump (e.g., 1.0.0 -> 2.0.0)
+- **Bug fixes/clarifications**: Patch version bump (e.g., 1.0.0 -> 1.0.1)
+
+Clients should ignore unknown fields for forward compatibility.
 """
 
 from __future__ import annotations
@@ -11,6 +25,9 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# A2A Protocol Schema Version
+A2A_SCHEMA_VERSION = "1.0.0"
 
 
 # JSON-RPC 2.0 Core Types

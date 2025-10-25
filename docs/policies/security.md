@@ -4,6 +4,7 @@ last_synced: 2025-10-24
 description: Security considerations, vulnerability reporting, and production deployment guidelines
 change_log:
   - 2025-10-24: Added front-matter and rate limiting production recommendations
+  - 2025-10-24: Added production deployment checklist and rate limiting defaults
 ---
 
 # Security Policy
@@ -106,6 +107,81 @@ export AGDD_REDIS_URL=redis://localhost:6379
 - Monitor security advisories for dependencies
 - Review `pyproject.toml` for any pinned vulnerable versions
 - Run `uv sync --upgrade` periodically to get security patches
+
+## Production Deployment Checklist
+
+Before deploying AGDD to production, ensure the following security measures are in place:
+
+### Required Environment Variables
+
+- [ ] **`AGDD_API_KEY`**: Set a strong API key (generate with `openssl rand -hex 32`)
+- [ ] **`AGDD_CORS_ORIGINS`**: Configure with your actual frontend/client domains (no wildcard `["*"]`)
+- [ ] **`AGDD_API_DEBUG`**: Set to `false` (disable debug mode and hot reload)
+
+### Recommended Environment Variables
+
+- [ ] **`AGDD_RATE_LIMIT_QPS`**: Enable rate limiting (recommended: `10`)
+- [ ] **`AGDD_REDIS_URL`**: Configure Redis for distributed rate limiting in multi-instance deployments
+- [ ] **`AGDD_GITHUB_WEBHOOK_SECRET`**: Set if using GitHub webhooks (generate with `openssl rand -hex 32`)
+- [ ] **`AGDD_OTEL_TRACING_ENABLED`**: Enable observability for production monitoring
+- [ ] **`AGDD_OTLP_ENDPOINT`**: Configure OpenTelemetry collector endpoint
+
+### Infrastructure Requirements
+
+- [ ] **HTTPS/TLS**: Deploy behind HTTPS with valid SSL/TLS certificates (TLS 1.2+)
+- [ ] **Reverse Proxy**: Use nginx, Caddy, or similar for additional security layers
+- [ ] **Firewall Rules**: Restrict API access to known client IPs/networks
+- [ ] **Filesystem Permissions**: Ensure `.runs/` directory has appropriate permissions (read/write for API user only)
+
+### Rate Limiting Behavior
+
+**Default (in-memory)**:
+- Rate limiting state is stored in process memory
+- Suitable for single-process deployments
+- Resets on application restart
+
+**Redis-backed (distributed)**:
+- Rate limiting state is shared across all API instances
+- Suitable for multi-process/multi-instance deployments
+- **Fail-open behavior**: If Redis connection fails, rate limiting falls back to in-memory mode
+  - Logs warning: `"Redis unavailable, using in-memory rate limiter"`
+  - Application continues to operate with degraded rate limiting
+  - Reconnects automatically when Redis becomes available
+
+**Configuration Example**:
+```bash
+# Single-instance deployment (in-memory)
+export AGDD_RATE_LIMIT_QPS=10
+
+# Multi-instance deployment (Redis-backed)
+export AGDD_RATE_LIMIT_QPS=10
+export AGDD_REDIS_URL=redis://localhost:6379
+```
+
+### Secret Management
+
+- [ ] Never commit `.env` files or secrets to version control
+- [ ] Use environment-specific secret management (AWS Secrets Manager, Vault, etc.)
+- [ ] Rotate API keys and webhook secrets periodically (at least quarterly)
+- [ ] Use different secrets for development, staging, and production
+
+### Monitoring and Logging
+
+- [ ] Enable OpenTelemetry tracing for distributed request tracking
+- [ ] Configure log aggregation (ELK, Datadog, etc.)
+- [ ] Set up alerts for rate limit violations, authentication failures, and errors
+- [ ] Monitor `.runs/` directory disk usage and implement retention policies
+
+### Deployment Validation
+
+After deployment, verify:
+
+- [ ] Authentication is enforced (test with missing/invalid API key)
+- [ ] Rate limiting is active (test with burst requests)
+- [ ] CORS is correctly configured (test from browser client)
+- [ ] HTTPS is enforced (no HTTP fallback)
+- [ ] Webhook signature verification is working (if using GitHub integration)
+- [ ] Observability data is flowing to monitoring systems
 
 ## Security Best Practices
 

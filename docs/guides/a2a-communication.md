@@ -5,6 +5,7 @@ source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main
 description: MAG/SAG orchestration patterns and delegation workflows
 change_log:
   - 2025-10-24: Added front-matter and SSOT reference for agent patterns
+  - 2025-10-24: Added protocol versioning and backward compatibility policy
 ---
 
 # Agent-to-Agent (A2A) Communication
@@ -106,6 +107,114 @@ class Result:
     output: dict          # Structured output (contract-compliant)
     metrics: dict         # Performance metrics
     error: str | None     # Error message if status="failure"
+```
+
+## Protocol Versioning
+
+The A2A protocol follows semantic versioning (SemVer) to ensure backward compatibility and safe schema evolution.
+
+### Schema Version
+
+**Current Version**: `1.0.0`
+
+All A2A protocol types (AgentCard, JSON-RPC messages, etc.) include versioning information to enable protocol evolution without breaking existing integrations.
+
+### AgentCard Schema
+
+AgentCard includes a `schema_version` field (default: current version):
+
+```python
+from agdd.protocols.a2a import AgentCard, AgentIdentity
+
+card = AgentCard(
+    schema_version="1.0.0",  # Optional, defaults to current version
+    identity=AgentIdentity(
+        agent_id="offer-orchestrator-mag",
+        name="Offer Orchestrator",
+        version="1.2.0"  # Agent version (separate from protocol version)
+    ),
+    capabilities=[...],
+    endpoints=[...]
+)
+```
+
+**Note**: `schema_version` refers to the A2A protocol schema version, while `identity.version` refers to the agent implementation version.
+
+### Required vs Optional Fields
+
+**AgentCard - Required Fields:**
+- `identity` (AgentIdentity): Agent identification
+  - `identity.agent_id` (str): Unique agent identifier
+  - `identity.name` (str): Human-readable name
+  - `identity.version` (str): Agent version (SemVer recommended)
+
+**AgentCard - Optional Fields:**
+- `schema_version` (str): Protocol version (default: current)
+- `capabilities` (list): Agent capabilities (default: [])
+- `endpoints` (list): Communication endpoints (default: [])
+- `metadata` (AgentMetadata): Extended metadata (default: None)
+- `signature` (str): Digital signature (default: None)
+
+### Backward Compatibility Policy
+
+The A2A protocol follows these evolution rules:
+
+| Change Type | Version Bump | Example |
+|-------------|--------------|---------|
+| Add optional field | Minor (1.0.0 → 1.1.0) | Add new metadata field |
+| Deprecate field | Minor (1.0.0 → 1.1.0) | Mark field as deprecated |
+| Remove field | Major (1.0.0 → 2.0.0) | Remove deprecated field |
+| Change field type | Major (1.0.0 → 2.0.0) | Change `str` to `int` |
+| Bug fix/clarification | Patch (1.0.0 → 1.0.1) | Fix documentation |
+
+**Forward Compatibility:**
+- Clients MUST ignore unknown fields when parsing protocol messages
+- Servers MAY accept messages with missing optional fields
+- Servers MUST reject messages missing required fields
+
+**Version Negotiation:**
+- Agents advertise their protocol version in AgentCard
+- Clients can inspect `schema_version` before interacting
+- Major version mismatches require explicit handling
+
+### Migration Guidelines
+
+When the protocol version changes:
+
+**Minor Version (1.0.0 → 1.1.0):**
+- No action required for existing agents
+- New features available via optional fields
+- Clients ignore unknown fields automatically
+
+**Major Version (1.0.0 → 2.0.0):**
+- Review breaking changes in CHANGELOG
+- Update agent implementations before upgrading
+- Consider running both versions during transition
+- Use version-specific routing if needed
+
+### Example: Version-Aware Client
+
+```python
+from agdd.protocols.a2a import AgentCard
+
+def can_interact(card: AgentCard) -> bool:
+    """Check if client can interact with agent based on protocol version."""
+    major, minor, patch = card.schema_version.split(".")
+
+    # Accept same major version (backward compatible within major)
+    if int(major) == 1:
+        return True
+
+    # Reject incompatible major versions
+    return False
+
+# Usage
+if can_interact(agent_card):
+    # Safe to interact
+    response = send_request(agent_card, request)
+else:
+    # Incompatible protocol version
+    logger.warning(f"Protocol version {agent_card.schema_version} not supported")
 ```
 
 ## MAG Implementation Pattern

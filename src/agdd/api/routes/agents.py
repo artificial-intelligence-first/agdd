@@ -102,10 +102,15 @@ async def run_agent(
     before = snapshot_runs(base)
     started_at = time.time()
 
+    # Create context to receive run_id from invoke_mag
+    context: dict[str, Any] = {}
+
     # Execute agent in thread pool (invoke_mag is blocking)
-    # Pass base_dir to ensure consistency between execution and tracking
+    # Pass base_dir and context to ensure run_id is returned
     try:
-        output: dict[str, Any] = await to_thread.run_sync(invoke_mag, slug, req.payload, base)
+        output: dict[str, Any] = await to_thread.run_sync(
+            invoke_mag, slug, req.payload, base, context
+        )
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -127,14 +132,16 @@ async def run_agent(
             detail={"code": "internal_error", "message": "Unexpected error during execution"},
         ) from e
 
-    # Try to extract run_id from output (future compatibility)
-    run_id: str | None = None
-    if isinstance(output, dict):
+    # Extract run_id from context (primary method)
+    run_id: str | None = context.get("run_id")
+
+    # Fallback: Try to extract run_id from output
+    if run_id is None and isinstance(output, dict):
         possible_run_id = output.get("run_id")
         if isinstance(possible_run_id, str):
             run_id = possible_run_id
 
-    # Fallback: Find run_id from filesystem
+    # Secondary fallback: Find run_id from filesystem
     if run_id is None:
         run_id = find_new_run_id(base, before, slug, started_at)
 
