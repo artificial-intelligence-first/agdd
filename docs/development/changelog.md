@@ -130,7 +130,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Phase 3: API and Documentation Corrections**
-  - Fixed authentication error response format to match documented schema (`{"code": "unauthorized", "message": "..."}`)
+  - Implemented custom HTTPException handler to ensure all API errors return ApiError schema format
+    - Converts FastAPI's `{"detail": ...}` wrapper to documented `{"code": "...", "message": "..."}` format
+    - Maps HTTP status codes to appropriate error codes (401→unauthorized, 404→not_found, etc.)
+    - Supports both dict and string exception details with automatic conversion
+  - Fixed authentication error response format to match documented schema
   - Corrected run ID format examples throughout API documentation
   - Added missing CLI commands (flow validate/run, data management) to documentation
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
