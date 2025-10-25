@@ -86,6 +86,38 @@ class CostOptimizer:
     - Batching configuration
     """
 
+    # Model tier base costs (USD per request, worst case without caching)
+    BASE_COSTS = {
+        ModelTier.LOCAL: 0.0,
+        ModelTier.MINI: 0.002,
+        ModelTier.STANDARD: 0.01,
+        ModelTier.PREMIUM: 0.03,
+    }
+
+    # Model tier quality capabilities (estimated)
+    TIER_QUALITY = {
+        ModelTier.LOCAL: 0.5,
+        ModelTier.MINI: 0.8,
+        ModelTier.STANDARD: 0.9,
+        ModelTier.PREMIUM: 0.95,
+    }
+
+    # Model tier base latencies (milliseconds)
+    BASE_LATENCIES_MS = {
+        ModelTier.LOCAL: 500,
+        ModelTier.MINI: 1000,
+        ModelTier.STANDARD: 2000,
+        ModelTier.PREMIUM: 3000,
+    }
+
+    # Cache strategy cost multipliers
+    CACHE_AGGRESSIVE_MULTIPLIER = 0.3  # 70% discount
+    CACHE_CONSERVATIVE_MULTIPLIER = 0.6  # 40% discount
+
+    # Latency adjustments
+    BATCH_MODE_OVERHEAD_MS = 5000
+    REALTIME_MODE_MULTIPLIER = 0.8
+
     def __init__(self, policy_path: Optional[Path] = None) -> None:
         """
         Initialize the cost optimizer.
@@ -207,23 +239,6 @@ class CostOptimizer:
         Cost is estimated without caching (worst case) to ensure
         the budget is respected even if caching is disabled.
         """
-        # Base costs without caching (worst case for budget compliance)
-        base_costs = {
-            ModelTier.LOCAL: 0.0,
-            ModelTier.MINI: 0.002,
-            ModelTier.STANDARD: 0.01,
-            ModelTier.PREMIUM: 0.03,
-        }
-
-        # Tier quality capabilities (estimated)
-        # These represent the typical quality level each tier can achieve
-        tier_quality = {
-            ModelTier.LOCAL: 0.5,
-            ModelTier.MINI: 0.8,
-            ModelTier.STANDARD: 0.9,
-            ModelTier.PREMIUM: 0.95,
-        }
-
         # All tiers in cost priority order
         all_tiers = [
             ModelTier.LOCAL,
@@ -234,13 +249,13 @@ class CostOptimizer:
 
         # Filter by budget (if specified)
         if sla.max_cost_usd is not None:
-            affordable = [t for t in all_tiers if base_costs[t] <= sla.max_cost_usd]
+            affordable = [t for t in all_tiers if self.BASE_COSTS[t] <= sla.max_cost_usd]
         else:
             affordable = all_tiers
 
         # Among affordable tiers, find the cheapest one that meets quality
         for tier in affordable:
-            if tier_quality[tier] >= sla.min_quality:
+            if self.TIER_QUALITY[tier] >= sla.min_quality:
                 return tier
 
         # No affordable tier meets quality - decide which constraint to violate
@@ -252,7 +267,7 @@ class CostOptimizer:
 
         # Quality constraint is strict - return cheapest tier that meets quality
         for tier in all_tiers:
-            if tier_quality[tier] >= sla.min_quality:
+            if self.TIER_QUALITY[tier] >= sla.min_quality:
                 return tier
 
         # No tier meets quality requirement - return LOCAL (cheapest)
@@ -275,20 +290,13 @@ class CostOptimizer:
 
     def _estimate_cost(self, model_tier: ModelTier, cache_strategy: CacheStrategy) -> float:
         """Estimate cost per request in USD."""
-        base_costs = {
-            ModelTier.LOCAL: 0.0,
-            ModelTier.MINI: 0.002,
-            ModelTier.STANDARD: 0.01,
-            ModelTier.PREMIUM: 0.03,
-        }
-
-        base_cost = base_costs[model_tier]
+        base_cost = self.BASE_COSTS[model_tier]
 
         # Apply cache discount
         if cache_strategy == CacheStrategy.AGGRESSIVE:
-            return base_cost * 0.3
+            return base_cost * self.CACHE_AGGRESSIVE_MULTIPLIER
         elif cache_strategy == CacheStrategy.CONSERVATIVE:
-            return base_cost * 0.6
+            return base_cost * self.CACHE_CONSERVATIVE_MULTIPLIER
 
         return base_cost
 
@@ -296,22 +304,15 @@ class CostOptimizer:
         self, mode: ExecutionMode, model_tier: ModelTier, enable_batch: bool
     ) -> int:
         """Estimate latency in milliseconds."""
-        base_latencies = {
-            ModelTier.LOCAL: 500,
-            ModelTier.MINI: 1000,
-            ModelTier.STANDARD: 2000,
-            ModelTier.PREMIUM: 3000,
-        }
-
-        latency = base_latencies[model_tier]
+        latency = self.BASE_LATENCIES_MS[model_tier]
 
         # Batch mode adds overhead
         if enable_batch:
-            latency += 5000
+            latency += self.BATCH_MODE_OVERHEAD_MS
 
         # Realtime mode is optimized
         if mode == ExecutionMode.REALTIME:
-            latency = int(latency * 0.8)
+            latency = int(latency * self.REALTIME_MODE_MULTIPLIER)
 
         return latency
 

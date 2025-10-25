@@ -1,9 +1,10 @@
 ---
 title: Agent Development Guide
-last_synced: 2025-10-24
+last_synced: 2025-10-25
 source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md
 description: Operational guidance for AGDD agent development, testing, and deployment
 change_log:
+  - 2025-10-25: Phase 3 - Added complete CLI reference (flow validate/run, data management commands)
   - 2025-10-24: Added SSOT reference and front-matter
 ---
 
@@ -115,9 +116,38 @@ uv run -m pytest tests/integration/ -v
 
 - When Flow Runner is installed:
   ```bash
+  # List available flow commands
   uv run agdd flow available
-  uv run agdd flow summarize [--output <path>]
+
+  # Validate flow definition
+  uv run agdd flow validate <flow.yaml> [--schema <schema-path>]
+
+  # Execute flow (with optional dry-run, step selection, or resume)
+  uv run agdd flow run <flow.yaml> [--dry-run] [--only <step>] [--continue-from <step>]
+
+  # Summarize flow execution results
+  uv run agdd flow summarize [--base .runs] [--output <path>]
+
+  # Apply governance policy to flow summary
   uv run agdd flow gate <summary.json> --policy catalog/policies/flow_governance.yaml
+  ```
+
+- Data management and observability:
+  ```bash
+  # Initialize storage backend (SQLite or PostgreSQL)
+  uv run agdd data init [--backend sqlite|postgres] [--db-path .agdd/storage.db] [--fts/--no-fts]
+
+  # Query run data with filters
+  uv run agdd data query [--run-id <id>] [--agent <slug>] [--status <status>] [--limit 10]
+
+  # Full-text search across run data (requires FTS5)
+  uv run agdd data search "<query>" [--agent <slug>] [--limit 100]
+
+  # Vacuum old run data (with dry-run preview)
+  uv run agdd data vacuum [--hot-days 7] [--max-disk <mb>] [--dry-run]
+
+  # Archive run data to cold storage
+  uv run agdd data archive <s3://bucket/prefix> [--since 7] [--format parquet|ndjson]
   ```
 
 ## Running Agents via HTTP API

@@ -17,7 +17,8 @@ def test_get_run_not_found() -> None:
     response = client.get("/api/v1/runs/nonexistent-run-id")
     assert response.status_code == 404
     error = response.json()
-    assert "detail" in error
+    assert "code" in error
+    assert error["code"] == "not_found"
 
 
 def test_get_logs_not_found() -> None:

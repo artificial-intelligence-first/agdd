@@ -1,8 +1,10 @@
 ---
 title: AGDD HTTP API Reference
-last_synced: 2025-10-24
+last_synced: 2025-10-25
 description: Complete reference for AGDD FastAPI endpoints, authentication, and observability
 change_log:
+  - 2025-10-25: Phase 3 - Fixed authentication error response format to match documented schema
+  - 2025-10-25: Phase 3 - Updated run ID examples to use correct format (mag-{8-char-hex})
   - 2025-10-24: Added front-matter and SSE/NDJSON contract specifications
   - 2025-10-24: Added run_id format specification and retrieval documentation
 ---
@@ -107,12 +109,12 @@ Executes a main agent (MAG) and returns its output plus run metadata.
 
 ```json
 {
-  "run_id": "mag-20240101-abcdef",
+  "run_id": "mag-a1b2c3d4",
   "slug": "offer-orchestrator-mag",
   "output": {"offer": {"role": "Senior Engineer"}},
   "artifacts": {
-    "summary": "/api/v1/runs/mag-20240101-abcdef",
-    "logs": "/api/v1/runs/mag-20240101-abcdef/logs"
+    "summary": "/api/v1/runs/mag-a1b2c3d4",
+    "logs": "/api/v1/runs/mag-a1b2c3d4/logs"
   }
 }
 ```
@@ -161,8 +163,8 @@ Streams newline-delimited logs.
 - Connection closes after all data sent
 - Example:
   ```ndjson
-  {"run_id":"mag-123","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
-  {"run_id":"mag-123","event":"delegation","timestamp":1698765432.5,"data":{"sag":"advisor"},"span_id":"span-def","parent_span_id":"span-abc"}
+  {"run_id":"mag-a1b2c3d4","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
+  {"run_id":"mag-a1b2c3d4","event":"delegation","timestamp":1698765432.5,"data":{"sag":"advisor"},"span_id":"span-def","parent_span_id":"span-abc"}
   ```
 
 **SSE Mode** (`follow=true`, Content-Type: `text/event-stream`):
@@ -173,9 +175,9 @@ Streams newline-delimited logs.
 - Client should handle reconnection on disconnect
 - Example:
   ```
-  data: {"run_id":"mag-123","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
+  data: {"run_id":"mag-a1b2c3d4","event":"start","timestamp":1698765432.1,"data":{},"span_id":"span-abc"}
 
-  data: {"run_id":"mag-123","event":"progress","timestamp":1698765433.2,"data":{"step":1},"span_id":"span-abc"}
+  data: {"run_id":"mag-a1b2c3d4","event":"progress","timestamp":1698765433.2,"data":{"step":1},"span_id":"span-abc"}
 
   ```
 
@@ -249,7 +251,7 @@ curl -sS -X POST \
   "$API_URL/api/v1/agents/offer-orchestrator-mag/run"
 
 # Tail logs
-RUN_ID="mag-20240101-abcdef"
+RUN_ID="mag-a1b2c3d4"
 curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
   "$API_URL/api/v1/runs/$RUN_ID/logs?tail=20"
 
