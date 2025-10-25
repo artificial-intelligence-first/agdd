@@ -46,6 +46,16 @@ from agdd.mcp.tool import (
     MCPToolSchema,
 )
 
+# Server provider is optional (requires mcp SDK)
+try:
+    from agdd.mcp.server_provider import AGDDMCPServer, create_server
+
+    HAS_SERVER_PROVIDER = True
+except ImportError:
+    AGDDMCPServer = None  # type: ignore
+    create_server = None  # type: ignore
+    HAS_SERVER_PROVIDER = False
+
 __all__ = [
     # Configuration
     "MCPServerConfig",
@@ -65,4 +75,8 @@ __all__ = [
     "MCPToolSchema",
     "MCPToolParameter",
     "MCPToolResult",
+    # Server provider (optional)
+    "AGDDMCPServer",
+    "create_server",
+    "HAS_SERVER_PROVIDER",
 ]

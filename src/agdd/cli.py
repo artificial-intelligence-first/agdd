@@ -16,6 +16,7 @@ app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
 agent_app = typer.Typer(help="Agent orchestration commands")
 data_app = typer.Typer(help="Data management commands")
+mcp_app = typer.Typer(help="Model Context Protocol server commands")
 
 
 @flow_app.command("available")
@@ -269,9 +270,73 @@ def data_search(
     asyncio.run(_search())
 
 
+@mcp_app.command("serve")
+def mcp_serve(
+    agents: bool = typer.Option(True, "--agents/--no-agents", help="Expose agents as MCP tools"),
+    skills: bool = typer.Option(False, "--skills/--no-skills", help="Expose skills as MCP tools"),
+    agent_filter: Optional[str] = typer.Option(
+        None, "--filter-agents", help="Comma-separated list of agent slugs to expose"
+    ),
+    skill_filter: Optional[str] = typer.Option(
+        None, "--filter-skills", help="Comma-separated list of skill IDs to expose"
+    ),
+) -> None:
+    """Start AGDD as an MCP server exposing agents and skills as tools.
+
+    This command starts an MCP server that allows external clients (like Claude Desktop)
+    to invoke AGDD agents and skills through the Model Context Protocol.
+
+    Example Claude Desktop configuration (~/.config/Claude/claude_desktop_config.json):
+
+        {
+          "mcpServers": {
+            "agdd": {
+              "command": "agdd",
+              "args": ["mcp", "serve"]
+            }
+          }
+        }
+
+    To expose specific agents only:
+
+        agdd mcp serve --filter-agents offer-orchestrator-mag,compensation-advisor-sag
+    """
+    try:
+        from agdd.mcp.server_provider import create_server
+    except ImportError as e:
+        typer.echo(
+            "Error: MCP SDK not installed. Install with: pip install mcp",
+            err=True,
+        )
+        raise typer.Exit(1) from e
+
+    # Parse filters
+    agent_list = None
+    if agent_filter:
+        agent_list = [s.strip() for s in agent_filter.split(",")]
+
+    skill_list = None
+    if skill_filter:
+        skill_list = [s.strip() for s in skill_filter.split(",")]
+
+    # Create and run server
+    try:
+        server = create_server(
+            expose_agents=agents,
+            expose_skills=skills,
+            agent_filter=agent_list,
+            skill_filter=skill_list,
+        )
+        server.run(transport="stdio")
+    except Exception as e:
+        typer.echo(f"MCP server failed: {e}", err=True)
+        raise typer.Exit(2)
+
+
 app.add_typer(flow_app, name="flow")
 app.add_typer(agent_app, name="agent")
 app.add_typer(data_app, name="data")
+app.add_typer(mcp_app, name="mcp")
 
 
 if __name__ == "__main__":
