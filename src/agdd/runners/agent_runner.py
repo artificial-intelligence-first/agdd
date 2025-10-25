@@ -442,7 +442,8 @@ class AgentRunner:
         Raises:
             Exception: If execution fails
         """
-        context = context or {}
+        if context is None:
+            context = {}
         run_id = f"mag-{uuid.uuid4().hex[:8]}"
 
         # Write run_id to context for caller retrieval
