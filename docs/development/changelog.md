@@ -130,10 +130,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Phase 3: API and Documentation Corrections**
-  - Implemented custom HTTPException handler to ensure all API errors return ApiError schema format
-    - Converts FastAPI's `{"detail": ...}` wrapper to documented `{"code": "...", "message": "..."}` format
+  - Implemented custom exception handlers to ensure all API errors return ApiError schema format
+    - HTTPException handler: Converts FastAPI's `{"detail": ...}` wrapper to documented `{"code": "...", "message": "..."}` format
+    - RequestValidationError handler: Converts Pydantic validation errors (422) to ApiError schema (400)
     - Maps HTTP status codes to appropriate error codes (401→unauthorized, 404→not_found, etc.)
     - Supports both dict and string exception details with automatic conversion
+    - Includes validation error details for debugging malformed requests
   - Fixed authentication error response format to match documented schema
   - Corrected run ID format examples throughout API documentation
   - Added missing CLI commands (flow validate/run, data management) to documentation
