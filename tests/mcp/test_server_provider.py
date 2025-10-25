@@ -6,12 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Check if mcp package is available
+# Import HAS_MCP_SDK from server_provider to check if FastMCP is actually available
 try:
-    import mcp  # noqa: F401
-
-    HAS_MCP_SDK = True
+    from agdd.mcp.server_provider import HAS_MCP_SDK
 except ImportError:
+    # server_provider module itself couldn't be imported
     HAS_MCP_SDK = False
 
 
@@ -278,6 +277,8 @@ def test_import_without_mcp_sdk() -> None:
 def test_server_provider_in_init() -> None:
     """Test that server provider is available in agdd.mcp module."""
     from agdd.mcp import HAS_SERVER_PROVIDER, create_server
+    from agdd.mcp.server_provider import HAS_MCP_SDK as PROVIDER_HAS_SDK
 
     assert HAS_SERVER_PROVIDER is True
+    assert PROVIDER_HAS_SDK is True
     assert create_server is not None
