@@ -35,7 +35,7 @@ async def require_api_key(
     if token != settings.API_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key",
+            detail={"code": "unauthorized", "message": "Invalid API key"},
         )
 
 

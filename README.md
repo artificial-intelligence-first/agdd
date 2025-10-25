@@ -207,10 +207,49 @@ agdd/
 git clone https://github.com/artificial-intelligence-first/agdd.git
 cd agdd
 cp .env.example .env  # customize API credentials and rate limits
+
+# Minimal installation (core dependencies only)
 uv sync
-uv sync --extra dev  # recommended for tests, linting, and typing
-uv run -m pytest -q  # verify installation
+
+# Development installation (recommended - includes testing, linting, type checking)
+uv sync --extra dev
+
+# Verify installation
+uv run -m pytest -q
 ```
+
+#### Optional Features
+
+Install additional features as needed:
+
+```bash
+# Semantic cache with FAISS (vector similarity search)
+uv sync --extra cache --extra faiss
+
+# Distributed rate limiting and Redis-backed cache
+uv sync --extra redis
+
+# PostgreSQL/TimescaleDB storage backend (production deployments)
+uv sync --extra postgres
+
+# Google AI provider (Gemini models)
+uv sync --extra google
+
+# Observability with OpenTelemetry and Langfuse
+uv sync --extra observability
+
+# Full installation (all optional features)
+uv sync --extra dev --extra cache --extra faiss --extra redis --extra postgres --extra google --extra observability
+```
+
+**When to use each extra:**
+- `dev`: Required for development, testing, and code quality checks
+- `cache`: Required for semantic caching (provides numpy for embeddings)
+- `faiss`: Required for FAISS-based vector similarity search (local semantic cache)
+- `redis`: Required for distributed rate limiting and Redis-based vector cache
+- `postgres`: Required for PostgreSQL/TimescaleDB storage backend (production deployments)
+- `google`: Required for Google Gemini provider (google-generativeai and google-genai)
+- `observability`: Required for distributed tracing with OpenTelemetry and Langfuse integration
 
 ### Basic Usage
 

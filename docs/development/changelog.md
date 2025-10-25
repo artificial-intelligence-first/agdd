@@ -1,9 +1,10 @@
 ---
 title: Changelog
-last_synced: 2025-10-24
+last_synced: 2025-10-25
 source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/CHANGELOG.md
 description: Version history following Keep a Changelog format
 change_log:
+  - 2025-10-25: Phase 3 - Added Phase 2 and Phase 3 changes to Unreleased section
   - 2025-10-24: Added front-matter and SSOT changelog reference
 ---
 
@@ -18,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- **Phase 2: Unified Execution and Provider Management**
+  - Unified provider selection via `AGDD_PROVIDER` environment variable for consistent model routing
+  - Run ID (`run_id`) in API response for improved observability and run tracking
+  - A2A protocol versioning with backward compatibility policy
+  - Production deployment checklist in security documentation (`docs/policies/security.md`)
+  - Redis fail-open behavior documentation for rate limiting resilience
+- **Phase 3: Documentation and Code Quality**
+  - Complete documentation for optional installation extras in README.md (cache, faiss, redis, postgres, google, observability)
+  - Comprehensive CLI reference in agent-development.md (flow validate/run, data init/query/search/vacuum/archive)
 - **Pluggable Storage Layer (Phase 1)**
   - Storage abstraction layer (`agdd.storage`) with capability-based backend interface
   - Event envelope data model with strongly-typed common fields + flexible JSON payloads
@@ -80,6 +90,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive documentation (`docs/guides/api-usage.md`, `docs/guides/github-integration.md`) and `.env.example` template
 
 ### Changed
+- **Phase 2: Consolidated Execution Paths**
+  - Unified execution boundary through `invoke_mag` preserving caller context references
+  - Improved rate limiting documentation with Redis fail-open behavior and distributed deployment guidance
+- **Phase 3: Code Quality and Documentation Synchronization**
+  - Consolidated duplicate cost/latency/quality dictionaries in `CostOptimizer` to class-level constants (reduced code duplication)
+  - Updated all API documentation run ID examples to use correct format (`mag-{8-char-hex}`)
+  - Synchronized CLI documentation with implementation (added missing flow and data commands)
+  - Updated front-matter dates and change logs for all modified documentation files
 - **Repository Cleanup**: Removed deprecated agent directories (`offer-orchestrator`, `compensation-advisor`) in favor of standardized `-mag`/`-sag` naming convention
 - **Registry Updates**: Updated `catalog/registry/agents.yaml` to reference only current agent implementations
 - **Build Artifacts**: Cleaned up Python cache files (`__pycache__`, `*.pyc`) and build artifacts (`.egg-info`)
@@ -111,6 +129,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manual Flow Runner setup script `ops/tools/flowrunner_env.sh` (replaced by automated `ops/scripts/setup-flowrunner.sh`)
 
 ### Fixed
+- **Phase 3: API and Documentation Corrections**
+  - Fixed authentication error response format to match documented schema (`{"code": "unauthorized", "message": "..."}`)
+  - Corrected run ID format examples throughout API documentation
+  - Added missing CLI commands (flow validate/run, data management) to documentation
 - Restored Typer CLI `run` command compatibility with positional text arguments while keeping the `--text` option override
 - Corrected registry A/B variant to reference an existing AG-Driven Development (AGDD) main agent descriptor
 - Ensured wheel builds include bundled schemas and policies so CLI commands succeed after installation
