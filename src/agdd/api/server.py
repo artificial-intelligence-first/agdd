@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from typing import Awaitable, Callable
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException as FastAPIHTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import Settings, get_settings
 from .routes import agents, github, runs
@@ -61,8 +62,11 @@ async def enforce_request_size(
     return response
 
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+@app.exception_handler(FastAPIHTTPException)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(
+    request: Request, exc: FastAPIHTTPException | StarletteHTTPException
+) -> JSONResponse:
     """
     Convert HTTPException to ApiError schema format.
 
@@ -75,7 +79,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
         return JSONResponse(
             status_code=exc.status_code,
             content=exc.detail,
-            headers=exc.headers,
+            headers=getattr(exc, "headers", None),
         )
 
     # Otherwise convert string detail to ApiError format
@@ -83,8 +87,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     code_map = {
         400: "invalid_payload",
         401: "unauthorized",
-        403: "unauthorized",
+        403: "forbidden",
         404: "not_found",
+        405: "method_not_allowed",
         413: "invalid_payload",
         429: "rate_limit_exceeded",
         500: "internal_error",
@@ -96,7 +101,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
             "code": code_map.get(exc.status_code, "internal_error"),
             "message": str(exc.detail),
         },
-        headers=exc.headers,
+        headers=getattr(exc, "headers", None),
     )
 
 
@@ -117,7 +122,6 @@ async def validation_exception_handler(
 
     # Build human-readable message from first error
     field = " -> ".join(str(loc) for loc in first_error.get("loc", []))
-    error_type = first_error.get("type", "validation_error")
     error_msg = first_error.get("msg", "Validation error")
 
     message = f"Validation error: {field}: {error_msg}" if field else error_msg

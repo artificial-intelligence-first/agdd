@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -76,7 +77,7 @@ class LocalLLMProvider:
         compat_close = getattr(self._compat_provider, "close", None)
         if compat_close is None:
             return
-        if asyncio.iscoroutinefunction(compat_close):
+        if inspect.iscoroutinefunction(compat_close):
             async def _close_async() -> None:
                 await compat_close()
 

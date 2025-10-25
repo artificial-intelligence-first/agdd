@@ -4,6 +4,7 @@ last_synced: 2025-10-25
 source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/CHANGELOG.md
 description: Version history following Keep a Changelog format
 change_log:
+  - 2025-10-25: Cleanup - Removed legacy observability wrappers and fixed linting issues
   - 2025-10-25: Phase 3 - Added Phase 2 and Phase 3 changes to Unreleased section
   - 2025-10-24: Added front-matter and SSOT changelog reference
 ---
@@ -19,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- **Cleanup and Technical Debt Reduction (2025-10-25)**
+  - Removed unused `error_type` variable from API server exception handler
+  - Added integration tests for API error handling consistency
+  - Added `find_project_root()` utility function to replace fragile `.parents[N]` patterns
+  - Fixed deprecation warning by replacing `asyncio.iscoroutinefunction` with `inspect.iscoroutinefunction`
 - **Phase 2: Unified Execution and Provider Management**
   - Unified provider selection via `AGDD_PROVIDER` environment variable for consistent model routing
   - Run ID (`run_id`) in API response for improved observability and run tracking
@@ -121,6 +127,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All documentation updated to reference automated scripts and Makefile instead of manual procedures
 
 ### Removed
+- **Cleanup and Technical Debt Reduction (2025-10-25)**
+  - Legacy observability wrapper modules (`src/observability/`) that were maintaining backward compatibility
+  - These modules only re-exported from `agdd.observability.*` and are no longer needed
 - Legacy agent directories without standardized naming conventions
 - Temporary verification report (`VERIFICATION_REPORT.md`)
 - Python cache files and build artifacts
