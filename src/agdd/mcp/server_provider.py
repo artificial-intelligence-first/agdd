@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from agdd.registry import Registry
-from agdd.runners.agent_runner import invoke_mag
+from agdd.runners.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,10 @@ class AGDDMCPServer:
 
         # Initialize AGDD registry
         self.registry = Registry(base_path=base_path)
+
+        # Initialize agent runner with custom registry
+        # This ensures agents are loaded from the same catalog used for discovery
+        self.runner = AgentRunner(registry=self.registry)
 
         # Initialize FastMCP server
         self.mcp = FastMCP(name="agdd")
@@ -138,7 +142,10 @@ class AGDDMCPServer:
         description = f"{name} ({role} agent){schema_doc}"
 
         # Register tool using FastMCP decorator pattern
-        # We use a closure to capture the slug
+        # We use a closure to capture slug and runner
+        # Store runner reference to avoid binding issues in closure
+        runner = self.runner
+
         async def agent_runner(payload: dict[str, Any], ctx: Context) -> dict[str, Any]:
             """Execute AGDD agent.
 
@@ -152,15 +159,16 @@ class AGDDMCPServer:
             await ctx.info(f"Executing agent: {slug}")
 
             try:
-                # Run agent synchronously (invoke_mag is sync)
+                # Run agent synchronously using the server's runner instance
+                # This ensures the agent is loaded from the correct catalog
                 loop = asyncio.get_event_loop()
+                context: dict[str, Any] = {}
                 output = await loop.run_in_executor(
                     None,
-                    lambda: invoke_mag(
+                    lambda: runner.invoke_mag(
                         slug=slug,
                         payload=payload,
-                        base_dir=Path(".runs/mcp"),
-                        context={}
+                        context=context
                     )
                 )
 

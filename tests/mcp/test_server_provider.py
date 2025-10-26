@@ -120,7 +120,7 @@ skills:
             # Check that FastMCP server was created
             assert server.mcp is not None
 
-    @patch("agdd.runners.agent_runner.invoke_mag")
+    @patch("agdd.runners.agent_runner.AgentRunner.invoke_mag")
     def test_agent_execution_via_mcp(self, mock_invoke: MagicMock) -> None:
         """Test executing an agent via MCP tool call."""
         from agdd.mcp.server_provider import create_server
@@ -218,6 +218,52 @@ evaluation: {{}}
 
             # Verify filter was applied
             assert server.agent_filter == ["agent-one"]
+
+    def test_runner_uses_server_registry(self) -> None:
+        """Test that the agent runner uses the server's registry."""
+        from agdd.mcp.server_provider import create_server
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_path = Path(tmpdir)
+
+            # Create minimal agent structure
+            agent_dir = base_path / "catalog" / "agents" / "main" / "custom-agent"
+            agent_dir.mkdir(parents=True)
+
+            agent_yaml = agent_dir / "agent.yaml"
+            agent_yaml.write_text(
+                """
+slug: custom-agent
+name: Custom Agent
+role: main
+version: 0.1.0
+entrypoint: code/orchestrator.py:run
+depends_on:
+  sub_agents: []
+  skills: []
+contracts:
+  input_schema: ""
+  output_schema: ""
+risk_class: low
+budgets: {}
+observability: {}
+evaluation: {}
+""".strip()
+            )
+
+            # Create server with custom base_path
+            server = create_server(
+                base_path=base_path,
+                expose_agents=True,
+            )
+
+            # Verify runner's registry matches server's registry
+            assert server.runner.registry is server.registry
+            assert server.runner.registry.base_path == base_path
+
+            # Verify the runner can load the agent from the custom catalog
+            descriptor = server.runner.registry.load_agent("custom-agent")
+            assert descriptor.slug == "custom-agent"
 
     def test_skill_filter_applies(self) -> None:
         """Test that skill filter correctly limits exposed skills."""
