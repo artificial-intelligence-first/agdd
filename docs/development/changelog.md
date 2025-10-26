@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- **MCP Server Provider (2025-10-25)**
+  - MCP server provider (`agdd.mcp.server_provider`) to expose AGDD agents and skills as MCP tools
+  - CLI command `agdd mcp serve` to start AGDD as an MCP server for Claude Desktop and other MCP clients
+  - Support for filtering exposed agents and skills via `--filter-agents` and `--filter-skills` options
+  - FastMCP SDK integration for tool registration and JSON-RPC communication
+  - Optional dependency `mcp-server` extra for MCP SDK (`pip install agdd[mcp-server]`)
+  - Agent execution via MCP with run artifacts stored in `.runs/mcp/`
+  - Comprehensive documentation (`docs/guides/mcp-server.md`) with Claude Desktop configuration examples
+  - Integration tests for MCP server provider
+  - Tool schema generation from agent input/output contracts
 - **Cleanup and Technical Debt Reduction (2025-10-25)**
   - Removed unused `error_type` variable from API server exception handler
   - Added integration tests for API error handling consistency

@@ -38,6 +38,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - Contract Verification: Automated JSON Schema validation
 - CLI Interface: Typer-powered command-line tools
 - HTTP API: FastAPI-powered RESTful API with OpenAPI/Swagger documentation
+- MCP Server: Expose agents as MCP tools for Claude Desktop and other MCP clients
 
 ### Advanced Capabilities
 - Runner Plugins: Pluggable execution engines (Flow Runner included)
@@ -238,14 +239,18 @@ uv sync --extra google
 # Observability with OpenTelemetry and Langfuse
 uv sync --extra observability
 
+# MCP server support (expose agents to Claude Desktop)
+uv sync --extra mcp-server
+
 # Full installation (all optional features)
-uv sync --extra dev --extra cache --extra faiss --extra redis --extra postgres --extra google --extra observability
+uv sync --extra dev --extra cache --extra faiss --extra redis --extra postgres --extra google --extra observability --extra mcp-server
 ```
 
 **When to use each extra:**
 - `dev`: Required for development, testing, and code quality checks
 - `cache`: Required for semantic caching (provides numpy for embeddings)
 - `faiss`: Required for FAISS-based vector similarity search (local semantic cache)
+- `mcp-server`: Required to expose AGDD agents as MCP tools for Claude Desktop
 - `redis`: Required for distributed rate limiting and Redis-based vector cache
 - `postgres`: Required for PostgreSQL/TimescaleDB storage backend (production deployments)
 - `google`: Required for Google Gemini provider (google-generativeai and google-genai)
