@@ -143,12 +143,10 @@ class OpenAIProvider:
             total_cost_usd=prompt_cost + completion_cost,
         )
 
-    def _responses_api_complete(self, request: CompletionRequest) -> CompletionResponse:
-        """Execute request using Responses API"""
-        # Build API parameters - Responses API uses different structure
-        # Convert messages to input format for Responses API
-        input_items = []
-        for msg in request.messages:
+    def _messages_to_responses_input(self, messages: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+        """Convert chat messages to Responses API input items."""
+        input_items: list[Dict[str, Any]] = []
+        for msg in messages:
             input_items.append(
                 {
                     "type": "message",
@@ -156,10 +154,13 @@ class OpenAIProvider:
                     "content": [{"type": "input_text", "text": msg.get("content", "")}],
                 }
             )
+        return input_items
 
+    def _build_responses_params(self, request: CompletionRequest) -> Dict[str, Any]:
+        """Build shared parameters for Responses API requests."""
         params: Dict[str, Any] = {
             "model": request.model,
-            "input": input_items,
+            "input": self._messages_to_responses_input(request.messages),
             "temperature": request.temperature,
             "top_p": request.top_p,
         }
@@ -171,10 +172,43 @@ class OpenAIProvider:
         if not isinstance(request.tool_choice, NotGiven):
             params["tool_choice"] = request.tool_choice
         if not isinstance(request.response_format, NotGiven):
-            # Responses API uses response_format for structured outputs
             params["response_format"] = request.response_format
         if request.metadata:
             params["metadata"] = request.metadata
+
+        return params
+
+    def _build_chat_params(self, request: CompletionRequest, *, stream: bool) -> Dict[str, Any]:
+        """Build shared parameters for Chat Completions API requests."""
+        params: Dict[str, Any] = {
+            "model": request.model,
+            "messages": request.messages,
+            "temperature": request.temperature,
+            "top_p": request.top_p,
+            "frequency_penalty": request.frequency_penalty,
+            "presence_penalty": request.presence_penalty,
+        }
+
+        if stream:
+            params["stream"] = True
+        if request.max_tokens is not None:
+            params["max_tokens"] = request.max_tokens
+        if not isinstance(request.stop, NotGiven):
+            params["stop"] = request.stop
+        if not isinstance(request.tools, NotGiven):
+            params["tools"] = request.tools
+        if not isinstance(request.tool_choice, NotGiven):
+            params["tool_choice"] = request.tool_choice
+        if not isinstance(request.response_format, NotGiven):
+            params["response_format"] = request.response_format
+
+        return params
+
+    def _responses_api_complete(self, request: CompletionRequest) -> CompletionResponse:
+        """Execute request using Responses API"""
+        # Build API parameters - Responses API uses different structure
+        # Convert messages to input format for Responses API
+        params = self._build_responses_params(request)
 
         # Call Responses API
         response = self.client.responses.create(**params)
@@ -236,33 +270,7 @@ class OpenAIProvider:
 
     def _responses_api_stream(self, request: CompletionRequest) -> Iterator[CompletionResponse]:
         """Execute streaming request using Responses API"""
-        # Convert messages to input format
-        input_items = []
-        for msg in request.messages:
-            input_items.append(
-                {
-                    "type": "message",
-                    "role": msg.get("role", "user"),
-                    "content": [{"type": "input_text", "text": msg.get("content", "")}],
-                }
-            )
-
-        params: Dict[str, Any] = {
-            "model": request.model,
-            "input": input_items,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-        }
-
-        if request.max_tokens is not None:
-            params["max_output_tokens"] = request.max_tokens
-        if not isinstance(request.tools, NotGiven):
-            params["tools"] = request.tools
-        if not isinstance(request.tool_choice, NotGiven):
-            params["tool_choice"] = request.tool_choice
-        if not isinstance(request.response_format, NotGiven):
-            # Responses API uses response_format for structured outputs
-            params["response_format"] = request.response_format
+        params = self._build_responses_params(request)
 
         # Use stream() method for Responses API as context manager
         accumulated_content = ""
@@ -355,25 +363,7 @@ class OpenAIProvider:
 
     def _chat_completions_complete(self, request: CompletionRequest) -> CompletionResponse:
         """Execute request using Chat Completions API (fallback)"""
-        params: Dict[str, Any] = {
-            "model": request.model,
-            "messages": request.messages,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "frequency_penalty": request.frequency_penalty,
-            "presence_penalty": request.presence_penalty,
-        }
-
-        if request.max_tokens is not None:
-            params["max_tokens"] = request.max_tokens
-        if not isinstance(request.stop, NotGiven):
-            params["stop"] = request.stop
-        if not isinstance(request.tools, NotGiven):
-            params["tools"] = request.tools
-        if not isinstance(request.tool_choice, NotGiven):
-            params["tool_choice"] = request.tool_choice
-        if not isinstance(request.response_format, NotGiven):
-            params["response_format"] = request.response_format
+        params = self._build_chat_params(request, stream=False)
 
         response = self.client.chat.completions.create(**params)
         response = cast(ChatCompletion, response)
@@ -428,26 +418,7 @@ class OpenAIProvider:
         self, request: CompletionRequest
     ) -> Iterator[CompletionResponse]:
         """Execute streaming request using Chat Completions API"""
-        params: Dict[str, Any] = {
-            "model": request.model,
-            "messages": request.messages,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "frequency_penalty": request.frequency_penalty,
-            "presence_penalty": request.presence_penalty,
-            "stream": True,
-        }
-
-        if request.max_tokens is not None:
-            params["max_tokens"] = request.max_tokens
-        if not isinstance(request.stop, NotGiven):
-            params["stop"] = request.stop
-        if not isinstance(request.tools, NotGiven):
-            params["tools"] = request.tools
-        if not isinstance(request.tool_choice, NotGiven):
-            params["tool_choice"] = request.tool_choice
-        if not isinstance(request.response_format, NotGiven):
-            params["response_format"] = request.response_format
+        params = self._build_chat_params(request, stream=True)
 
         stream = self.client.chat.completions.create(**params)
 

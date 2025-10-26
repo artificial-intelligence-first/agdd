@@ -13,6 +13,7 @@ from .cost_tracker import (
     get_tracker,
     record_llm_cost,
 )
+from .logger import ObservabilityLogger
 from .summarize_runs import summarize
 from .tracing import (
     ObservabilityConfig,
@@ -33,6 +34,7 @@ __all__ = [
     "get_tracker",
     "record_llm_cost",
     "summarize",
+    "ObservabilityLogger",
     "ObservabilityConfig",
     "ObservabilityManager",
     "initialize_observability",
