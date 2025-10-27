@@ -284,9 +284,10 @@ cp -r catalog/agents/_template/sag-template catalog/agents/sub/your-advisor-sag
 # Customize the templates:
 # 1. Edit agent.yaml (slug, name, description, contracts)
 # 2. Update README.md with your agent's purpose
-# 3. Modify code/orchestrator.py (MAG) or code/advisor.py (SAG)
-# 4. Create contract schemas in catalog/contracts/
-# 5. Add tests in tests/agents/
+# 3. Customize PERSONA.md with your agent's personality and behavior
+# 4. Modify code/orchestrator.py (MAG) or code/advisor.py (SAG)
+# 5. Create contract schemas in catalog/contracts/
+# 6. Add tests in tests/agents/
 ```
 
 ### Using Make Commands
@@ -305,6 +306,82 @@ make flow-run          # Execute sample flow
 # See all available targets
 make help
 ```
+
+## Agent Personas
+
+AGDD supports **optional** persona configuration for agents via `PERSONA.md` files. Personas define an agent's personality, tone, behavioral guidelines, and response patterns.
+
+### Persona File Structure
+
+Each agent directory can include a `PERSONA.md` file:
+
+```
+catalog/agents/{role}/{slug}/
+├── agent.yaml
+├── README.md
+├── PERSONA.md          ← Optional persona configuration
+└── code/
+```
+
+### What's in a Persona?
+
+A persona typically includes:
+
+- **Personality**: Core traits (professional, concise, analytical, etc.)
+- **Tone & Style**: Formality level, technical jargon usage, empathy level
+- **Behavioral Guidelines**: How to handle uncertainty, provide information, communicate
+- **Response Patterns**: Do's and don'ts, example interactions
+- **Task-Specific Guidance**: Domain-specific instructions and best practices
+
+### Example Persona Sections
+
+```markdown
+# Agent Persona
+
+## Personality
+Professional, concise, and action-oriented
+
+## Tone & Style
+- **Formality**: Formal and professional
+- **Technical Jargon**: Medium level
+- **Empathy**: Medium
+
+## Behavioral Guidelines
+
+### When Uncertain
+- Always ask for clarification
+- State what information is missing
+
+### DO ✓
+- Provide clear, actionable steps
+- Use structured formats
+
+### DON'T ✗
+- Use hedging language
+- Make unsubstantiated claims
+```
+
+### Using Personas
+
+Personas are automatically loaded when agents are initialized:
+
+```python
+from agdd.registry import Registry
+
+registry = Registry()
+agent = registry.load_agent("offer-orchestrator-mag")
+
+# Access persona content
+if agent.persona_content:
+    print(f"Agent persona loaded: {len(agent.persona_content)} chars")
+    # Use persona in LLM system prompts, logging, etc.
+```
+
+### Templates
+
+All agent templates (`_template/mag-template`, `_template/sag-template`, etc.) include starter `PERSONA.md` files with comprehensive examples. Use these as a starting point and customize for your specific agent's domain and behavior requirements.
+
+See existing agents (`offer-orchestrator-mag`, `compensation-advisor-sag`) for real-world examples.
 
 ## Usage
 

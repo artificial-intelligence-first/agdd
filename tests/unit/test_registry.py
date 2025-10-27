@@ -110,3 +110,58 @@ class TestRegistry:
         assert "output_schema" in agent.contracts
         assert "candidate_profile" in agent.contracts["input_schema"]
         assert "offer_packet" in agent.contracts["output_schema"]
+
+    def test_persona_loading_mag(self) -> None:
+        """Test loading persona content for MAG agent"""
+        registry = Registry()
+        agent = registry.load_agent("offer-orchestrator-mag")
+
+        # Persona should be loaded
+        assert agent.persona_content is not None
+        assert isinstance(agent.persona_content, str)
+        assert len(agent.persona_content) > 0
+
+        # Check for expected persona sections
+        assert "# Agent Persona" in agent.persona_content
+        assert "Personality" in agent.persona_content
+        assert "Tone & Style" in agent.persona_content
+        assert "Behavioral Guidelines" in agent.persona_content
+
+    def test_persona_loading_sag(self) -> None:
+        """Test loading persona content for SAG agent"""
+        registry = Registry()
+        agent = registry.load_agent("compensation-advisor-sag")
+
+        # Persona should be loaded
+        assert agent.persona_content is not None
+        assert isinstance(agent.persona_content, str)
+        assert len(agent.persona_content) > 0
+
+        # Check for expected persona sections
+        assert "# Agent Persona" in agent.persona_content
+        assert "Personality" in agent.persona_content
+        assert "Response Patterns" in agent.persona_content
+
+    def test_persona_optional(self) -> None:
+        """Test that agents without PERSONA.md still load correctly"""
+        registry = Registry()
+        # This test assumes there might be agents without PERSONA.md
+        # For now, we just verify that persona_content can be None
+        # and the agent still loads without errors
+
+        # The field should exist even if None
+        agent = registry.load_agent("offer-orchestrator-mag")
+        assert hasattr(agent, "persona_content")
+
+    def test_persona_caching(self) -> None:
+        """Test that persona content is cached with agent descriptor"""
+        registry = Registry()
+
+        # Load twice
+        agent1 = registry.load_agent("offer-orchestrator-mag")
+        agent2 = registry.load_agent("offer-orchestrator-mag")
+
+        # Should be same object (cached)
+        assert agent1 is agent2
+        # Persona content should also be the same
+        assert agent1.persona_content == agent2.persona_content

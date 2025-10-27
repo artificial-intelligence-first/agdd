@@ -42,7 +42,8 @@ modifying code.
 - **Creating New Agents:** Use the templates in `catalog/agents/_template/`:
   - `mag-template/` - Template for Main Agents (orchestrators)
   - `sag-template/` - Template for Sub-Agents (specialists)
-  - Copy template, customize agent.yaml and code, then add tests
+  - Copy template, customize agent.yaml, PERSONA.md, and code, then add tests
+  - **PERSONA.md** (optional): Define agent personality, tone, and behavioral guidelines
 - **Creating New Skills:** Use the template in `catalog/skills/_template/`
 
 ## Testing Instructions
