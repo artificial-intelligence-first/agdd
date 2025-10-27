@@ -361,21 +361,47 @@ Professional, concise, and action-oriented
 - Make unsubstantiated claims
 ```
 
-### Using Personas
+### Using Personas in Agents
 
-Personas are automatically loaded when agents are initialized:
+Personas are automatically loaded by the Registry. Agents can access and use persona content in LLM calls:
 
 ```python
-from agdd.registry import Registry
+from agdd.persona import build_system_prompt_with_persona, get_agent_persona
 
-registry = Registry()
-agent = registry.load_agent("offer-orchestrator-mag")
+def run(payload, *, registry, skills, runner, obs):
+    """Agent implementation with persona integration"""
 
-# Access persona content
-if agent.persona_content:
-    print(f"Agent persona loaded: {len(agent.persona_content)} chars")
-    # Use persona in LLM system prompts, logging, etc.
+    # Option 1: Get persona for current agent
+    persona = get_agent_persona("my-agent-slug", registry=registry)
+
+    # Option 2: Load agent and access persona directly
+    agent = registry.load_agent("my-agent-slug")
+    persona = agent.persona_content
+
+    # Build system prompt with persona
+    if persona:
+        system_prompt = build_system_prompt_with_persona(
+            base_prompt="Analyze the candidate profile and generate recommendations.",
+            persona_content=persona
+        )
+    else:
+        system_prompt = "Analyze the candidate profile and generate recommendations."
+
+    # Use in LLM call (example with hypothetical LLM provider)
+    # response = llm.generate(
+    #     system=system_prompt,
+    #     prompt=user_message
+    # )
+
+    return {"result": "..."}
 ```
+
+**Helper Functions:**
+- `build_system_prompt_with_persona()` - Combine persona with task instructions
+- `get_agent_persona()` - Retrieve persona content by agent slug
+- `extract_persona_section()` - Extract specific sections (e.g., "Behavioral Guidelines")
+
+See `src/agdd/persona.py` for full API documentation.
 
 ### Templates
 
