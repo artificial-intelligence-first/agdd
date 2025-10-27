@@ -33,6 +33,7 @@ class AgentDescriptor:
     observability: Dict[str, Any]
     evaluation: Dict[str, Any]
     raw: Dict[str, Any]  # Full YAML content
+    persona_content: Optional[str] = None  # Content of PERSONA.md if exists
 
 
 @dataclass
@@ -144,6 +145,13 @@ class Registry:
                     raise ValueError(f"Agent descriptor at {agent_yaml_path} must be a mapping")
                 data = dict(raw)
 
+                # Load PERSONA.md if it exists
+                persona_path = agent_yaml_path.parent / "PERSONA.md"
+                persona_content = None
+                if persona_path.exists():
+                    with open(persona_path, "r", encoding="utf-8") as f:
+                        persona_content = f.read()
+
                 descriptor = AgentDescriptor(
                     slug=str(data.get("slug", slug)),
                     name=str(data.get("name", slug)),
@@ -157,6 +165,7 @@ class Registry:
                     observability=self._ensure_dict(data.get("observability", {})),
                     evaluation=self._ensure_dict(data.get("evaluation", {})),
                     raw=dict(data),
+                    persona_content=persona_content,
                 )
                 self._agent_cache[slug] = descriptor
 
