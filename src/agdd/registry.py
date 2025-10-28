@@ -47,6 +47,34 @@ class SkillDescriptor:
     raw: Dict[str, Any]
 
 
+@dataclass
+class MetricConfig:
+    """Individual metric configuration from eval.yaml"""
+
+    id: str
+    name: str
+    description: str
+    weight: float
+    threshold: float
+    fail_on_threshold: bool
+
+
+@dataclass
+class EvalDescriptor:
+    """Evaluator metadata loaded from catalog/evals/{slug}/eval.yaml"""
+
+    slug: str
+    name: str
+    version: str
+    description: str
+    hook_type: str  # "pre_eval" or "post_eval"
+    target_agents: List[str]  # Agent slugs this evaluator applies to
+    metrics: List[MetricConfig]
+    execution: Dict[str, Any]  # Execution settings (timeout, fail_open, etc.)
+    observability: Dict[str, Any]
+    raw: Dict[str, Any]  # Full YAML content
+
+
 class Registry:
     """Central registry for agents and skills"""
 
@@ -58,6 +86,7 @@ class Registry:
         self.base_path = base_path
         self._agent_cache: Dict[str, AgentDescriptor] = {}
         self._skill_cache: Dict[str, SkillDescriptor] = {}
+        self._eval_cache: Dict[str, EvalDescriptor] = {}
 
     @staticmethod
     def _ensure_dict(value: Any) -> Dict[str, Any]:
@@ -229,6 +258,93 @@ class Registry:
                 return descriptor
 
         raise ValueError(f"Skill '{skill_id}' not found in {registry_path}")
+
+    def load_eval(self, slug: str) -> EvalDescriptor:
+        """
+        Load evaluator descriptor from catalog/evals/{slug}/eval.yaml
+
+        Args:
+            slug: Evaluator slug (e.g., "compensation-validator")
+
+        Returns:
+            EvalDescriptor with parsed metadata
+
+        Raises:
+            FileNotFoundError: If eval.yaml not found
+            ValueError: If YAML is malformed
+        """
+        if slug in self._eval_cache:
+            return self._eval_cache[slug]
+
+        eval_yaml_path = self.base_path / "catalog" / "evals" / slug / "eval.yaml"
+        if not eval_yaml_path.exists():
+            raise FileNotFoundError(f"Evaluator '{slug}' not found at {eval_yaml_path}")
+
+        with open(eval_yaml_path, "r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+
+        if raw is None:
+            raw = {}
+        if not isinstance(raw, Mapping):
+            raise ValueError(f"Eval descriptor at {eval_yaml_path} must be a mapping")
+        data = dict(raw)
+
+        # Parse metrics
+        metrics: List[MetricConfig] = []
+        metrics_raw = data.get("metrics", [])
+        if isinstance(metrics_raw, Sequence):
+            for metric_data in metrics_raw:
+                if isinstance(metric_data, Mapping):
+                    metrics.append(
+                        MetricConfig(
+                            id=str(metric_data.get("id", "")),
+                            name=str(metric_data.get("name", "")),
+                            description=str(metric_data.get("description", "")),
+                            weight=float(metric_data.get("weight", 1.0)),
+                            threshold=float(metric_data.get("threshold", 0.8)),
+                            fail_on_threshold=bool(metric_data.get("fail_on_threshold", False)),
+                        )
+                    )
+
+        # Parse target agents
+        target_agents: List[str] = []
+        target_agents_raw = data.get("target_agents", [])
+        if isinstance(target_agents_raw, Sequence) and not isinstance(
+            target_agents_raw, (str, bytes)
+        ):
+            target_agents = [str(item) for item in target_agents_raw if isinstance(item, str)]
+
+        descriptor = EvalDescriptor(
+            slug=str(data.get("slug", slug)),
+            name=str(data.get("name", slug)),
+            version=str(data.get("version", "0.0.0")),
+            description=str(data.get("description", "")),
+            hook_type=str(data.get("hook_type", "post_eval")),
+            target_agents=target_agents,
+            metrics=metrics,
+            execution=self._ensure_dict(data.get("execution", {})),
+            observability=self._ensure_dict(data.get("observability", {})),
+            raw=dict(data),
+        )
+        self._eval_cache[slug] = descriptor
+        return descriptor
+
+    def list_evals(self) -> List[str]:
+        """
+        List all available evaluators in catalog/evals/
+
+        Returns:
+            List of evaluator slugs
+        """
+        evals_dir = self.base_path / "catalog" / "evals"
+        if not evals_dir.exists():
+            return []
+
+        eval_slugs: List[str] = []
+        for eval_path in evals_dir.iterdir():
+            if eval_path.is_dir() and (eval_path / "eval.yaml").exists():
+                eval_slugs.append(eval_path.name)
+        return sorted(eval_slugs)
 
     def resolve_entrypoint(self, entrypoint: str) -> Callable[..., Any]:
         """

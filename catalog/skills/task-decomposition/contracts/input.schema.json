@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/skills/task-decomposition/input.schema.json",
+  "title": "TaskDecompositionInput",
+  "description": "Input for task decomposition skill",
+  "type": "object",
+  "required": ["candidate_profile"],
+  "properties": {
+    "candidate_profile": {
+      "type": "object",
+      "description": "Candidate profile to decompose tasks for"
+    }
+  },
+  "additionalProperties": true
+}

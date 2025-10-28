@@ -1,0 +1,47 @@
+version: 0.1.0
+slug: compensation-validator
+name: CompensationValidator
+description: Validates compensation offers for quality, safety, and consistency
+
+# Hook type: pre_eval (before SAG execution) or post_eval (after SAG execution)
+hook_type: post_eval
+
+# Target agents this evaluator applies to
+target_agents:
+  - compensation-advisor-sag
+
+# Metrics to execute
+metrics:
+  - id: salary_range_check
+    name: SalaryRangeCheck
+    description: Validates that salary is within expected range
+    weight: 1.0
+    threshold: 0.8
+    fail_on_threshold: false
+
+  - id: consistency_check
+    name: ConsistencyCheck
+    description: Checks for internal consistency in compensation package
+    weight: 1.0
+    threshold: 0.9
+    fail_on_threshold: false
+
+  - id: completeness_check
+    name: CompletenessCheck
+    description: Ensures all required fields are present
+    weight: 1.0
+    threshold: 1.0
+    fail_on_threshold: true
+
+# Execution settings
+execution:
+  timeout_ms: 5000
+  fail_open: false  # If true, failures don't block execution
+  collect_metrics: true
+  log_results: true
+
+# Observability
+observability:
+  logs: true
+  metrics: true
+  traces: basic

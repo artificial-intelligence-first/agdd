@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, cast
 
 import yaml
 
+from agdd.evaluation.runtime import EvalRuntime
 from agdd.observability.logger import ObservabilityLogger
 from agdd.registry import AgentDescriptor, Registry, get_registry
 from agdd.router import ExecutionPlan, Router, get_router
@@ -95,6 +96,7 @@ class AgentRunner:
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         self.skills = SkillRuntime(registry=self.registry)
+        self.evals = EvalRuntime(registry=self.registry)
         self.router: Router = router or get_router()
         self._task_index: dict[str, list[str]] | None = None
 
@@ -446,6 +448,33 @@ class AgentRunner:
             last_error = None
             for attempt in range(max_attempts):
                 try:
+                    # === Pre-Eval Hook ===
+                    pre_eval_results = self.evals.evaluate_all(
+                        delegation.sag_id, "pre_eval", delegation.input, context
+                    )
+                    if pre_eval_results:
+                        obs.log("pre_eval", {"results": [
+                            {
+                                "eval_slug": r.eval_slug,
+                                "passed": r.passed,
+                                "score": r.overall_score,
+                                "metrics": [
+                                    {"id": m.metric_id, "score": m.score, "passed": m.passed}
+                                    for m in r.metrics
+                                ]
+                            }
+                            for r in pre_eval_results
+                        ]})
+
+                        # Check if any critical pre-eval failed
+                        critical_failures = [r for r in pre_eval_results if not r.passed]
+                        if critical_failures:
+                            obs.log("pre_eval_failure", {
+                                "failed_evals": [r.eval_slug for r in critical_failures]
+                            })
+                            # Depending on fail_open/fail_closed, either raise or continue
+                            # For now, we log but continue (fail-open behavior)
+
                     # Resolve entrypoint
                     run_fn = cast(
                         AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
@@ -455,6 +484,41 @@ class AgentRunner:
                     t0 = time.time()
                     output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
                     duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+                    # === Post-Eval Hook ===
+                    post_eval_results = self.evals.evaluate_all(
+                        delegation.sag_id, "post_eval", output, context
+                    )
+                    if post_eval_results:
+                        obs.log("post_eval", {"results": [
+                            {
+                                "eval_slug": r.eval_slug,
+                                "passed": r.passed,
+                                "score": r.overall_score,
+                                "duration_ms": r.duration_ms,
+                                "metrics": [
+                                    {
+                                        "id": m.metric_id,
+                                        "name": m.metric_name,
+                                        "score": m.score,
+                                        "passed": m.passed,
+                                        "threshold": m.threshold,
+                                        "details": m.details
+                                    }
+                                    for m in r.metrics
+                                ]
+                            }
+                            for r in post_eval_results
+                        ]})
+
+                        # Check if any critical post-eval failed
+                        critical_failures = [r for r in post_eval_results if not r.passed]
+                        if critical_failures:
+                            obs.log("post_eval_failure", {
+                                "failed_evals": [r.eval_slug for r in critical_failures]
+                            })
+                            # For fail-closed behavior, raise an exception
+                            # For now, we continue (configurable in future)
 
                     # Record metrics and cost
                     obs.metric("duration_ms", duration_ms)

@@ -1,0 +1,28 @@
+version: 0.1.0
+id: skill.salary-band-lookup
+name: SalaryBandLookup
+description: Looks up salary bands based on role, level, and location
+
+# Entrypoint to the skill implementation
+entrypoint: catalog/skills/salary-band-lookup/impl/salary_band_lookup.py:run
+
+# Input/output contracts (JSON Schema)
+contracts:
+  input_schema: catalog/skills/salary-band-lookup/contracts/input.schema.json
+  output_schema: catalog/skills/salary-band-lookup/contracts/output.schema.json
+
+# MCP permissions required
+permissions:
+  - mcp:pg-readonly
+
+# Cost and resource estimates
+resource_config:
+  estimated_duration: short  # short, medium, long
+  timeout_ms: 5000
+  cost_category: low  # low, medium, high
+
+# Observability
+observability:
+  logs: true
+  metrics: true
+  traces: basic

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/skills/salary-band-lookup/input.schema.json",
+  "title": "SalaryBandLookupInput",
+  "description": "Input for salary band lookup skill",
+  "type": "object",
+  "required": ["role"],
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "Job role/title (e.g., 'Software Engineer', 'Product Manager')"
+    },
+    "level": {
+      "type": "string",
+      "description": "Seniority level (e.g., 'Junior', 'Mid', 'Senior', 'Staff')"
+    },
+    "location": {
+      "type": "string",
+      "description": "Geographic location for compensation adjustment (e.g., 'San Francisco, CA')"
+    }
+  },
+  "additionalProperties": false
+}
