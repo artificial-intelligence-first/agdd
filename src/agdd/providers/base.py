@@ -2,8 +2,43 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional, Protocol
+
+
+@dataclass
+class BaseProviderConfig:
+    """Base configuration for LLM providers with common functionality."""
+
+    api_key: Optional[str] = None
+    """API key for the provider. If None, will be read from environment."""
+
+    timeout: float = 60.0
+    """Request timeout in seconds."""
+
+    max_retries: int = 2
+    """Maximum number of retries for failed requests."""
+
+    def get_api_key(self, env_var: str) -> str:
+        """
+        Get API key from config or environment variable.
+
+        Args:
+            env_var: Name of the environment variable to check
+
+        Returns:
+            API key string
+
+        Raises:
+            ValueError: If API key not found in config or environment
+        """
+        if self.api_key:
+            return self.api_key
+        key = os.getenv(env_var)
+        if not key:
+            raise ValueError(f"{env_var} not found in config or environment")
+        return key
 
 
 @dataclass(slots=True)

@@ -320,6 +320,78 @@ class AgentRunner:
             step=step,
         )
 
+    def _execute_mag(
+        self,
+        exec_ctx: _ExecutionContext,
+        payload: Dict[str, Any],
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Execute the MAG agent and return output with duration.
+
+        Args:
+            exec_ctx: Execution context
+            payload: Input payload for agent
+
+        Returns:
+            Tuple of (output, duration_ms)
+        """
+        run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint))
+        t0 = time.time()
+        output: Dict[str, Any] = run_fn(
+            payload,
+            registry=self.registry,
+            skills=self.skills,
+            runner=self,  # Allow MAG to delegate to SAG
+            obs=exec_ctx.observer,
+        )
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
+
+    def _finalize_mag_success(
+        self,
+        exec_ctx: _ExecutionContext,
+        duration_ms: int,
+    ) -> None:
+        """
+        Finalize successful MAG execution with metrics and logging.
+
+        Args:
+            exec_ctx: Execution context
+            duration_ms: Execution duration in milliseconds
+        """
+        obs = exec_ctx.observer
+        obs.metric("duration_ms", duration_ms)
+        self._record_placeholder_cost(exec_ctx, step="mag", metadata={"stage": "mag"})
+        obs.log("end", {
+            "status": "success",
+            "duration_ms": duration_ms,
+            "cost_usd": obs.cost_usd,
+            "tokens": obs.token_count,
+            "llm_plan": obs.llm_plan_snapshot,
+        })
+        obs.finalize()
+
+    def _handle_mag_error(
+        self,
+        exec_ctx: Optional[_ExecutionContext],
+        error: Exception,
+    ) -> None:
+        """
+        Handle MAG execution error with logging and cost tracking.
+
+        Args:
+            exec_ctx: Execution context (may be None if error occurred early)
+            error: Exception that occurred
+        """
+        if exec_ctx is not None:
+            exec_ctx.observer.log("error", {"error": str(error), "type": type(error).__name__})
+            self._record_placeholder_cost(
+                exec_ctx,
+                step="mag",
+                metadata={"stage": "mag", "status": "exception"},
+            )
+            exec_ctx.observer.finalize()
+
     def invoke_mag(
         self,
         slug: str,
@@ -343,68 +415,262 @@ class AgentRunner:
         """
         context = context or {}
         run_id = f"mag-{uuid.uuid4().hex[:8]}"
-
-        # Write run_id to context for caller retrieval
         context["run_id"] = run_id
-
         exec_ctx: Optional[_ExecutionContext] = None
 
         try:
             exec_ctx = self._prepare_execution(slug, run_id, context)
             obs = exec_ctx.observer
 
-            obs.log(
-                "start",
-                {
-                    "agent": exec_ctx.agent.name,
-                    "slug": slug,
-                    "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
-                    "llm_plan": obs.llm_plan_snapshot,
-                },
-            )
+            obs.log("start", {
+                "agent": exec_ctx.agent.name,
+                "slug": slug,
+                "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
+                "llm_plan": obs.llm_plan_snapshot,
+            })
 
-            # Resolve entrypoint
-            run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint))
+            # Execute MAG
+            output, duration_ms = self._execute_mag(exec_ctx, payload)
 
-            # Execute with dependencies injected
-            t0 = time.time()
-            output: Dict[str, Any] = run_fn(
-                payload,
-                registry=self.registry,
-                skills=self.skills,
-                runner=self,  # Allow MAG to delegate to SAG
-                obs=obs,
-            )
-            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-
-            # Record metrics and cost (placeholder - actual cost from LLM provider)
-            obs.metric("duration_ms", duration_ms)
-            self._record_placeholder_cost(exec_ctx, step="mag", metadata={"stage": "mag"})
-
-            obs.log(
-                "end",
-                {
-                    "status": "success",
-                    "duration_ms": duration_ms,
-                    "cost_usd": obs.cost_usd,
-                    "tokens": obs.token_count,
-                    "llm_plan": obs.llm_plan_snapshot,
-                },
-            )
-            obs.finalize()
+            # Finalize and record success
+            self._finalize_mag_success(exec_ctx, duration_ms)
 
             return output
 
         except Exception as e:
-            if exec_ctx is not None:
-                exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
-                self._record_placeholder_cost(
-                    exec_ctx,
-                    step="mag",
-                    metadata={"stage": "mag", "status": "exception"},
-                )
-                exec_ctx.observer.finalize()
+            self._handle_mag_error(exec_ctx, e)
             raise
+
+    def _run_pre_evaluations(
+        self,
+        exec_ctx: _ExecutionContext,
+        delegation: Delegation,
+        context: Dict[str, Any],
+    ) -> None:
+        """
+        Run pre-execution evaluations and enforce fail-closed policies.
+
+        Args:
+            exec_ctx: Execution context with observer
+            delegation: Delegation request
+            context: Execution context
+
+        Raises:
+            RuntimeError: If fail-closed pre-evaluation fails
+        """
+        obs = exec_ctx.observer
+        pre_eval_results = self.evals.evaluate_all(
+            delegation.sag_id, "pre_eval", delegation.input, context
+        )
+        if not pre_eval_results:
+            return
+
+        obs.log("pre_eval", {"results": [
+            {
+                "eval_slug": r.eval_slug,
+                "passed": r.passed,
+                "score": r.overall_score,
+                "metrics": [
+                    {"id": m.metric_id, "score": m.score, "passed": m.passed}
+                    for m in r.metrics
+                ]
+            }
+            for r in pre_eval_results
+        ]})
+
+        # Check if any critical pre-eval failed
+        critical_failures = [r for r in pre_eval_results if not r.passed]
+        if critical_failures:
+            obs.log("pre_eval_failure", {
+                "failed_evals": [r.eval_slug for r in critical_failures]
+            })
+            # Check fail_open/fail_closed behavior
+            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
+            if fail_closed_evals:
+                # Fail-closed: block execution
+                failed_slugs = [r.eval_slug for r in fail_closed_evals]
+                raise RuntimeError(
+                    f"Pre-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
+                )
+
+    def _run_post_evaluations(
+        self,
+        exec_ctx: _ExecutionContext,
+        delegation: Delegation,
+        output: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> None:
+        """
+        Run post-execution evaluations and enforce fail-closed policies.
+
+        Args:
+            exec_ctx: Execution context with observer
+            delegation: Delegation request
+            output: Agent output to evaluate
+            context: Execution context
+
+        Raises:
+            RuntimeError: If fail-closed post-evaluation fails
+        """
+        obs = exec_ctx.observer
+        post_eval_results = self.evals.evaluate_all(
+            delegation.sag_id, "post_eval", output, context
+        )
+        if not post_eval_results:
+            return
+
+        obs.log("post_eval", {"results": [
+            {
+                "eval_slug": r.eval_slug,
+                "passed": r.passed,
+                "score": r.overall_score,
+                "duration_ms": r.duration_ms,
+                "metrics": [
+                    {
+                        "id": m.metric_id,
+                        "name": m.metric_name,
+                        "score": m.score,
+                        "passed": m.passed,
+                        "threshold": m.threshold,
+                        "details": m.details
+                    }
+                    for m in r.metrics
+                ]
+            }
+            for r in post_eval_results
+        ]})
+
+        # Check if any critical post-eval failed
+        critical_failures = [r for r in post_eval_results if not r.passed]
+        if critical_failures:
+            obs.log("post_eval_failure", {
+                "failed_evals": [r.eval_slug for r in critical_failures]
+            })
+            # Check fail_open/fail_closed behavior
+            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
+            if fail_closed_evals:
+                # Fail-closed: block execution and return error
+                failed_slugs = [r.eval_slug for r in fail_closed_evals]
+                raise RuntimeError(
+                    f"Post-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
+                )
+
+    def _execute_agent(
+        self,
+        exec_ctx: _ExecutionContext,
+        delegation: Delegation,
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Execute the agent and return output with duration.
+
+        Args:
+            exec_ctx: Execution context
+            delegation: Delegation request
+
+        Returns:
+            Tuple of (output, duration_ms)
+        """
+        run_fn = cast(
+            AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+        )
+        t0 = time.time()
+        output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
+
+    def _build_success_metrics(
+        self,
+        exec_ctx: _ExecutionContext,
+        duration_ms: int,
+        attempt: int,
+    ) -> Dict[str, Any]:
+        """
+        Build metrics dictionary for successful execution.
+
+        Args:
+            exec_ctx: Execution context with observer
+            duration_ms: Execution duration
+            attempt: Attempt number (0-indexed)
+
+        Returns:
+            Metrics dictionary
+        """
+        obs = exec_ctx.observer
+        plan_snapshot = obs.llm_plan_snapshot
+        metrics: Dict[str, Any] = {
+            "duration_ms": duration_ms,
+            "attempts": attempt + 1,
+            "cost_usd": obs.cost_usd,
+            "tokens": obs.token_count,
+        }
+        if plan_snapshot:
+            metrics.update({
+                "provider": plan_snapshot.get("provider"),
+                "model": plan_snapshot.get("model"),
+                "use_batch": plan_snapshot.get("use_batch"),
+                "use_cache": plan_snapshot.get("use_cache"),
+                "structured_output": plan_snapshot.get("structured_output"),
+                "moderation": plan_snapshot.get("moderation"),
+                "llm_plan": plan_snapshot,
+            })
+        return metrics
+
+    def _build_failure_result(
+        self,
+        exec_ctx: _ExecutionContext,
+        delegation: Delegation,
+        last_error: Exception,
+        max_attempts: int,
+    ) -> Result:
+        """
+        Build failure result after all retry attempts exhausted.
+
+        Args:
+            exec_ctx: Execution context
+            delegation: Delegation request
+            last_error: Last exception that occurred
+            max_attempts: Maximum number of attempts made
+
+        Returns:
+            Result with failure status
+        """
+        obs = exec_ctx.observer
+        self._record_placeholder_cost(
+            exec_ctx,
+            step=delegation.task_id,
+            metadata={"stage": "sag", "attempts": max_attempts, "status": "failure"},
+        )
+        plan_snapshot = obs.llm_plan_snapshot
+        failure_metrics: Dict[str, Any] = {
+            "attempts": max_attempts,
+            "cost_usd": obs.cost_usd,
+            "tokens": obs.token_count,
+        }
+        if plan_snapshot:
+            failure_metrics.update({
+                "provider": plan_snapshot.get("provider"),
+                "model": plan_snapshot.get("model"),
+                "use_batch": plan_snapshot.get("use_batch"),
+                "use_cache": plan_snapshot.get("use_cache"),
+                "structured_output": plan_snapshot.get("structured_output"),
+                "moderation": plan_snapshot.get("moderation"),
+                "llm_plan": plan_snapshot,
+            })
+
+        obs.log("error", {
+            "error": str(last_error),
+            "attempts": max_attempts,
+            "llm_plan": plan_snapshot,
+        })
+        obs.finalize()
+
+        return Result(
+            task_id=delegation.task_id,
+            status="failure",
+            output={},
+            metrics=failure_metrics,
+            error=str(last_error),
+        )
 
     def invoke_sag(self, delegation: Delegation) -> Result:
         """
@@ -420,7 +686,6 @@ class AgentRunner:
             Exception: If execution fails (with retry logic applied)
         """
         run_id = f"sag-{uuid.uuid4().hex[:8]}"
-
         exec_ctx: Optional[_ExecutionContext] = None
         context = delegation.context or {}
 
@@ -428,17 +693,14 @@ class AgentRunner:
             exec_ctx = self._prepare_execution(delegation.sag_id, run_id, context)
             obs = exec_ctx.observer
 
-            obs.log(
-                "start",
-                {
-                    "agent": exec_ctx.agent.name,
-                    "slug": delegation.sag_id,
-                    "task_id": delegation.task_id,
-                    "parent_run_id": context.get("parent_run_id"),
-                    "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
-                    "llm_plan": obs.llm_plan_snapshot,
-                },
-            )
+            obs.log("start", {
+                "agent": exec_ctx.agent.name,
+                "slug": delegation.sag_id,
+                "task_id": delegation.task_id,
+                "parent_run_id": context.get("parent_run_id"),
+                "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
+                "llm_plan": obs.llm_plan_snapshot,
+            })
 
             # Retry policy
             retry_policy = exec_ctx.agent.evaluation.get("retry_policy", {})
@@ -448,89 +710,14 @@ class AgentRunner:
             last_error = None
             for attempt in range(max_attempts):
                 try:
-                    # === Pre-Eval Hook ===
-                    pre_eval_results = self.evals.evaluate_all(
-                        delegation.sag_id, "pre_eval", delegation.input, context
-                    )
-                    if pre_eval_results:
-                        obs.log("pre_eval", {"results": [
-                            {
-                                "eval_slug": r.eval_slug,
-                                "passed": r.passed,
-                                "score": r.overall_score,
-                                "metrics": [
-                                    {"id": m.metric_id, "score": m.score, "passed": m.passed}
-                                    for m in r.metrics
-                                ]
-                            }
-                            for r in pre_eval_results
-                        ]})
+                    # Run pre-evaluation checks
+                    self._run_pre_evaluations(exec_ctx, delegation, context)
 
-                        # Check if any critical pre-eval failed
-                        critical_failures = [r for r in pre_eval_results if not r.passed]
-                        if critical_failures:
-                            obs.log("pre_eval_failure", {
-                                "failed_evals": [r.eval_slug for r in critical_failures]
-                            })
-                            # Check fail_open/fail_closed behavior
-                            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
-                            if fail_closed_evals:
-                                # Fail-closed: block execution
-                                failed_slugs = [r.eval_slug for r in fail_closed_evals]
-                                raise RuntimeError(
-                                    f"Pre-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
-                                )
+                    # Execute agent
+                    output, duration_ms = self._execute_agent(exec_ctx, delegation)
 
-                    # Resolve entrypoint
-                    run_fn = cast(
-                        AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
-                    )
-
-                    # Execute
-                    t0 = time.time()
-                    output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=obs)
-                    duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-
-                    # === Post-Eval Hook ===
-                    post_eval_results = self.evals.evaluate_all(
-                        delegation.sag_id, "post_eval", output, context
-                    )
-                    if post_eval_results:
-                        obs.log("post_eval", {"results": [
-                            {
-                                "eval_slug": r.eval_slug,
-                                "passed": r.passed,
-                                "score": r.overall_score,
-                                "duration_ms": r.duration_ms,
-                                "metrics": [
-                                    {
-                                        "id": m.metric_id,
-                                        "name": m.metric_name,
-                                        "score": m.score,
-                                        "passed": m.passed,
-                                        "threshold": m.threshold,
-                                        "details": m.details
-                                    }
-                                    for m in r.metrics
-                                ]
-                            }
-                            for r in post_eval_results
-                        ]})
-
-                        # Check if any critical post-eval failed
-                        critical_failures = [r for r in post_eval_results if not r.passed]
-                        if critical_failures:
-                            obs.log("post_eval_failure", {
-                                "failed_evals": [r.eval_slug for r in critical_failures]
-                            })
-                            # Check fail_open/fail_closed behavior
-                            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
-                            if fail_closed_evals:
-                                # Fail-closed: block execution and return error
-                                failed_slugs = [r.eval_slug for r in fail_closed_evals]
-                                raise RuntimeError(
-                                    f"Post-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
-                                )
+                    # Run post-evaluation checks
+                    self._run_post_evaluations(exec_ctx, delegation, output, context)
 
                     # Record metrics and cost
                     obs.metric("duration_ms", duration_ms)
@@ -540,37 +727,16 @@ class AgentRunner:
                         metadata={"stage": "sag", "attempt": attempt + 1},
                     )
 
-                    plan_snapshot = obs.llm_plan_snapshot
-                    metrics: Dict[str, Any] = {
+                    # Build success metrics and log
+                    metrics = self._build_success_metrics(exec_ctx, duration_ms, attempt)
+                    obs.log("end", {
+                        "status": "success",
+                        "attempt": attempt + 1,
                         "duration_ms": duration_ms,
-                        "attempts": attempt + 1,
                         "cost_usd": obs.cost_usd,
                         "tokens": obs.token_count,
-                    }
-                    if plan_snapshot:
-                        metrics.update(
-                            {
-                                "provider": plan_snapshot.get("provider"),
-                                "model": plan_snapshot.get("model"),
-                                "use_batch": plan_snapshot.get("use_batch"),
-                                "use_cache": plan_snapshot.get("use_cache"),
-                                "structured_output": plan_snapshot.get("structured_output"),
-                                "moderation": plan_snapshot.get("moderation"),
-                                "llm_plan": plan_snapshot,
-                            }
-                        )
-
-                    obs.log(
-                        "end",
-                        {
-                            "status": "success",
-                            "attempt": attempt + 1,
-                            "duration_ms": duration_ms,
-                            "cost_usd": obs.cost_usd,
-                            "tokens": obs.token_count,
-                            "llm_plan": plan_snapshot,
-                        },
-                    )
+                        "llm_plan": obs.llm_plan_snapshot,
+                    })
                     obs.finalize()
 
                     return Result(
@@ -582,55 +748,16 @@ class AgentRunner:
 
                 except Exception as e:
                     last_error = e
-                    obs.log(
-                        "retry",
-                        {"attempt": attempt + 1, "error": str(e), "type": type(e).__name__},
-                    )
+                    obs.log("retry", {
+                        "attempt": attempt + 1,
+                        "error": str(e),
+                        "type": type(e).__name__
+                    })
                     if attempt < max_attempts - 1 and backoff_ms > 0:
                         time.sleep(backoff_ms / MS_PER_SECOND)
 
             # All attempts failed
-            self._record_placeholder_cost(
-                exec_ctx,
-                step=delegation.task_id,
-                metadata={"stage": "sag", "attempts": max_attempts, "status": "failure"},
-            )
-            plan_snapshot = obs.llm_plan_snapshot
-            failure_metrics: Dict[str, Any] = {
-                "attempts": max_attempts,
-                "cost_usd": obs.cost_usd,
-                "tokens": obs.token_count,
-            }
-            if plan_snapshot:
-                failure_metrics.update(
-                    {
-                        "provider": plan_snapshot.get("provider"),
-                        "model": plan_snapshot.get("model"),
-                        "use_batch": plan_snapshot.get("use_batch"),
-                        "use_cache": plan_snapshot.get("use_cache"),
-                        "structured_output": plan_snapshot.get("structured_output"),
-                        "moderation": plan_snapshot.get("moderation"),
-                        "llm_plan": plan_snapshot,
-                    }
-                )
-
-            obs.log(
-                "error",
-                {
-                    "error": str(last_error),
-                    "attempts": max_attempts,
-                    "llm_plan": plan_snapshot,
-                },
-            )
-            obs.finalize()
-
-            return Result(
-                task_id=delegation.task_id,
-                status="failure",
-                output={},
-                metrics=failure_metrics,
-                error=str(last_error),
-            )
+            return self._build_failure_result(exec_ctx, delegation, last_error, max_attempts)
 
         except Exception as e:
             if exec_ctx is not None:

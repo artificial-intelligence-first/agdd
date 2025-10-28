@@ -9,6 +9,7 @@ For production deployments, consider PostgreSQL/TimescaleDB backend.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -65,27 +66,52 @@ class SQLiteStorageBackend(StorageBackend):
         )
 
     async def initialize(self) -> None:
-        """Initialize database schema"""
-        # Create parent directory
+        """Initialize database schema with async support for blocking I/O"""
+        # Create parent directory (sync operation, but fast)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Connect with proper settings
-        self._conn = sqlite3.connect(
-            self.db_path,
-            check_same_thread=False,  # Allow multi-threaded access
-            isolation_level=None,  # Autocommit mode
+        # Run blocking sqlite3.connect in thread pool to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        self._conn = await loop.run_in_executor(
+            None,
+            self._connect_db
         )
-        self._conn.row_factory = sqlite3.Row  # Dict-like row access
 
-        # Enable foreign keys
-        self._conn.execute("PRAGMA foreign_keys = ON")
-        self._conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging
+        # Enable pragmas (run in executor to be safe)
+        await loop.run_in_executor(
+            None,
+            self._configure_db
+        )
 
         # Create schema
         await self._create_schema()
 
+    def _connect_db(self) -> sqlite3.Connection:
+        """Create SQLite connection (blocking operation for executor)"""
+        conn = sqlite3.connect(
+            self.db_path,
+            check_same_thread=False,  # Allow multi-threaded access
+            isolation_level=None,  # Autocommit mode
+        )
+        conn.row_factory = sqlite3.Row  # Dict-like row access
+        return conn
+
+    def _configure_db(self) -> None:
+        """Configure database pragmas (blocking operation for executor)"""
+        assert self._conn is not None
+        self._conn.execute("PRAGMA foreign_keys = ON")
+        self._conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging
+
     async def _create_schema(self) -> None:
-        """Create database tables and indexes"""
+        """Create database tables and indexes (async to avoid blocking event loop)"""
+        assert self._conn is not None
+
+        # Run schema creation in executor to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._create_schema_blocking)
+
+    def _create_schema_blocking(self) -> None:
+        """Create database schema (blocking operation for executor)"""
         assert self._conn is not None
 
         # Runs table
