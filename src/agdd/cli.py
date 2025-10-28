@@ -7,11 +7,6 @@ from typing import Optional
 
 import typer
 
-from agdd.governance.gate import evaluate as evaluate_flow_summary
-from agdd.runners.agent_runner import invoke_mag
-from agdd.runners.flowrunner import FlowRunner
-from agdd.observability.summarize_runs import summarize as summarize_runs
-
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
 agent_app = typer.Typer(help="Agent orchestration commands")
@@ -22,6 +17,9 @@ mcp_app = typer.Typer(help="Model Context Protocol server commands")
 @flow_app.command("available")
 def flow_available() -> None:
     """Check if Flow Runner CLI is installed."""
+    # Lazy import to reduce startup time
+    from agdd.runners.flowrunner import FlowRunner
+
     runner = FlowRunner()
     if not runner.is_available():
         typer.echo("no")
@@ -42,6 +40,9 @@ def flow_validate(
     ),
 ) -> None:
     """Validate a flow definition using Flow Runner."""
+    # Lazy import to reduce startup time
+    from agdd.runners.flowrunner import FlowRunner
+
     runner = FlowRunner()
     result = runner.validate(path, schema=schema)
     if not result.ok:
@@ -61,6 +62,9 @@ def flow_run(
     ),
 ) -> None:
     """Execute a flow definition via Flow Runner."""
+    # Lazy import to reduce startup time
+    from agdd.runners.flowrunner import FlowRunner
+
     runner = FlowRunner()
     result = runner.run(path, dry_run=dry_run, only=only, continue_from=continue_from)
     if not result.ok:
@@ -84,6 +88,9 @@ def flow_summarize(
     ),
 ) -> None:
     """Summarize Flow Runner run outputs from the specified directory."""
+    # Lazy import to reduce startup time
+    from agdd.observability.summarize_runs import summarize as summarize_runs
+
     report = summarize_runs(base)
     payload = json.dumps(report, ensure_ascii=False)
     if output is not None:
@@ -101,6 +108,9 @@ def flow_gate(
     ),
 ) -> None:
     """Evaluate governance thresholds against a flow summary."""
+    # Lazy import to reduce startup time
+    from agdd.governance.gate import evaluate as evaluate_flow_summary
+
     issues = evaluate_flow_summary(summary, policy)
     if issues:
         typer.echo("GOVERNANCE GATE FAILED")
@@ -122,6 +132,9 @@ def agent_run(
 ) -> None:
     """Execute a MAG agent with JSON input."""
     import sys
+
+    # Lazy import to reduce startup time
+    from agdd.runners.agent_runner import invoke_mag
 
     # Read input
     if json_input is None or str(json_input) == "-":

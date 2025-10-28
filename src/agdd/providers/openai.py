@@ -19,6 +19,8 @@ from openai import NOT_GIVEN, NotGiven, OpenAI
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from openai.types.responses import Response as OpenAIResponse
 
+from agdd.providers.base import BaseProviderConfig
+
 
 class APIEndpoint(str, Enum):
     """Supported OpenAI API endpoints"""
@@ -40,14 +42,11 @@ class Usage:
 
 
 @dataclass
-class ProviderConfig:
+class ProviderConfig(BaseProviderConfig):
     """OpenAI Provider configuration"""
 
-    api_key: Optional[str] = None
     base_url: Optional[str] = None
     organization: Optional[str] = None
-    timeout: float = 60.0
-    max_retries: int = 2
     # Policy-driven endpoint selection
     preferred_endpoint: APIEndpoint = APIEndpoint.RESPONSES
     # Model pricing (USD per 1M tokens)
@@ -66,13 +65,8 @@ class ProviderConfig:
             }
 
     def get_api_key(self) -> str:
-        """Get API key from config or environment"""
-        if self.api_key:
-            return self.api_key
-        key = os.getenv("OPENAI_API_KEY")
-        if not key:
-            raise ValueError("OPENAI_API_KEY not found in config or environment")
-        return key
+        """Get OpenAI API key from config or environment"""
+        return super().get_api_key("OPENAI_API_KEY")
 
 
 @dataclass
