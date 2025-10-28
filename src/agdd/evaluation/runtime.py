@@ -168,7 +168,7 @@ class EvalRuntime:
                 agent_slug=context.get("agent_slug", "unknown"),
                 overall_score=0.0,
                 passed=False,
-                fail_open=True,  # Default to fail-open on error
+                fail_open=False,  # Treat load failures as fail-closed for safety
                 error=f"Failed to load evaluator: {e}",
                 duration_ms=(time.time() - t0) * 1000,
             )
@@ -288,13 +288,36 @@ class EvalRuntime:
         Returns:
             List of EvalResult from all applicable evaluators
         """
-        evaluators = self.get_evaluators_for_agent(agent_slug, hook_type)
-
         results: List[EvalResult] = []
-        for eval_desc in evaluators:
-            result = self.evaluate(
-                eval_desc.slug, payload, {**context, "agent_slug": agent_slug}
-            )
-            results.append(result)
+
+        # Iterate through all evaluator slugs, including those that might fail to load
+        for eval_slug in self.registry.list_evals():
+            try:
+                # Try to load evaluator descriptor
+                eval_desc = self.registry.load_eval(eval_slug)
+
+                # Check if this evaluator applies to the agent and hook type
+                if eval_desc.hook_type != hook_type or agent_slug not in eval_desc.target_agents:
+                    continue
+
+                # Evaluator is applicable, run evaluation
+                result = self.evaluate(
+                    eval_slug, payload, {**context, "agent_slug": agent_slug}
+                )
+                results.append(result)
+
+            except Exception as e:
+                # Evaluator failed to load - treat as fail-closed for safety
+                logger.error(f"Failed to load evaluator '{eval_slug}': {e}")
+                results.append(EvalResult(
+                    eval_slug=eval_slug,
+                    hook_type=hook_type,
+                    agent_slug=agent_slug,
+                    overall_score=0.0,
+                    passed=False,
+                    fail_open=False,  # Treat load failures as fail-closed
+                    error=f"Failed to load evaluator: {e}",
+                    duration_ms=0.0,
+                ))
 
         return results
