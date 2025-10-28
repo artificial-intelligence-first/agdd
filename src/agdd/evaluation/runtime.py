@@ -70,43 +70,54 @@ class EvalRuntime:
             logger.warning(f"Metric module not found for evaluator '{eval_slug}': {metric_module_path}")
             return {}
 
-        # Load module with proper package context to support relative imports
-        import importlib.util
-        import sys
+        try:
+            # Load module with proper package context to support relative imports
+            import importlib.util
+            import sys
 
-        # Use dotted package path to preserve package context
-        module_name = f"catalog.evals.{eval_slug}.metric.validator"
+            # Use dotted package path to preserve package context
+            module_name = f"catalog.evals.{eval_slug}.metric.validator"
 
-        spec = importlib.util.spec_from_file_location(
-            module_name, metric_module_path
-        )
-        if spec is None or spec.loader is None:
-            logger.error(f"Cannot create module spec for {metric_module_path}")
+            spec = importlib.util.spec_from_file_location(
+                module_name, metric_module_path
+            )
+            if spec is None or spec.loader is None:
+                logger.error(f"Cannot create module spec for {metric_module_path}")
+                return {}
+
+            module = importlib.util.module_from_spec(spec)
+
+            # Set __package__ explicitly to enable relative imports
+            module.__package__ = f"catalog.evals.{eval_slug}.metric"
+
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+
+            # Extract METRICS dictionary if available
+            if hasattr(module, "METRICS") and isinstance(module.METRICS, dict):
+                self._metric_cache[eval_slug] = cast(Dict[str, MetricCallable], module.METRICS)
+                return self._metric_cache[eval_slug]
+
+            # Fallback: Load individual metric functions by name
+            metrics: Dict[str, MetricCallable] = {}
+            for attr_name in dir(module):
+                if not attr_name.startswith("_"):
+                    attr = getattr(module, attr_name)
+                    if callable(attr):
+                        metrics[attr_name] = cast(MetricCallable, attr)
+
+            self._metric_cache[eval_slug] = metrics
+            return metrics
+
+        except Exception as e:
+            # Catch import errors, syntax errors, missing dependencies, etc.
+            # Log the error but allow evaluation to continue (fail gracefully)
+            logger.error(
+                f"Failed to load metric module for evaluator '{eval_slug}': {e}",
+                exc_info=True
+            )
+            # Don't cache the error - allow retry on next call
             return {}
-
-        module = importlib.util.module_from_spec(spec)
-
-        # Set __package__ explicitly to enable relative imports
-        module.__package__ = f"catalog.evals.{eval_slug}.metric"
-
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-
-        # Extract METRICS dictionary if available
-        if hasattr(module, "METRICS") and isinstance(module.METRICS, dict):
-            self._metric_cache[eval_slug] = cast(Dict[str, MetricCallable], module.METRICS)
-            return self._metric_cache[eval_slug]
-
-        # Fallback: Load individual metric functions by name
-        metrics: Dict[str, MetricCallable] = {}
-        for attr_name in dir(module):
-            if not attr_name.startswith("_"):
-                attr = getattr(module, attr_name)
-                if callable(attr):
-                    metrics[attr_name] = cast(MetricCallable, attr)
-
-        self._metric_cache[eval_slug] = metrics
-        return metrics
 
     def get_evaluators_for_agent(self, agent_slug: str, hook_type: str) -> List[EvalDescriptor]:
         """
