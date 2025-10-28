@@ -200,6 +200,8 @@ class EvalRuntime:
                         duration_ms=(time.time() - metric_t0) * 1000,
                     )
                 )
+                # Include failed metric weight in overall score calculation
+                total_weight += metric_config.weight
                 continue
 
             try:
@@ -246,6 +248,8 @@ class EvalRuntime:
                         duration_ms=(time.time() - metric_t0) * 1000,
                     )
                 )
+                # Include failed metric weight in overall score calculation
+                total_weight += metric_config.weight
 
         # Calculate overall score
         overall_score = total_weighted_score / total_weight if total_weight > 0 else 0.0
