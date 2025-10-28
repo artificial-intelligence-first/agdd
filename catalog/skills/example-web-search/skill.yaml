@@ -1,0 +1,28 @@
+version: 0.1.0
+id: skill.example-web-search
+name: ExampleWebSearch
+description: Example MCP tool wrapper for web content fetching and search. Demonstrates how to integrate the fetch MCP server for web search capabilities
+
+# Entrypoint to the skill implementation
+entrypoint: catalog/skills/example-web-search/impl/mcp_tool.py:run
+
+# Input/output contracts (JSON Schema)
+contracts:
+  input_schema: catalog/skills/example-web-search/contracts/input.schema.json
+  output_schema: catalog/skills/example-web-search/contracts/output.schema.json
+
+# MCP permissions required
+permissions:
+  - mcp:fetch
+
+# Cost and resource estimates
+resource_config:
+  estimated_duration: medium  # short, medium, long
+  timeout_ms: 3000
+  cost_category: low  # low, medium, high
+
+# Observability
+observability:
+  logs: true
+  metrics: true
+  traces: basic
