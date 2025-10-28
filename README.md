@@ -164,15 +164,15 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ```
 agdd/
 ├── src/                        # Source code (Python src/ layout)
-│   ├── agdd/                   # Core Python package
-│   │   ├── cli.py              # CLI entry point
-│   │   ├── api/                # HTTP API (FastAPI)
-│   │   ├── registry.py         # Agent/skill resolution
-│   │   ├── runners/            # Execution engines
-│   │   ├── governance/         # Policy enforcement
-│   │   ├── storage/            # Data persistence layer
-│   │   └── assets/             # Bundled resources
-│   └── observability/          # Observability utilities
+│   └── agdd/                   # Core Python package
+│       ├── cli.py              # CLI entry point
+│       ├── api/                # HTTP API (FastAPI)
+│       ├── observability/      # Observability utilities
+│       ├── registry.py         # Agent/skill resolution
+│       ├── runners/            # Execution engines
+│       ├── governance/         # Policy enforcement
+│       ├── storage/            # Data persistence layer
+│       └── assets/             # Bundled resources
 ├── catalog/                    # User-editable assets
 │   ├── agents/                 # Agent implementations
 │   │   ├── _template/          # MAG/SAG templates
@@ -181,6 +181,8 @@ agdd/
 │   ├── skills/                 # Reusable skill implementations
 │   ├── contracts/              # JSON Schema contracts
 │   ├── policies/               # Governance policies
+│   ├── routing/                # Routing policies
+│   ├── evals/                  # Evaluation configurations
 │   └── registry/               # Configuration (agents.yaml, skills.yaml)
 ├── docs/                       # Documentation
 │   ├── guides/                 # User guides
@@ -475,7 +477,7 @@ Interactive documentation is available at:
 - ReDoc: <http://localhost:8000/redoc>
 - OpenAPI schema: <http://localhost:8000/api/v1/openapi.json>
 
-See [API.md](./docs/guides/api-usage.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
+See [api-usage.md](./docs/guides/api-usage.md) for a complete endpoint reference, authentication details, and troubleshooting tips. Additional curl examples are provided in [`examples/api/curl_examples.sh`](./examples/api/curl_examples.sh).
 
 ### GitHub Integration
 
@@ -489,10 +491,10 @@ Provision the webhook with the helper script:
 
 ```bash
 GITHUB_WEBHOOK_SECRET=my-secret \
-./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
+./ops/scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
 ```
 
-Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [GITHUB.md](./docs/guides/github-integration.md).
+Ensure the API server has `AGDD_GITHUB_WEBHOOK_SECRET` (for signature verification) and `AGDD_GITHUB_TOKEN` (for posting comments). Full setup instructions, comment examples, and GitHub Actions workflows live in [github-integration.md](./docs/guides/github-integration.md).
 
 ### Flow Runner
 
@@ -549,7 +551,7 @@ uv run agdd data vacuum --hot-days 7
 - **Event envelope pattern**: Strongly-typed common fields + flexible JSON payloads
 - **Migration tool**: Import legacy `.runs/agents/` data for analysis while new cost tracking lives in `.runs/costs/`
 
-**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [AGENTS.md](./docs/guides/agent-development.md)).
+**Note**: The storage layer is for data management/analysis. Agent developers continue using `ObservabilityLogger` (see [agent-development.md](./docs/guides/agent-development.md)).
 
 See [docs/storage.md](./docs/storage.md) for complete documentation.
 
@@ -632,7 +634,7 @@ Hooks run automatically on `git commit` and check:
 
 ## Contributing
 
-Contributions are welcome. Please refer to [AGENTS.md](./docs/guides/agent-development.md) for the complete development workflow and PR policy.
+Contributions are welcome. Please refer to [agent-development.md](./docs/guides/agent-development.md) for the complete development workflow and PR policy.
 
 ### Requirements
 

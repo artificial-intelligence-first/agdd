@@ -69,7 +69,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["agdd*", "observability*"]
+include = ["agdd*"]
 
 [tool.setuptools.package-data]
 "agdd" = [
