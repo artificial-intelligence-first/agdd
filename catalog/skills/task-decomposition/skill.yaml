@@ -1,0 +1,22 @@
+version: 0.1.0
+id: skill.task-decomposition
+name: TaskDecomposition
+description: Decomposes complex tasks into subtasks for parallel execution
+
+entrypoint: catalog/skills/task-decomposition/impl/task_decomposition.py:run
+
+contracts:
+  input_schema: catalog/skills/task-decomposition/contracts/input.schema.json
+  output_schema: catalog/skills/task-decomposition/contracts/output.schema.json
+
+permissions: []
+
+resource_config:
+  estimated_duration: short
+  timeout_ms: 3000
+  cost_category: low
+
+observability:
+  logs: true
+  metrics: true
+  traces: basic

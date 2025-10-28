@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/skills/task-decomposition/output.schema.json",
+  "title": "TaskDecompositionOutput",
+  "description": "Output from task decomposition skill",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["sag_id", "input"],
+    "properties": {
+      "sag_id": {
+        "type": "string",
+        "description": "Sub-agent identifier to delegate to"
+      },
+      "input": {
+        "type": "object",
+        "description": "Input payload for the sub-agent"
+      },
+      "context": {
+        "type": "object",
+        "description": "Additional context for delegation"
+      }
+    }
+  }
+}

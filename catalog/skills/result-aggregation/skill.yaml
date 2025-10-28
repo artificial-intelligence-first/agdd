@@ -1,0 +1,22 @@
+version: 0.1.0
+id: skill.result-aggregation
+name: ResultAggregation
+description: Aggregates results from multiple sub-agents into a unified output
+
+entrypoint: catalog/skills/result-aggregation/impl/result_aggregation.py:run
+
+contracts:
+  input_schema: catalog/skills/result-aggregation/contracts/input.schema.json
+  output_schema: catalog/skills/result-aggregation/contracts/output.schema.json
+
+permissions: []
+
+resource_config:
+  estimated_duration: short
+  timeout_ms: 2000
+  cost_category: low
+
+observability:
+  logs: true
+  metrics: true
+  traces: basic
