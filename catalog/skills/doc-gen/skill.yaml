@@ -1,0 +1,28 @@
+version: 0.1.0
+id: skill.doc-gen
+name: DocGen
+description: Generates offer packet documents that summarize compensation recommendations and candidate-specific details
+
+# Entrypoint to the skill implementation
+entrypoint: catalog/skills/doc-gen/impl/doc_gen.py:run
+
+# Input/output contracts (JSON Schema)
+contracts:
+  input_schema: catalog/skills/doc-gen/contracts/input.schema.json
+  output_schema: catalog/skills/doc-gen/contracts/output.schema.json
+
+# MCP permissions required
+permissions:
+  - mcp:pg-readonly
+
+# Cost and resource estimates
+resource_config:
+  estimated_duration: short  # short, medium, long
+  timeout_ms: 1000
+  cost_category: low  # low, medium, high
+
+# Observability
+observability:
+  logs: true
+  metrics: true
+  traces: basic

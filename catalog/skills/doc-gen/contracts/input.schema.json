@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agdd.ai/schemas/skills/doc-gen/input.schema.json",
+  "title": "DocGenInput",
+  "description": "Input for document generation skill (candidate profile)",
+  "type": "object",
+  "required": ["id"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique candidate identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Candidate's full name"
+    },
+    "role": {
+      "type": "string",
+      "description": "Job role or title"
+    },
+    "title": {
+      "type": "string",
+      "description": "Alternative field for job role"
+    },
+    "level": {
+      "type": "string",
+      "description": "Seniority level (e.g., 'Junior', 'Mid', 'Senior')"
+    },
+    "seniority": {
+      "type": "string",
+      "description": "Alternative field for seniority level"
+    },
+    "location": {
+      "type": "string",
+      "description": "Geographic location"
+    },
+    "salary_band": {
+      "type": "object",
+      "description": "Salary band information",
+      "properties": {
+        "base": {
+          "type": "number",
+          "description": "Base salary or minimum"
+        },
+        "min": {
+          "type": "number",
+          "description": "Minimum salary"
+        },
+        "max": {
+          "type": "number",
+          "description": "Maximum salary"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Currency code (e.g., 'USD')"
+        },
+        "source": {
+          "type": "string",
+          "description": "Data source for salary band"
+        }
+      }
+    },
+    "base_salary": {
+      "type": "number",
+      "description": "Base salary amount"
+    },
+    "max_salary": {
+      "type": "number",
+      "description": "Maximum salary amount"
+    },
+    "variable_comp": {
+      "type": ["object", "number"],
+      "description": "Variable compensation details"
+    },
+    "equity": {
+      "type": ["object", "number"],
+      "description": "Equity compensation details"
+    },
+    "compensation_recommendation": {
+      "type": "string",
+      "description": "Textual compensation recommendation"
+    },
+    "salary_band_source": {
+      "type": "string",
+      "description": "Source of salary band data"
+    },
+    "advisor_notes": {
+      "type": "string",
+      "description": "Notes from compensation advisor"
+    },
+    "offer_id": {
+      "type": "string",
+      "description": "Optional offer identifier"
+    }
+  },
+  "additionalProperties": true
+}
