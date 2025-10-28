@@ -22,8 +22,12 @@ completeness_check = validator_module.completeness_check
 
 
 def test_salary_range_check_valid():
-    """Test salary range check with valid salary"""
-    payload = {"offer": {"base_salary": 150000, "currency": "USD"}}
+    """Test salary range check with valid salary (nested structure)"""
+    payload = {
+        "offer": {
+            "base_salary": {"currency": "USD", "amount": 150000}
+        }
+    }
     context = {}
 
     result = salary_range_check(payload, context)
@@ -34,8 +38,12 @@ def test_salary_range_check_valid():
 
 
 def test_salary_range_check_too_low():
-    """Test salary range check with too low salary"""
-    payload = {"offer": {"base_salary": 10000, "currency": "USD"}}
+    """Test salary range check with too low salary (nested structure)"""
+    payload = {
+        "offer": {
+            "base_salary": {"currency": "USD", "amount": 10000}
+        }
+    }
     context = {}
 
     result = salary_range_check(payload, context)
@@ -46,8 +54,12 @@ def test_salary_range_check_too_low():
 
 
 def test_salary_range_check_too_high():
-    """Test salary range check with excessively high salary"""
-    payload = {"offer": {"base_salary": 1000000, "currency": "USD"}}
+    """Test salary range check with excessively high salary (nested structure)"""
+    payload = {
+        "offer": {
+            "base_salary": {"currency": "USD", "amount": 1000000}
+        }
+    }
     context = {}
 
     result = salary_range_check(payload, context)
@@ -58,13 +70,12 @@ def test_salary_range_check_too_high():
 
 
 def test_consistency_check_valid():
-    """Test consistency check with valid offer"""
+    """Test consistency check with valid offer (nested structure)"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            "bonus": 20000,
-            "equity_value": 50000,
-            "currency": "USD",
+            "base_salary": {"currency": "USD", "amount": 150000},
+            "sign_on_bonus": {"currency": "USD", "amount": 20000},
+            "equity": {"amount": 50000},
         }
     }
     context = {}
@@ -77,13 +88,12 @@ def test_consistency_check_valid():
 
 
 def test_consistency_check_high_equity():
-    """Test consistency check with unusually high equity"""
+    """Test consistency check with unusually high equity (nested structure)"""
     payload = {
         "offer": {
-            "base_salary": 100000,
-            "bonus": 0,
-            "equity_value": 500000,  # 5x base salary
-            "currency": "USD",
+            "base_salary": {"currency": "USD", "amount": 100000},
+            "sign_on_bonus": {"currency": "USD", "amount": 0},
+            "equity": {"amount": 500000},  # 5x base salary
         }
     }
     context = {}
@@ -95,13 +105,12 @@ def test_consistency_check_high_equity():
 
 
 def test_consistency_check_negative_values():
-    """Test consistency check with negative values"""
+    """Test consistency check with negative values (nested structure)"""
     payload = {
         "offer": {
-            "base_salary": -100000,  # Invalid
-            "bonus": 0,
-            "equity_value": 0,
-            "currency": "USD",
+            "base_salary": {"currency": "USD", "amount": -100000},  # Invalid
+            "sign_on_bonus": {"currency": "USD", "amount": 0},
+            "equity": {"amount": 0},
         }
     }
     context = {}
@@ -114,17 +123,15 @@ def test_consistency_check_negative_values():
 
 
 def test_completeness_check_complete():
-    """Test completeness check with all required fields"""
+    """Test completeness check with all required fields (nested structure)"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            "currency": "USD",
             "role": "Senior Engineer",
-            "level": "Senior",
-            "bonus": 20000,
-            "equity_value": 50000,
-            "benefits": "Health, Dental",
-            "start_date": "2025-01-01",
+            "base_salary": {"currency": "USD", "amount": 150000},
+            "band": {"currency": "USD", "min": 100000, "max": 200000, "source": "internal"},
+            "sign_on_bonus": {"currency": "USD", "amount": 20000},
+            "equity": {"type": "RSU", "amount": 50000, "vesting_years": 4},
+            "notes": "Competitive offer",
         }
     }
     context = {}
@@ -138,27 +145,30 @@ def test_completeness_check_complete():
 
 
 def test_completeness_check_missing_required():
-    """Test completeness check with missing required fields"""
-    payload = {"offer": {"base_salary": 150000}}  # Missing: currency, role, level
+    """Test completeness check with missing required fields (nested structure)"""
+    payload = {
+        "offer": {
+            "base_salary": {"currency": "USD", "amount": 150000}
+            # Missing: role, band
+        }
+    }
     context = {}
 
     result = completeness_check(payload, context)
 
     assert result["passed"] is False
-    assert "currency" in result["details"]["missing_required"]
     assert "role" in result["details"]["missing_required"]
-    assert "level" in result["details"]["missing_required"]
+    assert "band" in result["details"]["missing_required"]
 
 
 def test_completeness_check_missing_recommended():
-    """Test completeness check with missing recommended fields"""
+    """Test completeness check with missing recommended fields (nested structure)"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            "currency": "USD",
             "role": "Engineer",
-            "level": "Mid",
-            # Missing recommended: bonus, equity_value, benefits, start_date
+            "base_salary": {"currency": "USD", "amount": 150000},
+            "band": {"currency": "USD", "min": 100000, "max": 200000},
+            # Missing recommended: sign_on_bonus, equity, notes
         }
     }
     context = {}
@@ -168,3 +178,20 @@ def test_completeness_check_missing_recommended():
     assert result["passed"] is True  # Required fields are present
     assert result["score"] < 1.0  # Score reduced by missing recommended fields
     assert len(result["details"]["missing_recommended"]) > 0
+
+
+def test_backward_compatibility_flat_structure():
+    """Test backward compatibility with flat structure"""
+    # Old flat structure should still work
+    payload = {
+        "offer": {
+            "base_salary": 150000,
+            "currency": "USD"
+        }
+    }
+    context = {}
+
+    result = salary_range_check(payload, context)
+
+    assert result["score"] == 1.0
+    assert result["passed"] is True

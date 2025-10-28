@@ -25,8 +25,16 @@ def salary_range_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict
         }
     """
     offer = payload.get("offer", {})
-    base_salary = offer.get("base_salary", 0)
-    currency = offer.get("currency", "USD")
+
+    # Extract base_salary from nested structure (comp_advisor_output.schema.json)
+    base_salary_obj = offer.get("base_salary", {})
+    if isinstance(base_salary_obj, dict):
+        base_salary = base_salary_obj.get("amount", 0)
+        currency = base_salary_obj.get("currency", "USD")
+    else:
+        # Fallback for flat structure (backwards compatibility)
+        base_salary = base_salary_obj if isinstance(base_salary_obj, (int, float)) else 0
+        currency = offer.get("currency", "USD")
 
     # Define reasonable ranges by currency
     salary_ranges = {
@@ -82,35 +90,61 @@ def consistency_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         Evaluation result with score and details
     """
     offer = payload.get("offer", {})
-    base_salary = offer.get("base_salary", 0)
-    bonus = offer.get("bonus", 0)
-    equity_value = offer.get("equity_value", 0)
-    currency = offer.get("currency", "USD")
+
+    # Extract values from nested structure (comp_advisor_output.schema.json)
+    base_salary_obj = offer.get("base_salary", {})
+    if isinstance(base_salary_obj, dict):
+        base_salary = base_salary_obj.get("amount", 0)
+        currency = base_salary_obj.get("currency", "USD")
+    else:
+        base_salary = base_salary_obj if isinstance(base_salary_obj, (int, float)) else 0
+        currency = offer.get("currency", "USD")
+
+    # Extract sign-on bonus
+    sign_on_obj = offer.get("sign_on_bonus", {})
+    if isinstance(sign_on_obj, dict):
+        bonus = sign_on_obj.get("amount", 0)
+        bonus_currency = sign_on_obj.get("currency", currency)
+    else:
+        bonus = offer.get("bonus", 0)
+        bonus_currency = currency
+
+    # Extract equity value
+    equity_obj = offer.get("equity", {})
+    if isinstance(equity_obj, dict):
+        equity_value = equity_obj.get("amount", 0)
+    else:
+        equity_value = offer.get("equity_value", 0)
 
     issues = []
     score = 1.0
 
-    # Check 1: Total compensation >= base salary
+    # Check 1: Currency consistency
+    if bonus > 0 and bonus_currency != currency:
+        issues.append("currency_mismatch")
+        score -= 0.2
+
+    # Check 2: Total compensation >= base salary
     total_comp = base_salary + bonus + equity_value
     if total_comp < base_salary:
         issues.append("total_compensation_less_than_base")
         score -= 0.3
 
-    # Check 2: Equity value is reasonable (typically 0-200% of base)
+    # Check 3: Equity value is reasonable (typically 0-200% of base)
     if equity_value > 0:
         equity_ratio = equity_value / base_salary if base_salary > 0 else 0
         if equity_ratio > 2.0:
             issues.append("equity_value_unusually_high")
             score -= 0.2
 
-    # Check 3: Bonus is reasonable (typically 0-100% of base)
+    # Check 4: Sign-on bonus is reasonable (typically 0-100% of base)
     if bonus > 0:
         bonus_ratio = bonus / base_salary if base_salary > 0 else 0
         if bonus_ratio > 1.0:
-            issues.append("bonus_unusually_high")
+            issues.append("sign_on_bonus_unusually_high")
             score -= 0.2
 
-    # Check 4: All positive values
+    # Check 5: All positive values
     if base_salary < 0 or bonus < 0 or equity_value < 0:
         issues.append("negative_values_detected")
         score -= 0.5
@@ -124,7 +158,7 @@ def consistency_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         "details": {
             "total_compensation": total_comp,
             "base_salary": base_salary,
-            "bonus": bonus,
+            "sign_on_bonus": bonus,
             "equity_value": equity_value,
             "currency": currency,
             "issues": issues,
@@ -145,20 +179,18 @@ def completeness_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict
     """
     offer = payload.get("offer", {})
 
-    # Required fields for a complete compensation offer
+    # Required fields based on comp_advisor_output.schema.json
     required_fields = [
-        "base_salary",
-        "currency",
         "role",
-        "level",
+        "base_salary",
+        "band",
     ]
 
     # Optional but recommended fields
     recommended_fields = [
-        "bonus",
-        "equity_value",
-        "benefits",
-        "start_date",
+        "sign_on_bonus",
+        "equity",
+        "notes",
     ]
 
     missing_required = []
@@ -166,8 +198,16 @@ def completeness_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict
 
     # Check required fields
     for field in required_fields:
-        if field not in offer or offer[field] is None or offer[field] == "":
+        value = offer.get(field)
+        if value is None or value == "":
             missing_required.append(field)
+        # For nested objects, check if they have required subfields
+        elif field == "base_salary" and isinstance(value, dict):
+            if "currency" not in value or "amount" not in value:
+                missing_required.append(f"{field}.currency or {field}.amount")
+        elif field == "band" and isinstance(value, dict):
+            if "currency" not in value or "min" not in value or "max" not in value:
+                missing_required.append(f"{field}.required_fields")
 
     # Check recommended fields
     for field in recommended_fields:
@@ -175,8 +215,10 @@ def completeness_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict
             missing_recommended.append(field)
 
     # Calculate score
-    required_score = 1.0 - (len(missing_required) / len(required_fields))
-    recommended_score = 1.0 - (len(missing_recommended) / len(recommended_fields))
+    required_score = 1.0 - (len(missing_required) / len(required_fields)) if required_fields else 1.0
+    recommended_score = (
+        1.0 - (len(missing_recommended) / len(recommended_fields)) if recommended_fields else 1.0
+    )
 
     # Weighted score: required=80%, recommended=20%
     score = (required_score * 0.8) + (recommended_score * 0.2)
