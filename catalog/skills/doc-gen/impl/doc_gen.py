@@ -15,8 +15,8 @@ import jsonschema
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-INPUT_CONTRACT = ROOT / "catalog" / "skills" / "doc-gen" / "contracts" / "input.schema.json"
-OUTPUT_CONTRACT = ROOT / "catalog" / "skills" / "doc-gen" / "contracts" / "output.schema.json"
+INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.json"
+OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "offer_packet.json"
 
 
 def _load_schema(path: Path) -> dict[str, Any]:
