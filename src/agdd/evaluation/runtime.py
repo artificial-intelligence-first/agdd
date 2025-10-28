@@ -273,6 +273,43 @@ class EvalRuntime:
             duration_ms=(time.time() - t0) * 1000,
         )
 
+    def _check_if_evaluator_applies(self, eval_slug: str, agent_slug: str, hook_type: str) -> bool:
+        """
+        Best-effort check if evaluator applies to agent without full load.
+
+        Args:
+            eval_slug: Evaluator slug
+            agent_slug: Agent slug
+            hook_type: Hook type
+
+        Returns:
+            True if evaluator appears to apply to this agent, False otherwise
+        """
+        try:
+            # Try to read minimal info from eval.yaml
+            eval_yaml_path = self.registry.base_path / "catalog" / "evals" / eval_slug / "eval.yaml"
+
+            if not eval_yaml_path.exists():
+                # File doesn't exist - can't determine applicability
+                # Default to False (don't block unrelated agents)
+                logger.warning(f"eval.yaml not found for '{eval_slug}': {eval_yaml_path}")
+                return False
+
+            import yaml
+            with open(eval_yaml_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+
+            # Check if this evaluator targets the current agent
+            target_agents = data.get("target_agents", [])
+            eval_hook_type = data.get("hook_type", "post_eval")
+
+            return eval_hook_type == hook_type and agent_slug in target_agents
+
+        except Exception as e:
+            # If we can't parse the YAML at all, assume it might apply (fail-closed for safety)
+            logger.warning(f"Cannot determine if evaluator '{eval_slug}' applies to '{agent_slug}': {e}")
+            return True
+
     def evaluate_all(
         self, agent_slug: str, hook_type: str, payload: Dict[str, Any], context: Dict[str, Any]
     ) -> List[EvalResult]:
@@ -307,17 +344,26 @@ class EvalRuntime:
                 results.append(result)
 
             except Exception as e:
-                # Evaluator failed to load - treat as fail-closed for safety
+                # Evaluator failed to load - check if it applies to this agent
                 logger.error(f"Failed to load evaluator '{eval_slug}': {e}")
-                results.append(EvalResult(
-                    eval_slug=eval_slug,
-                    hook_type=hook_type,
-                    agent_slug=agent_slug,
-                    overall_score=0.0,
-                    passed=False,
-                    fail_open=False,  # Treat load failures as fail-closed
-                    error=f"Failed to load evaluator: {e}",
-                    duration_ms=0.0,
-                ))
+
+                # Best-effort check: does this evaluator target the current agent?
+                if self._check_if_evaluator_applies(eval_slug, agent_slug, hook_type):
+                    # Evaluator targets this agent - treat load failure as fail-closed
+                    results.append(EvalResult(
+                        eval_slug=eval_slug,
+                        hook_type=hook_type,
+                        agent_slug=agent_slug,
+                        overall_score=0.0,
+                        passed=False,
+                        fail_open=False,  # Treat load failures as fail-closed
+                        error=f"Failed to load evaluator: {e}",
+                        duration_ms=0.0,
+                    ))
+                else:
+                    # Evaluator doesn't target this agent - skip it
+                    logger.info(
+                        f"Skipping failed evaluator '{eval_slug}' (not applicable to '{agent_slug}')"
+                    )
 
         return results
