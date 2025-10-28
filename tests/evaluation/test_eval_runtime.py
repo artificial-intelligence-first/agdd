@@ -54,14 +54,12 @@ def test_evaluate_valid_offer(eval_runtime):
     """Test evaluation with valid compensation offer"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            "currency": "USD",
-            "bonus": 20000,
-            "equity_value": 50000,
             "role": "Senior Engineer",
-            "level": "Senior",
-            "benefits": "Health, Dental, 401k",
-            "start_date": "2025-01-01",
+            "base_salary": {"currency": "USD", "amount": 150000},
+            "band": {"currency": "USD", "min": 130000, "max": 180000},
+            "sign_on_bonus": {"currency": "USD", "amount": 20000},
+            "equity": {"amount": 50000},
+            "notes": "Competitive offer with strong equity component",
         }
     }
     context = {"agent_slug": "compensation-advisor-sag", "run_id": "test-123"}
@@ -79,12 +77,11 @@ def test_evaluate_invalid_salary_range(eval_runtime):
     """Test evaluation with out-of-range salary"""
     payload = {
         "offer": {
-            "base_salary": 10000,  # Too low
-            "currency": "USD",
-            "bonus": 0,
-            "equity_value": 0,
             "role": "Engineer",
-            "level": "Mid",
+            "base_salary": {"currency": "USD", "amount": 10000},  # Too low
+            "band": {"currency": "USD", "min": 30000, "max": 50000},
+            "sign_on_bonus": {"currency": "USD", "amount": 0},
+            "equity": {"amount": 0},
         }
     }
     context = {"agent_slug": "compensation-advisor-sag"}
@@ -101,8 +98,8 @@ def test_evaluate_missing_required_fields(eval_runtime):
     """Test evaluation with missing required fields"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            # Missing: currency, role, level
+            "base_salary": {"currency": "USD", "amount": 150000},
+            # Missing: role, level, sign_on_bonus, equity
         }
     }
     context = {"agent_slug": "compensation-advisor-sag"}
@@ -119,10 +116,12 @@ def test_evaluate_all_for_agent(eval_runtime):
     """Test running all evaluators for an agent"""
     payload = {
         "offer": {
-            "base_salary": 150000,
-            "currency": "USD",
             "role": "Engineer",
-            "level": "Senior",
+            "base_salary": {"currency": "USD", "amount": 150000},
+            "band": {"currency": "USD", "min": 120000, "max": 180000},
+            "sign_on_bonus": {"currency": "USD", "amount": 10000},
+            "equity": {"amount": 30000},
+            "notes": "Standard offer",
         }
     }
     context = {"agent_slug": "compensation-advisor-sag"}
