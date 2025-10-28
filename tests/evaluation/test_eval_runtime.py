@@ -99,7 +99,7 @@ def test_evaluate_missing_required_fields(eval_runtime):
     payload = {
         "offer": {
             "base_salary": {"currency": "USD", "amount": 150000},
-            # Missing: role, level, sign_on_bonus, equity
+            # Missing: role, band (required fields)
         }
     }
     context = {"agent_slug": "compensation-advisor-sag"}
@@ -110,6 +110,12 @@ def test_evaluate_missing_required_fields(eval_runtime):
     completeness = next((m for m in result.metrics if m.metric_id == "completeness_check"), None)
     assert completeness is not None
     assert completeness.passed is False
+
+    # Overall evaluation should fail
+    assert result.passed is False
+
+    # Check that fail_open is False (fail-closed) for this evaluator
+    assert result.fail_open is False
 
 
 def test_evaluate_all_for_agent(eval_runtime):

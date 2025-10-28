@@ -472,8 +472,14 @@ class AgentRunner:
                             obs.log("pre_eval_failure", {
                                 "failed_evals": [r.eval_slug for r in critical_failures]
                             })
-                            # Depending on fail_open/fail_closed, either raise or continue
-                            # For now, we log but continue (fail-open behavior)
+                            # Check fail_open/fail_closed behavior
+                            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
+                            if fail_closed_evals:
+                                # Fail-closed: block execution
+                                failed_slugs = [r.eval_slug for r in fail_closed_evals]
+                                raise RuntimeError(
+                                    f"Pre-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
+                                )
 
                     # Resolve entrypoint
                     run_fn = cast(
@@ -517,8 +523,14 @@ class AgentRunner:
                             obs.log("post_eval_failure", {
                                 "failed_evals": [r.eval_slug for r in critical_failures]
                             })
-                            # For fail-closed behavior, raise an exception
-                            # For now, we continue (configurable in future)
+                            # Check fail_open/fail_closed behavior
+                            fail_closed_evals = [r for r in critical_failures if not r.fail_open]
+                            if fail_closed_evals:
+                                # Fail-closed: block execution and return error
+                                failed_slugs = [r.eval_slug for r in fail_closed_evals]
+                                raise RuntimeError(
+                                    f"Post-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
+                                )
 
                     # Record metrics and cost
                     obs.metric("duration_ms", duration_ms)

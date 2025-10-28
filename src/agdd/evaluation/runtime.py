@@ -43,6 +43,7 @@ class EvalResult:
     agent_slug: str
     overall_score: float  # Weighted average of metric scores
     passed: bool  # All critical metrics passed
+    fail_open: bool  # If false (fail-closed), failures should block execution
     metrics: List[MetricResult] = field(default_factory=list)
     duration_ms: float = 0.0
     error: Optional[str] = None
@@ -69,18 +70,25 @@ class EvalRuntime:
             logger.warning(f"Metric module not found for evaluator '{eval_slug}': {metric_module_path}")
             return {}
 
-        # Use registry's resolve_entrypoint to load the module
+        # Load module with proper package context to support relative imports
         import importlib.util
         import sys
 
+        # Use dotted package path to preserve package context
+        module_name = f"catalog.evals.{eval_slug}.metric.validator"
+
         spec = importlib.util.spec_from_file_location(
-            f"_agdd_eval_{eval_slug}_metric", metric_module_path
+            module_name, metric_module_path
         )
         if spec is None or spec.loader is None:
             logger.error(f"Cannot create module spec for {metric_module_path}")
             return {}
 
         module = importlib.util.module_from_spec(spec)
+
+        # Set __package__ explicitly to enable relative imports
+        module.__package__ = f"catalog.evals.{eval_slug}.metric"
+
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
 
@@ -149,6 +157,7 @@ class EvalRuntime:
                 agent_slug=context.get("agent_slug", "unknown"),
                 overall_score=0.0,
                 passed=False,
+                fail_open=True,  # Default to fail-open on error
                 error=f"Failed to load evaluator: {e}",
                 duration_ms=(time.time() - t0) * 1000,
             )
@@ -239,12 +248,16 @@ class EvalRuntime:
         ]
         passed = len(critical_failures) == 0
 
+        # Extract fail_open setting from execution config (default: True = fail-open)
+        fail_open = eval_desc.execution.get("fail_open", True)
+
         return EvalResult(
             eval_slug=eval_slug,
             hook_type=eval_desc.hook_type,
             agent_slug=context.get("agent_slug", "unknown"),
             overall_score=overall_score,
             passed=passed,
+            fail_open=fail_open,
             metrics=metric_results,
             duration_ms=(time.time() - t0) * 1000,
         )
