@@ -1,6 +1,7 @@
 """Tests for MCP Registry auto-discovery functionality."""
 
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,7 @@ class TestMCPRegistryDiscovery:
     """Test cases for MCP server auto-discovery."""
 
     @pytest.fixture
-    def temp_servers_dir(self) -> Path:
+    def temp_servers_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for server configs."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
@@ -181,7 +182,7 @@ class TestMCPRegistryLifecycle:
     """Test cases for MCP server lifecycle management."""
 
     @pytest.fixture
-    def temp_servers_dir(self) -> Path:
+    def temp_servers_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for server configs."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)

@@ -6,6 +6,7 @@ including skills auto-discovery and permission validation.
 
 import os
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -32,7 +33,7 @@ class TestSkillsMCPIntegration:
     """Test cases for MCP integration with skills."""
 
     @pytest.fixture
-    def temp_dirs(self) -> tuple[Path, Path]:
+    def temp_dirs(self) -> Generator[tuple[Path, Path], None, None]:
         """Create temporary directories for servers and skills."""
         with tempfile.TemporaryDirectory() as servers_dir, tempfile.TemporaryDirectory() as skills_dir:
             yield Path(servers_dir), Path(skills_dir)
@@ -368,6 +369,7 @@ class TestMCPRuntimeLifecycle:
         assert isinstance(result, MCPToolResult)
         if not result.success:
             # Verify it's not a permission error about non-MCP permissions
+            assert result.error is not None
             assert "files:read" not in result.error.lower()
             assert "files:write" not in result.error.lower()
 
@@ -405,6 +407,7 @@ class TestMCPRuntimeLifecycle:
         assert isinstance(result, MCPToolResult)
         if not result.success:
             # Verify it's not a permission error about the invalid servers
+            assert result.error is not None
             assert "invalid-typo-server" not in result.error.lower()
             assert "another-nonexistent" not in result.error.lower()
             # It's fine if it fails because test-server isn't started, but not

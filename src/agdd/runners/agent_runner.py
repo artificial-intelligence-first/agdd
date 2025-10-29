@@ -135,6 +135,23 @@ class SkillRuntime:
         if self._mcp_started:
             return
 
+        # Allow tests or callers to inject a preconfigured registry.
+        # When present we still need to ensure servers are running.
+        if self.mcp_registry is not None:
+            logger.info("Using preconfigured MCP registry (starting servers if needed)")
+            try:
+                await self.mcp_registry.start_all_servers()
+                self._mcp_started = True
+                logger.info("MCP servers started on injected registry")
+            except Exception as exc:  # pragma: no cover - defensive guard
+                logger.warning(
+                    "Failed to start MCP servers on injected registry: %s. "
+                    "Skills with MCP support will execute with mcp=None (graceful fallback).",
+                    exc,
+                )
+                self._mcp_started = False
+            return
+
         logger.info("Initializing MCP registry and starting servers")
         try:
             self.mcp_registry = MCPRegistry()

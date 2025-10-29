@@ -2,9 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -318,7 +316,7 @@ def test_import_without_mcp_sdk() -> None:
 
         # Should raise ImportError during server creation
         with pytest.raises(ImportError, match="MCP SDK not installed"):
-            server = create_server()
+            create_server()
     except ImportError:
         # Import itself may fail, which is also acceptable
         pass
