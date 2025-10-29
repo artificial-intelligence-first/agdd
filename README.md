@@ -56,10 +56,12 @@ The AGDD Framework enables developers to build and manage automated agent-driven
   - Production-ready stdio-based MCP server implementation
   - Automatic tool discovery and schema generation
   - See [MCP Integration Guide](./docs/guides/mcp-integration.md) for setup details
-- 🚧 **MCP Client in Skills** (In Development - Target: Q1 2025): Enable skills to invoke external MCP servers
-  - Planned support for filesystem, git, database, and custom MCP servers
-  - Will require async skill conversion and dependency injection
-  - Current skills use mock/static data pending MCP client implementation
+- ✅ **MCP Client in Skills** (Available): Enable skills to invoke external MCP servers
+  - Full support for filesystem, git, PostgreSQL, and custom MCP servers
+  - Async skill execution with MCP parameter injection
+  - Automatic MCP server lifecycle management (startup/cleanup)
+  - Graceful fallback patterns for non-MCP environments
+  - See [MCP Migration Guide](./docs/guides/mcp-migration.md) for implementation details
 
 ### Developer Experience
 - Type Safety: Full mypy strict mode support

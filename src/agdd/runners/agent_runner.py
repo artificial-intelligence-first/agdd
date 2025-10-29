@@ -295,6 +295,39 @@ class AgentRunner:
 
         return index
 
+    async def _cleanup_mcp_async(self) -> None:
+        """
+        Cleanup MCP resources in async context (same event loop).
+
+        This should be called from async code paths to ensure MCP servers
+        are stopped in the same event loop where they were started.
+        """
+        if self.enable_mcp and self.skills._mcp_started:
+            try:
+                await self.skills._cleanup_mcp()
+            except Exception as e:
+                logger.warning(f"MCP cleanup failed: {e}")
+
+    def _cleanup_mcp_sync(self) -> None:
+        """
+        Cleanup MCP resources in sync context.
+
+        This should be called from sync code paths. It creates a new event
+        loop to stop MCP servers. This is only safe when not already in an
+        event loop (which should be the case for sync agents).
+        """
+        if self.enable_mcp and self.skills._mcp_started:
+            try:
+                # Check if we're in an event loop (shouldn't happen for sync agents)
+                try:
+                    asyncio.get_running_loop()
+                    logger.warning("Sync agent cleanup called from event loop context - skipping MCP cleanup")
+                except RuntimeError:
+                    # No event loop - safe to use asyncio.run()
+                    asyncio.run(self.skills._cleanup_mcp())
+            except Exception as e:
+                logger.warning(f"MCP cleanup failed in sync context: {e}")
+
     def _serialize_execution_plan(self, plan: ExecutionPlan) -> dict[str, Any]:
         return {
             "agent_slug": plan.agent_slug,
@@ -503,12 +536,7 @@ class AgentRunner:
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
             return output, duration_ms
         finally:
-            # Cleanup MCP resources in the same event loop they were started
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    await self.skills._cleanup_mcp()
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
+            await self._cleanup_mcp_async()
 
     def _execute_mag(
         self,
@@ -548,18 +576,7 @@ class AgentRunner:
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
             return output, duration_ms
         finally:
-            # Cleanup MCP resources started by sync agent
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    # Check if we're in an event loop (shouldn't happen for sync agents)
-                    try:
-                        asyncio.get_running_loop()
-                        logger.warning("Sync MAG cleanup called from event loop context - cannot cleanup")
-                    except RuntimeError:
-                        # No event loop - safe to use asyncio.run()
-                        asyncio.run(self.skills._cleanup_mcp())
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed in sync MAG: {cleanup_error}")
+            self._cleanup_mcp_sync()
 
     def _finalize_mag_success(
         self,
@@ -793,12 +810,7 @@ class AgentRunner:
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
             return output, duration_ms
         finally:
-            # Cleanup MCP resources in the same event loop they were started
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    await self.skills._cleanup_mcp()
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
+            await self._cleanup_mcp_async()
 
     def _run_async_safely(self, coro):
         """
@@ -875,18 +887,7 @@ class AgentRunner:
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
             return output, duration_ms
         finally:
-            # Cleanup MCP resources started by sync agent
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    # Check if we're in an event loop (shouldn't happen for sync agents)
-                    try:
-                        asyncio.get_running_loop()
-                        logger.warning("Sync SAG cleanup called from event loop context - cannot cleanup")
-                    except RuntimeError:
-                        # No event loop - safe to use asyncio.run()
-                        asyncio.run(self.skills._cleanup_mcp())
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed in sync SAG: {cleanup_error}")
+            self._cleanup_mcp_sync()
 
     def _build_success_metrics(
         self,
