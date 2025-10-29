@@ -53,7 +53,7 @@ ls .mcp/servers/
 
 ### Step 1: Update Skill Signature
 
-Skills need to accept an optional `mcp_runtime` parameter to access MCP tools.
+Skills need to accept an optional `mcp` parameter to access MCP tools.
 
 #### Before (Legacy Signature)
 
@@ -92,13 +92,13 @@ from agdd.mcp import MCPRuntime
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Lookup salary band with MCP support.
 
     Args:
         payload: Input data with role, level, location
-        mcp_runtime: Optional MCP runtime for database access
+        mcp: Optional MCP runtime for database access
 
     Returns:
         Salary band with currency, min, max, source
@@ -109,12 +109,12 @@ def run(
 
 **Key Changes:**
 - Import `MCPRuntime` from `agdd.mcp`
-- Add `mcp_runtime` as keyword-only optional parameter (`*, mcp_runtime: Optional[MCPRuntime] = None`)
+- Add `mcp` as keyword-only optional parameter (`*, mcp: Optional[MCPRuntime] = None`)
 - Type hint properly for IDE support
 - Document the new parameter in docstring
 
 **Signature Rules:**
-1. `mcp_runtime` must be keyword-only (after `*`)
+1. `mcp` must be keyword-only (after `*`)
 2. Must have `Optional[MCPRuntime]` type hint
 3. Default value must be `None` for backward compatibility
 
@@ -137,7 +137,7 @@ from agdd.mcp import MCPRuntime
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Lookup salary band with graceful fallback."""
 
@@ -147,10 +147,10 @@ def run(
     location = payload.get("location", "US")
 
     # Try MCP first if available
-    if mcp_runtime is not None:
+    if mcp is not None:
         try:
             # Use asyncio.run for async MCP calls
-            result = asyncio.run(_lookup_via_mcp(mcp_runtime, role, level, location))
+            result = asyncio.run(_lookup_via_mcp(mcp, role, level, location))
             if result:
                 return result
         except Exception as exc:
@@ -162,7 +162,7 @@ def run(
 
 
 async def _lookup_via_mcp(
-    mcp_runtime: MCPRuntime,
+    mcp: MCPRuntime,
     role: str,
     level: str,
     location: str,
@@ -176,7 +176,7 @@ async def _lookup_via_mcp(
         LIMIT 1
     """
 
-    result = await mcp_runtime.query_postgres(
+    result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql=sql,
         params=[role, level, location],
@@ -237,29 +237,29 @@ from agdd.mcp import MCPRuntime
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Compliance check requiring MCP access."""
 
     # Strict requirement: fail if MCP is unavailable
-    if mcp_runtime is None:
+    if mcp is None:
         raise RuntimeError(
             "Compliance check requires MCP runtime. "
             "Ensure skill declares 'mcp:pg-readonly' permission."
         )
 
     # Verify required permissions
-    if not mcp_runtime.check_permission("pg-readonly"):
+    if not mcp.check_permission("pg-readonly"):
         raise RuntimeError(
             "Missing required permission: mcp:pg-readonly"
         )
 
     # Execute MCP-based logic
-    return asyncio.run(_check_compliance(mcp_runtime, payload))
+    return asyncio.run(_check_compliance(mcp, payload))
 
 
 async def _check_compliance(
-    mcp_runtime: MCPRuntime,
+    mcp: MCPRuntime,
     payload: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Execute compliance checks via MCP."""
@@ -267,7 +267,7 @@ async def _check_compliance(
     candidate_id = payload["candidate_id"]
 
     # Query compliance database
-    result = await mcp_runtime.query_postgres(
+    result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql="SELECT * FROM compliance_records WHERE candidate_id = $1",
         params=[candidate_id],
@@ -354,7 +354,7 @@ def test_salary_lookup_without_mcp():
         "location": "US",
     }
 
-    # Call without mcp_runtime parameter
+    # Call without mcp parameter
     result = run(payload)
 
     # Verify fallback data is returned
@@ -422,8 +422,8 @@ def test_salary_lookup_with_mcp(mock_mcp_runtime):
             "location": "San Francisco",
         }
 
-        # Call with mcp_runtime
-        result = run(payload, mcp_runtime=mock_mcp_runtime)
+        # Call with mcp
+        result = run(payload, mcp=mock_mcp_runtime)
 
         # Verify MCP data is returned
         assert result["currency"] == "USD"
@@ -457,7 +457,7 @@ def test_mcp_error_fallback(mock_mcp_runtime):
         payload = {"role": "Engineer", "level": "Mid"}
 
         # Should not raise exception, should fallback
-        result = run(payload, mcp_runtime=mock_mcp_runtime)
+        result = run(payload, mcp=mock_mcp_runtime)
 
         # Verify fallback data is returned
         assert result["source"] == "fallback-static"
@@ -474,10 +474,10 @@ def test_mcp_error_fallback(mock_mcp_runtime):
 
 **Implementation:**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
-    if mcp_runtime is not None:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+    if mcp is not None:
         try:
-            return asyncio.run(_try_mcp(mcp_runtime, payload))
+            return asyncio.run(_try_mcp(mcp, payload))
         except Exception as exc:
             print(f"MCP failed: {exc}, using fallback")
 
@@ -502,14 +502,14 @@ def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) ->
 
 **Implementation:**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
-    if mcp_runtime is None:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+    if mcp is None:
         raise RuntimeError("Skill requires MCP runtime")
 
-    if not mcp_runtime.check_permission("pg-readonly"):
+    if not mcp.check_permission("pg-readonly"):
         raise RuntimeError("Missing required permission: mcp:pg-readonly")
 
-    return asyncio.run(_execute_with_mcp(mcp_runtime, payload))
+    return asyncio.run(_execute_with_mcp(mcp, payload))
 ```
 
 **Pros:**
@@ -529,24 +529,24 @@ def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) ->
 
 **Implementation:**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
-    if mcp_runtime is None:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+    if mcp is None:
         raise RuntimeError("Skill requires MCP runtime")
 
     # Check all required permissions
     required_servers = ["pg-readonly", "filesystem"]
     for server_id in required_servers:
-        if not mcp_runtime.check_permission(server_id):
+        if not mcp.check_permission(server_id):
             raise RuntimeError(f"Missing permission: mcp:{server_id}")
 
-    return asyncio.run(_multi_server_workflow(mcp_runtime, payload))
+    return asyncio.run(_multi_server_workflow(mcp, payload))
 
 
-async def _multi_server_workflow(mcp_runtime: MCPRuntime, payload: Dict[str, Any]) -> Dict[str, Any]:
+async def _multi_server_workflow(mcp: MCPRuntime, payload: Dict[str, Any]) -> Dict[str, Any]:
     """Execute workflow using multiple MCP servers."""
 
     # Query database
-    db_result = await mcp_runtime.query_postgres(
+    db_result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql="SELECT * FROM candidates WHERE id = $1",
         params=[payload["candidate_id"]],
@@ -558,7 +558,7 @@ async def _multi_server_workflow(mcp_runtime: MCPRuntime, payload: Dict[str, Any
     candidate_data = db_result.data[0]
 
     # Read configuration file
-    file_result = await mcp_runtime.execute_tool(
+    file_result = await mcp.execute_tool(
         server_id="filesystem",
         tool_name="read_file",
         arguments={"path": "config/bands.json"},
@@ -631,18 +631,18 @@ Ensure skill declares 'mcp:pg-readonly' permission.
 ```
 
 **Cause:**
-Skill requires MCP but `mcp_runtime` is `None` (not provided by runner).
+Skill requires MCP but `mcp` is `None` (not provided by runner).
 
 **Solutions:**
 
 **Solution 1: Make Skill More Flexible (Add Fallback)**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     # Remove strict requirement, add fallback
-    if mcp_runtime is None:
+    if mcp is None:
         return _fallback_logic(payload)  # Instead of raising
 
-    return asyncio.run(_execute_with_mcp(mcp_runtime, payload))
+    return asyncio.run(_execute_with_mcp(mcp, payload))
 ```
 
 **Solution 2: Ensure Permissions Are Declared**
@@ -698,36 +698,36 @@ Attempting to use `asyncio.run()` from within an already-running async context.
 async def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     # Can await directly
-    result = await mcp_runtime.query_postgres(...)
+    result = await mcp.query_postgres(...)
     return result
 ```
 
 **Solution 2: Use `asyncio.run()` in Sync Skills (Current)**
 ```python
 # Current approach for sync skills
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     # Create new event loop
-    return asyncio.run(_async_logic(mcp_runtime, payload))
+    return asyncio.run(_async_logic(mcp, payload))
 ```
 
 **Solution 3: Get Existing Event Loop**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     try:
         # Try to get existing event loop
         loop = asyncio.get_event_loop()
         if loop.is_running():
             # Running in async context, create task
-            return asyncio.ensure_future(_async_logic(mcp_runtime, payload))
+            return asyncio.ensure_future(_async_logic(mcp, payload))
         else:
             # Not running, use asyncio.run
-            return asyncio.run(_async_logic(mcp_runtime, payload))
+            return asyncio.run(_async_logic(mcp, payload))
     except RuntimeError:
         # No event loop exists, create one
-        return asyncio.run(_async_logic(mcp_runtime, payload))
+        return asyncio.run(_async_logic(mcp, payload))
 ```
 
 ### Common Error: Server Not Started
@@ -775,8 +775,8 @@ limits:
 
 **1. Distinguish Between Errors and Missing Data**
 ```python
-async def _lookup_via_mcp(mcp_runtime: MCPRuntime, role: str) -> Optional[Dict[str, Any]]:
-    result = await mcp_runtime.query_postgres(...)
+async def _lookup_via_mcp(mcp: MCPRuntime, role: str) -> Optional[Dict[str, Any]]:
+    result = await mcp.query_postgres(...)
 
     if not result.success:
         # Server error - raise exception
@@ -792,7 +792,7 @@ async def _lookup_via_mcp(mcp_runtime: MCPRuntime, role: str) -> Optional[Dict[s
 **2. Provide Context in Error Messages**
 ```python
 try:
-    result = await mcp_runtime.query_postgres(server_id="pg-readonly", sql=sql, params=params)
+    result = await mcp.query_postgres(server_id="pg-readonly", sql=sql, params=params)
 except Exception as exc:
     raise RuntimeError(
         f"Failed to query salary bands for role={role}, level={level}: {exc}"
@@ -804,10 +804,10 @@ except Exception as exc:
 import logging
 logger = logging.getLogger(__name__)
 
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
-    if mcp_runtime is not None:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+    if mcp is not None:
         try:
-            return asyncio.run(_try_mcp(mcp_runtime, payload))
+            return asyncio.run(_try_mcp(mcp, payload))
         except Exception as exc:
             logger.warning(f"MCP lookup failed, using fallback: {exc}")
 
@@ -818,26 +818,26 @@ def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) ->
 
 **1. Log MCP Usage**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     logger = logging.getLogger(__name__)
 
-    if mcp_runtime is None:
+    if mcp is None:
         logger.info("Running in fallback mode (no MCP runtime)")
         return _fallback_logic(payload)
 
-    logger.info(f"Using MCP runtime with permissions: {mcp_runtime.get_granted_permissions()}")
-    return asyncio.run(_execute_with_mcp(mcp_runtime, payload))
+    logger.info(f"Using MCP runtime with permissions: {mcp.get_granted_permissions()}")
+    return asyncio.run(_execute_with_mcp(mcp, payload))
 ```
 
 **2. Log Query Performance**
 ```python
 import time
 
-async def _query_with_logging(mcp_runtime: MCPRuntime, server_id: str, sql: str, params: list) -> MCPToolResult:
+async def _query_with_logging(mcp: MCPRuntime, server_id: str, sql: str, params: list) -> MCPToolResult:
     logger = logging.getLogger(__name__)
 
     start_time = time.time()
-    result = await mcp_runtime.query_postgres(server_id=server_id, sql=sql, params=params)
+    result = await mcp.query_postgres(server_id=server_id, sql=sql, params=params)
     duration = time.time() - start_time
 
     logger.info(f"PostgreSQL query completed in {duration:.2f}s, success={result.success}")
@@ -856,7 +856,7 @@ def test_skill_with_and_without_mcp(has_mcp, mock_mcp_runtime):
     payload = {"role": "Engineer"}
 
     if has_mcp:
-        result = run(payload, mcp_runtime=mock_mcp_runtime)
+        result = run(payload, mcp=mock_mcp_runtime)
         assert result["source"] == "postgres-via-mcp"
     else:
         result = run(payload)
@@ -874,7 +874,7 @@ def test_permission_denied(mock_mcp_runtime):
     payload = {"role": "Engineer"}
 
     # Should either fail gracefully or fall back
-    result = run(payload, mcp_runtime=mock_mcp_runtime)
+    result = run(payload, mcp=mock_mcp_runtime)
 
     # Verify fallback was used
     assert result["source"] != "postgres-via-mcp"
@@ -893,7 +893,7 @@ def test_real_mcp_integration():
     runtime.grant_permissions(["mcp:pg-readonly"])
 
     payload = {"role": "Senior Engineer", "level": "Senior"}
-    result = run(payload, mcp_runtime=runtime)
+    result = run(payload, mcp=runtime)
 
     # Verify real data was returned
     assert result["source"] == "postgres-via-mcp"
@@ -908,7 +908,7 @@ MCP servers handle connection pooling automatically. Don't create multiple runti
 
 **Bad:**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     # Don't create new connections per call
     for item in payload["items"]:
         # Each call uses pooled connections, but creating runtime per item is wasteful
@@ -918,13 +918,13 @@ def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) ->
 
 **Good:**
 ```python
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
     # Reuse provided runtime
-    if mcp_runtime is None:
+    if mcp is None:
         raise RuntimeError("MCP runtime required")
 
     # Runtime reuses connections from pool
-    return asyncio.run(_batch_lookup(mcp_runtime, payload["items"]))
+    return asyncio.run(_batch_lookup(mcp, payload["items"]))
 ```
 
 **2. Batch Queries**
@@ -932,12 +932,12 @@ def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) ->
 Combine multiple queries when possible:
 
 ```python
-async def _batch_lookup(mcp_runtime: MCPRuntime, items: list) -> Dict[str, Any]:
+async def _batch_lookup(mcp: MCPRuntime, items: list) -> Dict[str, Any]:
     # Single query for multiple items
     sql = "SELECT * FROM salary_bands WHERE role = ANY($1)"
     roles = [item["role"] for item in items]
 
-    result = await mcp_runtime.query_postgres(
+    result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql=sql,
         params=[roles],
@@ -959,13 +959,13 @@ def _cached_static_data(key: str) -> Dict[str, Any]:
     return _compute_fallback(key)
 
 
-def run(payload: Dict[str, Any], *, mcp_runtime: Optional[MCPRuntime] = None) -> Dict[str, Any]:
-    if mcp_runtime is None:
+def run(payload: Dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> Dict[str, Any]:
+    if mcp is None:
         # Use cached fallback
         return _cached_static_data(payload["role"])
 
     # Fresh MCP data
-    return asyncio.run(_lookup_via_mcp(mcp_runtime, payload))
+    return asyncio.run(_lookup_via_mcp(mcp, payload))
 ```
 
 ## Complete Examples
@@ -1002,13 +1002,13 @@ logger = logging.getLogger(__name__)
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Lookup salary band with PostgreSQL via MCP.
 
     Args:
         payload: {role: str, level: str, location: str}
-        mcp_runtime: Optional MCP runtime for database access
+        mcp: Optional MCP runtime for database access
 
     Returns:
         {currency: str, min: int, max: int, source: str}
@@ -1018,10 +1018,10 @@ def run(
     location = payload.get("location", "US")
 
     # Try MCP first
-    if mcp_runtime is not None:
+    if mcp is not None:
         logger.info(f"Attempting MCP lookup for {role}/{level}/{location}")
         try:
-            result = asyncio.run(_lookup_via_mcp(mcp_runtime, role, level, location))
+            result = asyncio.run(_lookup_via_mcp(mcp, role, level, location))
             if result:
                 logger.info(f"MCP lookup successful: {result['source']}")
                 return result
@@ -1035,7 +1035,7 @@ def run(
 
 
 async def _lookup_via_mcp(
-    mcp_runtime: MCPRuntime,
+    mcp: MCPRuntime,
     role: str,
     level: str,
     location: str,
@@ -1043,7 +1043,7 @@ async def _lookup_via_mcp(
     """Query salary data via MCP PostgreSQL server."""
 
     # Check permission
-    if not mcp_runtime.check_permission("pg-readonly"):
+    if not mcp.check_permission("pg-readonly"):
         raise RuntimeError("Missing required permission: mcp:pg-readonly")
 
     # Build query
@@ -1056,7 +1056,7 @@ async def _lookup_via_mcp(
     """
 
     # Execute query
-    result = await mcp_runtime.query_postgres(
+    result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql=sql,
         params=[role, level, location],
@@ -1168,18 +1168,18 @@ logger = logging.getLogger(__name__)
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Fetch web content via MCP fetch server.
 
     Args:
         payload: {url: str, extract_text: bool}
-        mcp_runtime: MCP runtime for web fetch
+        mcp: MCP runtime for web fetch
 
     Returns:
         {url: str, success: bool, title: str, content: str, metadata: dict}
     """
-    if mcp_runtime is None:
+    if mcp is None:
         raise RuntimeError("Web fetch requires MCP runtime with mcp:fetch permission")
 
     url = payload.get("url")
@@ -1188,25 +1188,25 @@ def run(
 
     extract_text = payload.get("extract_text", True)
 
-    return asyncio.run(_fetch_web_content(mcp_runtime, url, extract_text))
+    return asyncio.run(_fetch_web_content(mcp, url, extract_text))
 
 
 async def _fetch_web_content(
-    mcp_runtime: MCPRuntime,
+    mcp: MCPRuntime,
     url: str,
     extract_text: bool,
 ) -> Dict[str, Any]:
     """Fetch web content via MCP."""
 
     # Check permission
-    if not mcp_runtime.check_permission("fetch"):
+    if not mcp.check_permission("fetch"):
         raise RuntimeError("Missing required permission: mcp:fetch")
 
     # Determine tool based on desired output
     tool_name = "fetch_markdown" if extract_text else "fetch_url"
 
     # Execute fetch
-    result = await mcp_runtime.execute_tool(
+    result = await mcp.execute_tool(
         server_id="fetch",
         tool_name=tool_name,
         arguments={"url": url},
@@ -1273,42 +1273,42 @@ logger = logging.getLogger(__name__)
 def run(
     payload: Dict[str, Any],
     *,
-    mcp_runtime: Optional[MCPRuntime] = None
+    mcp: Optional[MCPRuntime] = None
 ) -> Dict[str, Any]:
     """Build candidate profile from database and filesystem.
 
     Args:
         payload: {candidate_id: str}
-        mcp_runtime: MCP runtime with pg-readonly and filesystem access
+        mcp: MCP runtime with pg-readonly and filesystem access
 
     Returns:
         {candidate: dict, skills: list, certifications: list}
     """
-    if mcp_runtime is None:
+    if mcp is None:
         raise RuntimeError("Profile builder requires MCP runtime")
 
     # Verify all required permissions
     required = ["pg-readonly", "filesystem"]
     for server_id in required:
-        if not mcp_runtime.check_permission(server_id):
+        if not mcp.check_permission(server_id):
             raise RuntimeError(f"Missing required permission: mcp:{server_id}")
 
     candidate_id = payload.get("candidate_id")
     if not candidate_id:
         raise ValueError("Missing required field: candidate_id")
 
-    return asyncio.run(_build_profile(mcp_runtime, candidate_id))
+    return asyncio.run(_build_profile(mcp, candidate_id))
 
 
 async def _build_profile(
-    mcp_runtime: MCPRuntime,
+    mcp: MCPRuntime,
     candidate_id: str,
 ) -> Dict[str, Any]:
     """Build profile using multiple MCP servers."""
 
     # Query candidate data from PostgreSQL
     logger.info(f"Fetching candidate data for {candidate_id}")
-    candidate_result = await mcp_runtime.query_postgres(
+    candidate_result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql="SELECT * FROM candidates WHERE id = $1",
         params=[candidate_id],
@@ -1324,7 +1324,7 @@ async def _build_profile(
 
     # Query skills from PostgreSQL
     logger.info(f"Fetching skills for {candidate_id}")
-    skills_result = await mcp_runtime.query_postgres(
+    skills_result = await mcp.query_postgres(
         server_id="pg-readonly",
         sql="SELECT skill_name, proficiency FROM candidate_skills WHERE candidate_id = $1",
         params=[candidate_id],
@@ -1339,7 +1339,7 @@ async def _build_profile(
     # Read certifications from filesystem
     logger.info(f"Reading certifications file for {candidate_id}")
     cert_file = f"data/certifications/{candidate_id}.json"
-    cert_result = await mcp_runtime.execute_tool(
+    cert_result = await mcp.execute_tool(
         server_id="filesystem",
         tool_name="read_file",
         arguments={"path": cert_file},
@@ -1404,7 +1404,7 @@ skills:
 **Status:** 🚧 In Progress
 
 **Available Now:**
-- MCP-enabled skill signature (`mcp_runtime` parameter)
+- MCP-enabled skill signature (`mcp` parameter)
 - Permission declaration in skill metadata
 - Test patterns for MCP and non-MCP modes
 - Migration guide (this document)
@@ -1438,7 +1438,7 @@ Use this checklist when migrating a skill to MCP:
   - [ ] Verify MCP servers are configured in `.mcp/servers/`
 
 - [ ] **2. Update Skill Code**
-  - [ ] Add `mcp_runtime` parameter to `run()` function
+  - [ ] Add `mcp` parameter to `run()` function
   - [ ] Import `MCPRuntime` from `agdd.mcp`
   - [ ] Implement MCP logic with graceful fallback
   - [ ] Add permission checks

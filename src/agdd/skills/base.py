@@ -24,13 +24,13 @@ Example usage for Phase 2+ (async with MCP):
         async def execute(
             self,
             payload: dict[str, Any],
-            mcp_runtime: MCPRuntime
+            mcp: MCPRuntime  # Parameter MUST be named 'mcp'
         ) -> dict[str, Any]:
             # Validate input
             SkillBase.validate_payload(payload, input_schema)
 
             # Use MCP runtime to access tools
-            result = await mcp_runtime.execute_tool(
+            result = await mcp.execute_tool(
                 server_id="fetch",
                 tool_name="get",
                 arguments={"url": payload["url"]}
@@ -101,9 +101,12 @@ class MCPSkill(Protocol):
 
     Skills implementing this protocol should:
     1. Accept structured data as dict payload
-    2. Receive MCPRuntime for tool access
+    2. Receive MCPRuntime for tool access (parameter name must be 'mcp')
     3. Return structured dict results
     4. Use async/await for I/O operations
+
+    Note: The parameter MUST be named 'mcp' (not 'mcp_runtime') to match
+    the skill runtime's parameter detection in SkillRuntime.invoke_async().
 
     Example:
         ```python
@@ -111,9 +114,9 @@ class MCPSkill(Protocol):
             async def execute(
                 self,
                 payload: dict[str, Any],
-                mcp_runtime: MCPRuntime
+                mcp: MCPRuntime
             ) -> dict[str, Any]:
-                result = await mcp_runtime.query_postgres(
+                result = await mcp.query_postgres(
                     server_id="pg-readonly",
                     sql=payload["query"]
                 )
@@ -124,13 +127,14 @@ class MCPSkill(Protocol):
     async def execute(
         self,
         payload: dict[str, Any],
-        mcp_runtime: MCPRuntime,
+        mcp: MCPRuntime,
     ) -> dict[str, Any]:  # pragma: no cover - interface contract
         """Execute the skill with structured input and MCP runtime.
 
         Args:
             payload: Structured input data (validated against skill's input schema)
-            mcp_runtime: MCP runtime for accessing external tools and services
+            mcp: MCP runtime for accessing external tools and services
+                 (parameter name MUST be 'mcp' for automatic detection)
 
         Returns:
             Structured output data (should conform to skill's output schema)
@@ -224,7 +228,7 @@ class SkillBase:
 
     @staticmethod
     def requires_mcp(
-        mcp_runtime: MCPRuntime | None,
+        mcp: MCPRuntime | None,
         server_id: str | None = None,
     ) -> None:
         """Ensure MCP runtime is available and properly configured.
@@ -234,7 +238,7 @@ class SkillBase:
         2. If server_id is specified, runtime has permission to access that server
 
         Args:
-            mcp_runtime: MCP runtime instance to check
+            mcp: MCP runtime instance to check
             server_id: Optional server ID to check for permission
 
         Raises:
@@ -243,13 +247,13 @@ class SkillBase:
         Example:
             ```python
             # Check that MCP runtime is available
-            SkillBase.requires_mcp(mcp_runtime)
+            SkillBase.requires_mcp(mcp)
 
             # Check that runtime has permission for specific server
-            SkillBase.requires_mcp(mcp_runtime, "pg-readonly")
+            SkillBase.requires_mcp(mcp, "pg-readonly")
             ```
         """
-        if mcp_runtime is None:
+        if mcp is None:
             error_msg = (
                 "MCP runtime is required but not provided. "
                 "This skill requires MCP integration to function."
@@ -258,11 +262,11 @@ class SkillBase:
             raise SkillMCPError(error_msg)
 
         if server_id is not None:
-            if not mcp_runtime.check_permission(server_id):
+            if not mcp.check_permission(server_id):
                 error_msg = (
                     f"MCP runtime does not have permission to access server '{server_id}'. "
                     f"Required permission: mcp:{server_id}. "
-                    f"Granted permissions: {mcp_runtime.get_granted_permissions()}"
+                    f"Granted permissions: {mcp.get_granted_permissions()}"
                 )
                 logger.error(error_msg)
                 raise SkillMCPError(error_msg)
