@@ -51,6 +51,18 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - Local LLM Fallback: Responses API preference with automatic chat completions downgrade for legacy endpoints
 - Governance Gates: Policy-based validation and compliance checks
 
+### MCP Integration
+- ✅ **MCP Server** (Available): Expose AGDD agents as MCP tools for Claude Desktop and other MCP clients
+  - Production-ready stdio-based MCP server implementation
+  - Automatic tool discovery and schema generation
+  - See [MCP Integration Guide](./docs/guides/mcp-integration.md) for setup details
+- ✅ **MCP Client in Skills** (Available): Enable skills to invoke external MCP servers
+  - Full support for filesystem, git, PostgreSQL, and custom MCP servers
+  - Async skill execution with MCP parameter injection
+  - Automatic MCP server lifecycle management (startup/cleanup)
+  - Graceful fallback patterns for non-MCP environments
+  - See [MCP Migration Guide](./docs/guides/mcp-migration.md) for implementation details
+
 ### Developer Experience
 - Type Safety: Full mypy strict mode support
 - Modern Tooling: uv package manager integration

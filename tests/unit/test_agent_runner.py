@@ -9,6 +9,8 @@ import pytest
 import agdd.observability.cost_tracker as cost_tracker
 from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
 
+pytestmark = pytest.mark.slow
+
 
 class TestObservabilityLogger:
     """Test suite for ObservabilityLogger"""

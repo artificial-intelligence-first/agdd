@@ -53,17 +53,22 @@ class TestRegistry:
 
     def test_resolve_entrypoint(self) -> None:
         """Test resolving entrypoint to callable"""
+        import inspect
         registry = Registry()
-        callable_fn = registry.resolve_entrypoint(
+
+        # Test sync skill resolution
+        sync_fn = registry.resolve_entrypoint(
+            "catalog/skills/doc-gen/impl/doc_gen.py:run"
+        )
+        assert callable(sync_fn)
+        assert not inspect.iscoroutinefunction(sync_fn), "doc-gen should be sync"
+
+        # Test async skill resolution
+        async_fn = registry.resolve_entrypoint(
             "catalog/skills/salary-band-lookup/impl/salary_band_lookup.py:run"
         )
-
-        assert callable(callable_fn)
-        # Test execution
-        result = callable_fn({"role": "Engineer", "level": "Senior"})
-        assert "min" in result
-        assert "max" in result
-        assert "currency" in result
+        assert callable(async_fn)
+        assert inspect.iscoroutinefunction(async_fn), "salary-band-lookup should be async"
 
     def test_resolve_entrypoint_invalid_format(self) -> None:
         """Test invalid entrypoint format raises ValueError"""

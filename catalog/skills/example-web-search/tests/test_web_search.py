@@ -4,6 +4,7 @@ Unit tests for example web search MCP tool.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ def test_web_search_structure_exists() -> None:
 
     # Check required files exist
     assert (skill_dir / "SKILL.md").exists()
+    assert (skill_dir / "skill.yaml").exists()
     assert (skill_dir / "impl" / "mcp_tool.py").exists()
     assert (skill_dir / "resources" / "examples" / "in.json").exists()
     assert (skill_dir / "resources" / "examples" / "out.json").exists()
@@ -27,6 +29,7 @@ def test_web_search_imports() -> None:
     """Verify web search module can be imported."""
     import sys
     from pathlib import Path
+    import inspect
 
     # Add impl directory to path
     impl_dir = Path(__file__).resolve().parents[1] / "impl"
@@ -46,14 +49,19 @@ def test_web_search_imports() -> None:
             assert callable(getattr(mcp_tool, "_validate_url", None))
             assert callable(getattr(mcp_tool, "_fetch_url_via_mcp", None))
             assert callable(getattr(mcp_tool, "_extract_text_content", None))
+
+            # Verify async functions
+            assert inspect.iscoroutinefunction(mcp_tool.run)
+            assert inspect.iscoroutinefunction(mcp_tool._fetch_url_via_mcp)
         else:
             pytest.fail("Could not load web search module")
     finally:
         sys.path.pop(0)
 
 
-def test_web_search_run_basic() -> None:
-    """Test basic web search execution."""
+@pytest.mark.asyncio
+async def test_web_search_run_basic() -> None:
+    """Test basic web search execution with async."""
     import sys
     from pathlib import Path
 
@@ -68,16 +76,21 @@ def test_web_search_run_basic() -> None:
             mcp_tool = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mcp_tool)
 
-            # Test with valid input
+            # Test with valid input (no MCP provided - should use mock)
             payload = {"url": "https://example.com", "extract_text": True}
 
-            result = mcp_tool.run(payload)
+            # Run function is now async
+            result = await mcp_tool.run(payload)
 
             # Verify result structure
             assert isinstance(result, dict)
             assert "url" in result
             assert "success" in result
             assert result["url"] == "https://example.com"
+            assert result["success"] is True
+
+            # When no MCP is provided, should fall back to mock
+            assert "Mock" in result.get("title", "")
         else:
             pytest.fail("Could not load web search module")
     finally:

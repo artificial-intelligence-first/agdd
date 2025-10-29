@@ -3,6 +3,23 @@ Doc generation skill.
 
 Constructs an offer packet from a candidate profile and optional compensation
 context. Performs schema validation on input/output contracts.
+
+MCP INTEGRATION STATUS:
+    This skill performs local data transformation and does not currently require
+    MCP integration. It operates synchronously on provided data.
+
+    If future requirements include fetching external data (e.g., templates from
+    filesystem MCP server or compensation data from database), this skill would
+    need:
+    - Conversion to async/await pattern
+    - MCP client dependency injection
+    - Declaration of MCP server dependencies in skill.yaml
+
+CURRENT IMPLEMENTATION:
+    - Synchronous execution
+    - Schema validation using local contract files
+    - Pure data transformation (no external I/O)
+    - No async conversion planned unless external data sources are added
 """
 
 from __future__ import annotations
@@ -14,7 +31,7 @@ from typing import Any, Dict, List
 import jsonschema
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]  # Point to repo root
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "offer_packet.json"
 
@@ -121,11 +138,17 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Generate a structured offer packet from a candidate profile.
 
+    CURRENT IMPLEMENTATION: Pure synchronous data transformation.
+    No external I/O or MCP integration required at this time.
+
     Args:
         payload: Candidate profile data matching the candidate_profile contract.
 
     Returns:
         Offer packet payload satisfying the offer_packet contract.
+
+    NOTE: If future requirements include fetching offer templates from filesystem
+    or querying compensation databases, convert to async and add mcp_client parameter.
     """
     _validate(payload, INPUT_SCHEMA, "candidate_profile")
     candidate = _normalized_candidate(payload)

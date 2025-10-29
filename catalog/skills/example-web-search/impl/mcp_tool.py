@@ -2,23 +2,39 @@
 Example Web Search MCP Tool
 
 Demonstrates integration with the fetch MCP server for web content retrieval.
-This example shows how to wrap an MCP tool for practical use cases.
+This example shows how to wrap an MCP tool for practical use cases, with
+graceful fallback to mock data when MCP is unavailable.
+
+MCP Integration Pattern:
+- Attempts to use the fetch MCP server when MCPRuntime is provided
+- Falls back to mock data if MCP is unavailable or fails
+- Demonstrates async/await patterns for MCP tool execution
+- Shows proper error handling and result extraction
 
 Note: This is a simplified example. Production implementations should:
-- Use proper MCP client libraries
-- Implement robust error handling
+- Use proper MCP client libraries (shown here with MCPRuntime)
+- Implement robust error handling (demonstrated with try/except)
 - Add caching mechanisms
 - Handle more content types
 """
 
 from __future__ import annotations
 
-import subprocess
+import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import jsonschema
 import yaml
+
+# MCP integration imports
+try:
+    from agdd.mcp.runtime import MCPRuntime
+except ImportError:
+    # Graceful degradation if MCP runtime not available
+    MCPRuntime = None  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 def _find_repo_root(start_path: Path) -> Path:
     """
@@ -114,39 +130,93 @@ def _validate_url(url: str) -> None:
         raise ValueError("URL must start with http:// or https://")
 
 
-def _fetch_url_via_mcp(url: str, extract_text: bool = True) -> Dict[str, Any]:
+async def _fetch_url_via_mcp(
+    url: str,
+    extract_text: bool = True,
+    mcp: Optional[MCPRuntime] = None,
+) -> Dict[str, Any]:
     """
     Fetch URL content using the fetch MCP server.
 
-    This is a simplified example using subprocess to call npx.
-    Production code should use proper MCP client libraries.
+    Attempts to use the MCP runtime if provided, otherwise falls back to mock data.
+    This demonstrates the recommended pattern for MCP integration with graceful degradation.
 
     Args:
         url: URL to fetch
         extract_text: Whether to extract text content from HTML
+        mcp: Optional MCPRuntime instance for calling the fetch server
 
     Returns:
-        Response from MCP server
+        Response from MCP server or mock data
 
     Raises:
-        RuntimeError: If MCP server call fails
+        RuntimeError: If MCP server call fails critically
     """
-    # Example implementation using subprocess
-    # In production, use a proper MCP client library
-    try:
-        # This is a placeholder - actual MCP invocation would be different
-        # For demonstration purposes, we'll use a mock response
-        return {
-            "url": url,
-            "status_code": 200,
-            "content_type": "text/html",
-            "content": f"Mock content from {url}",
-            "title": "Mock Title",
-        }
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"MCP fetch failed: {exc}") from exc
-    except Exception as exc:
-        raise RuntimeError(f"Unexpected error during fetch: {exc}") from exc
+    # Try to use real MCP if available
+    if mcp is not None:
+        try:
+            logger.info(f"Attempting to fetch {url} via MCP fetch server")
+
+            # Call the fetch MCP server's fetch_url tool
+            result = await mcp.execute_tool(
+                server_id="fetch",
+                tool_name="fetch",
+                arguments={"url": url}
+            )
+
+            # Check if MCP call succeeded
+            if result.success and result.output:
+                logger.info(f"Successfully fetched {url} via MCP")
+
+                # Extract content from MCP result
+                # The fetch server typically returns content in result.output
+                # Format may vary, so we handle common patterns
+                if isinstance(result.output, list):
+                    # MCP often returns content as list of content blocks
+                    content = ""
+                    for item in result.output:
+                        if isinstance(item, dict) and "text" in item:
+                            content += item["text"]
+                        elif isinstance(item, str):
+                            content += item
+                elif isinstance(result.output, dict):
+                    content = result.output.get("content", str(result.output))
+                else:
+                    content = str(result.output)
+
+                return {
+                    "url": url,
+                    "status_code": 200,
+                    "content_type": result.metadata.get("content_type", "text/html"),
+                    "content": content,
+                    "title": result.metadata.get("title", ""),
+                }
+            else:
+                # MCP call failed, log and fall through to mock
+                logger.warning(
+                    f"MCP fetch failed for {url}: {result.error}. "
+                    "Falling back to mock data."
+                )
+        except Exception as exc:
+            # MCP call raised an exception, log and fall through to mock
+            logger.warning(
+                f"Exception during MCP fetch for {url}: {exc}. "
+                "Falling back to mock data.",
+                exc_info=True
+            )
+    else:
+        logger.info(f"No MCP runtime provided, using mock data for {url}")
+
+    # Fallback: return mock data
+    # This ensures the skill works even without MCP configured
+    logger.debug(f"Returning mock data for {url}")
+    return {
+        "url": url,
+        "status_code": 200,
+        "content_type": "text/html",
+        "content": f"Mock content from {url}. This is demonstration data used when MCP is not available.",
+        "title": "Mock Title (MCP Not Available)",
+    }
 
 
 def _extract_text_content(html_content: str) -> str:
@@ -179,19 +249,30 @@ def _extract_text_content(html_content: str) -> str:
     return text
 
 
-def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def run(
+    payload: Dict[str, Any],
+    *,
+    mcp: Optional[MCPRuntime] = None,
+) -> Dict[str, Any]:
     """
-    Execute web search/fetch operation.
+    Execute web search/fetch operation with MCP integration.
+
+    This async function demonstrates the recommended pattern for MCP-enabled skills:
+    - Accepts optional MCPRuntime via keyword-only parameter
+    - Passes MCP runtime to underlying async functions
+    - Maintains backward compatibility (works without MCP)
+    - Validates input/output contracts
+    - Provides comprehensive error handling
 
     Args:
         payload: Input data with 'url' and optional 'extract_text' fields
+        mcp: Optional MCPRuntime instance for calling MCP servers
 
     Returns:
         Output data with URL content and metadata
 
     Raises:
         ValueError: If input validation fails
-        RuntimeError: If fetch operation fails
     """
     # Validate input
     _validate(payload, INPUT_SCHEMA, "web_search_query")
@@ -206,11 +287,12 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Validate URL
     _validate_url(url)
 
-    # Fetch content via MCP
+    # Fetch content via MCP (or fallback to mock)
     try:
-        mcp_response = _fetch_url_via_mcp(url, extract_text)
+        mcp_response = await _fetch_url_via_mcp(url, extract_text, mcp=mcp)
     except Exception as exc:
         # Fallback: return error result
+        logger.error(f"Fetch failed for {url}: {exc}", exc_info=True)
         return {
             "url": url,
             "success": False,

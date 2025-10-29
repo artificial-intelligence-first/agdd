@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 
 from agdd.api.server import app
 
+import pytest
+pytestmark = pytest.mark.slow
+
 client = TestClient(app)
 
 

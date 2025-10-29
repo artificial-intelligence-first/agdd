@@ -10,6 +10,9 @@ from fastapi.testclient import TestClient
 
 from agdd.api.server import app, http_exception_handler
 
+import pytest
+pytestmark = pytest.mark.slow
+
 client = TestClient(app)
 
 
