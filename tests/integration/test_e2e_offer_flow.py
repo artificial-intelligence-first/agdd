@@ -1,11 +1,20 @@
-"""End-to-end integration tests for offer generation flow"""
+"""End-to-end integration tests for offer generation flow
+
+All tests in this module perform actual MAG execution with LLM calls,
+which can take 30-60+ seconds per test. Tests are marked as 'slow' to
+enable fast CI runs with `-m "not slow"`.
+"""
 
 import json
 import tempfile
 from pathlib import Path
+
+import pytest
+
 from agdd.runners.agent_runner import invoke_mag
 
 
+@pytest.mark.slow
 class TestE2EOfferFlow:
     """End-to-end test suite for complete offer generation workflow"""
 

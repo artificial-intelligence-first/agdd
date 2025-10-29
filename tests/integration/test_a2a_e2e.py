@@ -5,10 +5,14 @@ This test suite validates the complete A2A communication flow:
 1. Discovery: GET /api/v1/agents (find available agents)
 2. Invocation: POST /api/v1/agents/{slug}/run (invoke agent via API)
 3. Delegation: MAG → SAG communication with context propagation
+
+Note: Most tests in this module perform actual LLM agent execution via API
+and are marked as 'slow' to enable fast CI runs with `-m "not slow"`.
 """
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from agdd.api.server import app
@@ -55,6 +59,7 @@ class TestA2ADiscoveryInvoke:
         assert mag_agent["slug"] == "offer-orchestrator-mag"
         assert "title" in mag_agent or "description" in mag_agent
 
+    @pytest.mark.slow
     def test_a2a_invoke_mag_via_api(self) -> None:
         """Test invoking a MAG via API (simulating A2A call)"""
         # Phase 2: Invocation
@@ -98,6 +103,7 @@ class TestA2ADiscoveryInvoke:
         assert "task_count" in metadata
         assert "successful_tasks" in metadata
 
+    @pytest.mark.slow
     def test_a2a_full_discovery_invoke_flow(self) -> None:
         """Test complete A2A flow: discover → invoke → verify"""
         # Step 1: Discovery - find available MAGs
@@ -139,6 +145,7 @@ class TestA2ADiscoveryInvoke:
         output = result["output"]
         assert output["metadata"]["successful_tasks"] >= 1
 
+    @pytest.mark.slow
     def test_a2a_context_propagation(self) -> None:
         """Test that A2A context is properly propagated through agent calls"""
         # Prepare A2A payload with context
@@ -168,6 +175,7 @@ class TestA2ADiscoveryInvoke:
         assert "output" in result
         assert result["output"]["metadata"]["successful_tasks"] >= 1
 
+    @pytest.mark.slow
     def test_a2a_invoke_with_request_id(self) -> None:
         """Test invoking agent with custom request_id for tracking"""
         payload = {
@@ -220,6 +228,7 @@ class TestA2ADiscoveryInvoke:
         assert "message" in error
         assert "validation" in error["message"].lower()  # Message should mention validation
 
+    @pytest.mark.slow
     def test_a2a_multiple_sequential_invocations(self) -> None:
         """Test multiple A2A invocations in sequence"""
         payloads = [
@@ -247,6 +256,7 @@ class TestA2ADiscoveryInvoke:
         run_ids = [r["run_id"] for r in results]
         assert len(set(run_ids)) == 3  # All unique
 
+    @pytest.mark.slow
     def test_a2a_observability_artifacts_via_api(self) -> None:
         """Test that artifacts endpoint provides run details"""
         # Step 1: Invoke agent
@@ -276,6 +286,7 @@ class TestA2ADiscoveryInvoke:
 class TestA2ADelegation:
     """Test A2A delegation patterns (MAG → SAG)"""
 
+    @pytest.mark.slow
     def test_mag_to_sag_delegation(self) -> None:
         """Test that MAG properly delegates to SAG with context"""
         payload = {
@@ -303,6 +314,7 @@ class TestA2ADelegation:
         assert metadata["task_count"] >= 1
         assert metadata["successful_tasks"] >= 1
 
+    @pytest.mark.slow
     def test_error_handling_in_delegation(self) -> None:
         """Test error handling when delegation encounters issues"""
         # Use minimal payload that should still work
@@ -322,6 +334,7 @@ class TestA2ADelegation:
 class TestA2ACompatibility:
     """Test A2A template compatibility with existing system"""
 
+    @pytest.mark.slow
     def test_existing_mag_works_with_a2a_api(self) -> None:
         """Test that existing MAGs work with A2A API endpoints"""
         # The offer-orchestrator-mag was created before A2A templates
