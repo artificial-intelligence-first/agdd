@@ -32,7 +32,7 @@ jobs:
         run: uv run python ops/tools/verify_vendor.py
 
       - name: Test suite
-        run: uv run -m pytest -q -m 'not slow'
+        run: uv run -m pytest -q -m 'not slow' -n auto
 
       - name: Build distributions
         run: uv build
@@ -84,7 +84,7 @@ jobs:
         run: echo "FLOW_RUNNER_PYTHONPATH=$GITHUB_WORKSPACE/.flow-runner/packages/flowrunner/src:$GITHUB_WORKSPACE/.flow-runner/packages/mcprouter/src" >> $GITHUB_ENV
 
       - name: Run tests (Flow Runner)
-        run: uv run -m pytest -q -m 'not slow'
+        run: uv run -m pytest -q -m 'not slow' -n auto
 
       - name: Execute sample flow
         run: |
