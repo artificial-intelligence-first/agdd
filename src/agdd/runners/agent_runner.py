@@ -1042,6 +1042,13 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
+        finally:
+            # Cleanup MCP resources
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    asyncio.run(self.skills._cleanup_mcp())
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
 
 # Singleton instance
