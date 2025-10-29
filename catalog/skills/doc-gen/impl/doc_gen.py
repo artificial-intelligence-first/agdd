@@ -2,34 +2,21 @@
 Doc generation skill.
 
 Constructs an offer packet from a candidate profile and optional compensation
-context. Performs schema validation on input/output contracts.
-
-MCP INTEGRATION STATUS:
-    This skill performs local data transformation and does not currently require
-    MCP integration. It operates synchronously on provided data.
-
-    If future requirements include fetching external data (e.g., templates from
-    filesystem MCP server or compensation data from database), this skill would
-    need:
-    - Conversion to async/await pattern
-    - MCP client dependency injection
-    - Declaration of MCP server dependencies in skill.yaml
-
-CURRENT IMPLEMENTATION:
-    - Synchronous execution
-    - Schema validation using local contract files
-    - Pure data transformation (no external I/O)
-    - No async conversion planned unless external data sources are added
+context with JSON Schema validation. This Phase 2 implementation already uses
+the async skill signature and accepts an optional MCP runtime, but it currently
+relies on local data transformation only.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Optional
 
 import jsonschema
 import yaml
+
+from agdd.mcp import MCPRuntime
 
 ROOT = Path(__file__).resolve().parents[4]  # Point to repo root
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.json"
@@ -47,14 +34,14 @@ INPUT_SCHEMA = _load_schema(INPUT_CONTRACT)
 OUTPUT_SCHEMA = _load_schema(OUTPUT_CONTRACT)
 
 
-def _validate(payload: Dict[str, Any], schema: Dict[str, Any], name: str) -> None:
+def _validate(payload: dict[str, Any], schema: dict[str, Any], name: str) -> None:
     try:
         jsonschema.validate(payload, schema)
     except jsonschema.ValidationError as exc:  # pragma: no cover - defensive
         raise ValueError(f"{name} schema validation failed: {exc.message}") from exc
 
 
-def _normalized_candidate(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _normalized_candidate(payload: dict[str, Any]) -> dict[str, Any]:
     identifier = str(payload.get("id", "")).strip()
     if not identifier:
         raise ValueError("Candidate profile requires an 'id' field")
@@ -69,13 +56,13 @@ def _normalized_candidate(payload: Dict[str, Any]) -> Dict[str, Any]:
     return candidate
 
 
-def _compensation_section(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _compensation_section(payload: dict[str, Any]) -> dict[str, Any]:
     raw_band = payload.get("salary_band")
     band = raw_band if isinstance(raw_band, dict) else {}
     base = payload.get("base_salary") or band.get("base") or band.get("min")
     maximum = payload.get("max_salary") or band.get("max")
     currency = band.get("currency") or "USD"
-    components: Dict[str, Any] = {}
+    components: dict[str, Any] = {}
     if base is not None:
         components["base"] = {"amount": base, "currency": currency}
     if maximum is not None:
@@ -100,7 +87,7 @@ def _compensation_section(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _build_narrative(candidate: Dict[str, Any], compensation: Dict[str, Any]) -> Dict[str, str]:
+def _build_narrative(candidate: dict[str, Any], compensation: dict[str, Any]) -> dict[str, str]:
     name = candidate.get("name") or candidate["id"]
     role = candidate.get("role") or "the target role"
     base_component = compensation["components"].get("base")
@@ -123,8 +110,8 @@ def _build_narrative(candidate: Dict[str, Any], compensation: Dict[str, Any]) ->
     }
 
 
-def _collect_warnings(payload: Dict[str, Any], compensation: Dict[str, Any]) -> List[str]:
-    warnings: List[str] = []
+def _collect_warnings(payload: dict[str, Any], compensation: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
     if not compensation["components"]:
         warnings.append("Salary band information is missing; confirm compensation details.")
     if payload.get("advisor_notes") is None:
@@ -134,21 +121,26 @@ def _collect_warnings(payload: Dict[str, Any], compensation: Dict[str, Any]) -> 
     return warnings
 
 
-def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def run(
+    payload: dict[str, Any],
+    *,
+    mcp: Optional[MCPRuntime] = None,
+) -> dict[str, Any]:
     """
     Generate a structured offer packet from a candidate profile.
 
-    CURRENT IMPLEMENTATION: Pure synchronous data transformation.
-    No external I/O or MCP integration required at this time.
+    CURRENT IMPLEMENTATION: Pure local data transformation with optional MCP runtime
+    parameter (unused). Future phases may leverage MCP for template retrieval.
 
     Args:
         payload: Candidate profile data matching the candidate_profile contract.
+        mcp: Optional MCP runtime. Ignored until Phase 3 enables remote lookups.
 
     Returns:
         Offer packet payload satisfying the offer_packet contract.
 
     NOTE: If future requirements include fetching offer templates from filesystem
-    or querying compensation databases, convert to async and add mcp_client parameter.
+    or querying compensation databases, leverage mcp runtime to perform lookups.
     """
     _validate(payload, INPUT_SCHEMA, "candidate_profile")
     candidate = _normalized_candidate(payload)
@@ -157,7 +149,7 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
     warnings = _collect_warnings(payload, compensation)
 
     offer_id = payload.get("offer_id") or f"offer-{candidate['id']}"
-    result: Dict[str, Any] = {
+    result: dict[str, Any] = {
         "offer_id": str(offer_id),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "candidate": candidate,

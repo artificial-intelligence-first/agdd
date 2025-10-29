@@ -17,10 +17,12 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Optional
 
 import jsonschema
 import yaml
+
+from agdd.mcp import MCPRuntime
 
 def _find_repo_root(start_path: Path) -> Path:
     """
@@ -55,7 +57,7 @@ INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<input-contract>.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "<output-contract>.json"
 
 
-def _load_schema(path: Path) -> Dict[str, Any]:
+def _load_schema(path: Path) -> dict[str, Any]:
     """
     Load and parse JSON Schema from a YAML or JSON file.
 
@@ -83,7 +85,7 @@ INPUT_SCHEMA = _load_schema(INPUT_CONTRACT)
 OUTPUT_SCHEMA = _load_schema(OUTPUT_CONTRACT)
 
 
-def _validate(payload: Dict[str, Any], schema: Dict[str, Any], name: str) -> None:
+def _validate(payload: dict[str, Any], schema: dict[str, Any], name: str) -> None:
     """
     Validate payload against JSON Schema.
 
@@ -101,7 +103,7 @@ def _validate(payload: Dict[str, Any], schema: Dict[str, Any], name: str) -> Non
         raise ValueError(f"{name} schema validation failed: {exc.message}") from exc
 
 
-def _prepare_request(payload: Dict[str, Any]) -> Dict[str, Any]:
+def _prepare_request(payload: dict[str, Any]) -> dict[str, Any]:
     """
     Extract and transform input payload for MCP tool invocation.
 
@@ -122,7 +124,7 @@ def _prepare_request(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
-def _call_mcp_tool(**kwargs: Any) -> Any:
+async def _call_mcp_tool(**kwargs: Any) -> Any:
     """
     Invoke the MCP tool via the configured server.
 
@@ -161,12 +163,33 @@ def _call_mcp_tool(**kwargs: Any) -> Any:
         return client.call_tool("tool-name", **kwargs)
     """
     raise NotImplementedError(
-        "MCP tool invocation not implemented. "
-        "Please implement _call_mcp_tool() for your specific MCP server."
+        "Implement _call_mcp_tool() to perform local or mocked execution when MCP runtime is unavailable."
     )
 
 
-def _process_response(raw_response: Any, payload: Dict[str, Any]) -> Dict[str, Any]:
+async def _call_tool_via_runtime(
+    mcp: MCPRuntime,
+    request: dict[str, Any],
+) -> Any:
+    """
+    Invoke the MCP tool through the provided MCP runtime.
+
+    Args:
+        mcp: Injected MCP runtime with granted permissions
+        request: Prepared request payload
+
+    Returns:
+        Raw response from the MCP server
+
+    TODO: Replace this placeholder with calls such as:
+        await mcp.execute_tool(server_id="filesystem", tool="read_file", arguments=request)
+    """
+    raise NotImplementedError(
+        "Implement _call_tool_via_runtime() to perform remote execution via the MCP runtime."
+    )
+
+
+def _process_response(raw_response: Any, payload: dict[str, Any]) -> dict[str, Any]:
     """
     Transform MCP tool response to match output schema.
 
@@ -191,7 +214,11 @@ def _process_response(raw_response: Any, payload: Dict[str, Any]) -> Dict[str, A
     return {"result": raw_response}
 
 
-def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def run(
+    payload: dict[str, Any],
+    *,
+    mcp: Optional[MCPRuntime] = None,
+) -> dict[str, Any]:
     """
     Execute the MCP tool with the given payload.
 
@@ -204,6 +231,8 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     Args:
         payload: Input data matching the input schema contract
+        mcp: Optional MCP runtime for remote execution. When None, fall back to
+            local or mocked execution via `_call_mcp_tool()`.
 
     Returns:
         Output data matching the output schema contract
@@ -218,14 +247,18 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
     # Prepare request arguments
     request_args = _prepare_request(payload)
 
-    # Call MCP tool
+    # Call MCP tool using runtime when available, otherwise run local fallback
     try:
-        raw_response = _call_mcp_tool(**request_args)
+        if mcp is not None:
+            raw_response = await _call_tool_via_runtime(mcp, request_args)
+        else:
+            raw_response = await _call_mcp_tool(**request_args)
     except NotImplementedError:
         # Fallback for template: return mock data
         raw_response = {
             "status": "not_implemented",
-            "message": "MCP tool invocation not implemented. Please implement _call_mcp_tool().",
+            "message": "MCP tool invocation not implemented. Implement _call_mcp_tool() "
+            "or _call_tool_via_runtime().",
         }
     except Exception as exc:
         # Handle MCP tool errors gracefully

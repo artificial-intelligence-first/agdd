@@ -3,8 +3,8 @@ name: task-decomposition
 description: >
   Decomposes a high-level task into sub-tasks for delegation to sub-agents.
 iface:
-  input_schema: contracts/candidate_profile.json
-  output_schema: (list of task objects)
+  input_schema: catalog/contracts/candidate_profile.json
+  output_schema: list of delegation objects (`{"sag_id": str, "input": dict}`)
 slo:
   success_rate_min: 0.95
   latency_p95_ms: 500
@@ -13,18 +13,16 @@ slo:
 # Task Decomposition (task-decomposition)
 
 ## Purpose
-Analyzes a high-level request and breaks it down into discrete sub-tasks suitable for delegation to specialized sub-agents.
+Transform a candidate-facing payload into the minimal set of sub-agent delegations required by the orchestration workflow.
 
 ## When to Use
-- A MAG needs to orchestrate multiple SAGs
-- Complex workflows require parallel or sequential task execution
-- Task dependencies and prerequisites need to be identified
+- A MAG needs to hand off compensation analysis to `compensation-advisor-sag`.
+- The caller expects deterministic task lists without branching logic.
 
 ## Procedures
-1. Analyze input payload structure
-2. Identify required capabilities
-3. Map capabilities to available sub-agents
-4. Generate task list with sag_id and input for each task
+1. Normalize the input payload. When the caller supplies `candidate_profile`, reuse it as-is; otherwise treat the entire payload as the profile.
+2. Emit a single delegation object targeting `compensation-advisor-sag`.
+3. Allow downstream logic to expand into more complex task graphs (future enhancement).
 
 ## Examples
-Single task delegation to compensation-advisor-sag for salary band generation.
+`{"candidate_profile": {...}}` → `[{"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": {...}}}]`

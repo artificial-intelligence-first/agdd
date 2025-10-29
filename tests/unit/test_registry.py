@@ -56,14 +56,16 @@ class TestRegistry:
         import inspect
         registry = Registry()
 
-        # Test sync skill resolution
-        sync_fn = registry.resolve_entrypoint(
+        # doc-gen migrated to async signature (Phase 2 baseline)
+        doc_gen_fn = registry.resolve_entrypoint(
             "catalog/skills/doc-gen/impl/doc_gen.py:run"
         )
-        assert callable(sync_fn)
-        assert not inspect.iscoroutinefunction(sync_fn), "doc-gen should be sync"
+        assert callable(doc_gen_fn)
+        assert inspect.iscoroutinefunction(
+            doc_gen_fn
+        ), "doc-gen should expose an async signature"
 
-        # Test async skill resolution
+        # salary-band-lookup remains async
         async_fn = registry.resolve_entrypoint(
             "catalog/skills/salary-band-lookup/impl/salary_band_lookup.py:run"
         )

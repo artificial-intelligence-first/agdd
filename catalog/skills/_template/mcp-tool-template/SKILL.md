@@ -76,10 +76,12 @@ MCP Tool Template provides a standardized structure for creating skills that wra
 ```
 
 ### Key Functions
-- `run(payload: Dict[str, Any]) -> Dict[str, Any]` - Main entry point
-- `_validate_input(payload: Dict[str, Any]) -> None` - Input validation
-- `_validate_output(result: Dict[str, Any]) -> None` - Output validation
-- `_call_mcp_tool(**kwargs) -> Any` - MCP tool invocation (to be implemented)
+- `async def run(payload: dict[str, Any], *, mcp: Optional[MCPRuntime] = None) -> dict[str, Any]` – Main entry point with optional MCP runtime
+- `_validate(payload: dict[str, Any], schema: dict[str, Any], name: str) -> None` – Input/output validation helper
+- `_prepare_request(payload: dict[str, Any]) -> dict[str, Any]` – Request transformation helper
+- `async def _call_mcp_tool(**kwargs) -> Any` – Local or mocked execution path when MCP runtime is unavailable
+- `async def _call_tool_via_runtime(mcp: MCPRuntime, request: dict[str, Any]) -> Any` – Preferred MCP runtime integration path
+- `_process_response(raw_response: Any, payload: dict[str, Any]) -> dict[str, Any]` – Response normalization helper
 
 ### Development Checklist
 - [ ] Copy template to `catalog/skills/<your-skill-name>/`

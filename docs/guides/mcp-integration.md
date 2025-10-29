@@ -1,54 +1,26 @@
 ---
 title: Model Context Protocol (MCP) Integration
-last_synced: 2025-10-24
+last_synced: 2025-10-29
 description: Integration of MCP servers for external tools, data sources, and standardized interfaces
 change_log:
   - 2025-10-29: Added implementation status warning and migration guide preview
   - 2025-10-24: Added front-matter and MCP architecture overview
 ---
 
-## IMPLEMENTATION STATUS
-
-**Current Status (2025-10-29):**
-
-- ✅ **MCP Server Support**: Fully implemented and production-ready
-  - AGDD agents can be exposed as MCP tools via `src/agdd/mcp/server.py`
-  - Integration with Claude Desktop and other MCP clients
-  - See "AGDD stdio MCP Runtime" section below for details
-
-- 🚧 **MCP Client in Skills**: In Development (Target: Q1 2025)
-  - Skills will be able to invoke external MCP servers (filesystem, git, database, etc.)
-  - Current skill implementations use mock/static data
-  - Async conversion required for MCP client integration
-  - See "Migration Guide Preview" below for upcoming changes
-
-**What This Means:**
-
-- You can expose AGDD agents to external MCP clients NOW
-- Skills cannot yet invoke external MCP servers (e.g., PostgreSQL, filesystem)
-- All skill examples in this guide are architectural previews showing the target state
-- Current production skills use synchronous mock data
+> ⚠️ IMPLEMENTATION STATUS  
+> Phase 1 — MCP server exposure (Complete, GA)  
+> Phase 2 — Async skill runtime & templates (Complete in this repository)  
+> Phase 3 — External MCP client integrations (In Progress; skills fall back to local logic until launch)
 
 ### Migration Guide Preview
 
-When MCP Client support is ready, existing skills will need:
+Phase 2 delivered async signatures and optional MCP runtime wiring for all catalog skills. Phase 3 will introduce real MCP client calls and additional governance requirements. Expect to:
 
-1. **Async Conversion**: Skills will adopt async/await patterns
-   ```python
-   # Current (sync)
-   def run(payload: dict) -> dict:
-       return {"result": "..."}
+1. **Implement MCP Calls**: Replace local fallbacks with awaited MCP tool invocations where required.
+2. **Declare Permissions**: Annotate `skill.yaml` files with explicit `mcp:` permissions for each external server.
+3. **Strengthen Contracts**: Expand schemas and tests to cover remote failure modes and partial data responses.
 
-   # Future (async)
-   async def run(payload: dict, *, mcp_client) -> dict:
-       result = await mcp_client.call_tool("filesystem", "read_file", {"path": "..."})
-       return {"result": result}
-   ```
-
-2. **MCP Client Injection**: New `mcp_client` dependency in skill signatures
-3. **Contract Updates**: Skills will declare MCP server dependencies in `skill.yaml`
-
-Detailed migration instructions will be published when MCP Client support lands.
+Detailed migration instructions will ship alongside the Phase 3 release.
 
 # Model Context Protocol (MCP) Integration
 

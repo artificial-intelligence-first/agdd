@@ -1,18 +1,27 @@
+from __future__ import annotations
+
 """
 Task Decomposition Skill
 
 Decomposes high-level requests into sub-agent tasks.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Optional
+
+from agdd.mcp import MCPRuntime
 
 
-def run(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+async def run(
+    payload: dict[str, Any],
+    *,
+    mcp: Optional[MCPRuntime] = None,
+) -> list[dict[str, Any]]:
     """
     Decompose task into sub-agent delegations.
 
     Args:
         payload: Request payload (typically containing candidate_profile)
+        mcp: Optional MCP runtime. Not required for the current decomposition logic.
 
     Returns:
         List of task objects with sag_id and input
