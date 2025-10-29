@@ -536,16 +536,30 @@ class AgentRunner:
 
         # Sync agent (legacy)
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        t0 = time.time()
-        output: Dict[str, Any] = run_fn(
-            payload,
-            registry=self.registry,
-            skills=self.skills,
-            runner=self,  # Allow MAG to delegate to SAG
-            obs=exec_ctx.observer,
-        )
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        try:
+            t0 = time.time()
+            output: Dict[str, Any] = run_fn(
+                payload,
+                registry=self.registry,
+                skills=self.skills,
+                runner=self,  # Allow MAG to delegate to SAG
+                obs=exec_ctx.observer,
+            )
+            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+            return output, duration_ms
+        finally:
+            # Cleanup MCP resources started by sync agent
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    # Check if we're in an event loop (shouldn't happen for sync agents)
+                    try:
+                        asyncio.get_running_loop()
+                        logger.warning("Sync MAG cleanup called from event loop context - cannot cleanup")
+                    except RuntimeError:
+                        # No event loop - safe to use asyncio.run()
+                        asyncio.run(self.skills._cleanup_mcp())
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed in sync MAG: {cleanup_error}")
 
     def _finalize_mag_success(
         self,
@@ -855,10 +869,24 @@ class AgentRunner:
 
         # Sync agent (legacy)
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        t0 = time.time()
-        output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        try:
+            t0 = time.time()
+            output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
+            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+            return output, duration_ms
+        finally:
+            # Cleanup MCP resources started by sync agent
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    # Check if we're in an event loop (shouldn't happen for sync agents)
+                    try:
+                        asyncio.get_running_loop()
+                        logger.warning("Sync SAG cleanup called from event loop context - cannot cleanup")
+                    except RuntimeError:
+                        # No event loop - safe to use asyncio.run()
+                        asyncio.run(self.skills._cleanup_mcp())
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed in sync SAG: {cleanup_error}")
 
     def _build_success_metrics(
         self,
