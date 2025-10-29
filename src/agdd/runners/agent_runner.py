@@ -122,7 +122,13 @@ class SkillRuntime:
             return False
 
     async def _ensure_mcp_started(self) -> None:
-        """Lazily initialize and start MCP servers on first use."""
+        """
+        Lazily initialize and start MCP servers on first use.
+
+        If server startup fails, logs a warning and continues without MCP.
+        This allows skills with optional MCP support (graceful fallback)
+        to execute with mcp=None instead of failing outright.
+        """
         if not self.enable_mcp:
             return
 
@@ -130,11 +136,19 @@ class SkillRuntime:
             return
 
         logger.info("Initializing MCP registry and starting servers")
-        self.mcp_registry = MCPRegistry()
-        self.mcp_registry.discover_servers()
-        await self.mcp_registry.start_all_servers()
-        self._mcp_started = True
-        logger.info(f"MCP servers started: {self.mcp_registry.list_running_servers()}")
+        try:
+            self.mcp_registry = MCPRegistry()
+            self.mcp_registry.discover_servers()
+            await self.mcp_registry.start_all_servers()
+            self._mcp_started = True
+            logger.info(f"MCP servers started: {self.mcp_registry.list_running_servers()}")
+        except Exception as e:
+            logger.warning(
+                f"Failed to start MCP servers: {e}. "
+                "Skills with MCP support will execute with mcp=None (graceful fallback)."
+            )
+            # Keep _mcp_started = False so skills receive mcp=None
+            self.mcp_registry = None
 
     async def _cleanup_mcp(self) -> None:
         """Stop all MCP servers and cleanup resources."""
