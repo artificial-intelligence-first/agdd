@@ -490,17 +490,25 @@ class AgentRunner:
         Returns:
             Tuple of (output, duration_ms)
         """
-        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
-        t0 = time.time()
-        output: Dict[str, Any] = await run_fn(
-            payload,
-            registry=self.registry,
-            skills=self.skills,
-            runner=self,  # Allow MAG to delegate to SAG
-            obs=exec_ctx.observer,
-        )
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        try:
+            run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+            t0 = time.time()
+            output: Dict[str, Any] = await run_fn(
+                payload,
+                registry=self.registry,
+                skills=self.skills,
+                runner=self,  # Allow MAG to delegate to SAG
+                obs=exec_ctx.observer,
+            )
+            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+            return output, duration_ms
+        finally:
+            # Cleanup MCP resources in the same event loop they were started
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    await self.skills._cleanup_mcp()
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
     def _execute_mag(
         self,
@@ -632,13 +640,6 @@ class AgentRunner:
         except Exception as e:
             self._handle_mag_error(exec_ctx, e)
             raise
-        finally:
-            # Cleanup MCP resources
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    asyncio.run(self.skills._cleanup_mcp())
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
     def _run_pre_evaluations(
         self,
@@ -769,13 +770,21 @@ class AgentRunner:
         Returns:
             Tuple of (output, duration_ms)
         """
-        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
-        t0 = time.time()
-        output: Dict[str, Any] = await run_fn(
-            delegation.input, skills=self.skills, obs=exec_ctx.observer
-        )
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        try:
+            run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+            t0 = time.time()
+            output: Dict[str, Any] = await run_fn(
+                delegation.input, skills=self.skills, obs=exec_ctx.observer
+            )
+            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+            return output, duration_ms
+        finally:
+            # Cleanup MCP resources in the same event loop they were started
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    await self.skills._cleanup_mcp()
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
     def _run_async_safely(self, coro):
         """
@@ -1042,13 +1051,6 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
-        finally:
-            # Cleanup MCP resources
-            if self.enable_mcp and self.skills._mcp_started:
-                try:
-                    asyncio.run(self.skills._cleanup_mcp())
-                except Exception as cleanup_error:
-                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
 
 # Singleton instance
