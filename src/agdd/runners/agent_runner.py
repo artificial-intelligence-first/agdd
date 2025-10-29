@@ -35,6 +35,34 @@ AgentCallable = Callable[..., Dict[str, Any]]
 SkillCallable = Callable[[Dict[str, Any]], Dict[str, Any]]
 
 
+def _is_async_callable(fn: Any) -> bool:
+    """
+    Check if a callable is async (coroutine function).
+
+    This handles multiple patterns for async callables:
+    - Regular async functions: async def foo()
+    - Async callable objects: class Foo with async def __call__()
+    - functools.partial wrappers around async functions
+
+    Args:
+        fn: Callable to check
+
+    Returns:
+        True if callable is async, False otherwise
+    """
+    # Check if fn itself is a coroutine function
+    if inspect.iscoroutinefunction(fn):
+        return True
+
+    # Check if fn has an async __call__ method
+    if hasattr(fn, "__call__"):
+        call_method = getattr(fn, "__call__", None)
+        if call_method and inspect.iscoroutinefunction(call_method):
+            return True
+
+    return False
+
+
 @dataclass
 class Delegation:
     """Request to delegate work to a sub-agent."""
@@ -166,7 +194,7 @@ class SkillRuntime:
         # Inspect skill signature to detect MCP parameter
         sig = inspect.signature(callable_fn)
         has_mcp_param = "mcp" in sig.parameters
-        is_async = inspect.iscoroutinefunction(callable_fn)
+        is_async = _is_async_callable(callable_fn)
 
         mcp_runtime: Optional[MCPRuntime] = None
         mcp_started_here = False
@@ -558,8 +586,8 @@ class AgentRunner:
         """
         run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
 
-        # Check if agent is async
-        if inspect.iscoroutinefunction(run_fn):
+        # Check if agent is async (handles async def, async __call__, and partials)
+        if _is_async_callable(run_fn):
             logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
             return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
 
@@ -873,8 +901,8 @@ class AgentRunner:
         """
         run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
 
-        # Check if agent is async
-        if inspect.iscoroutinefunction(run_fn):
+        # Check if agent is async (handles async def, async __call__, and partials)
+        if _is_async_callable(run_fn):
             logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
             return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
 
