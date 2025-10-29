@@ -37,6 +37,7 @@ def test_template_imports() -> None:
         assert hasattr(mcp_tool, "_validate")
         assert hasattr(mcp_tool, "_prepare_request")
         assert hasattr(mcp_tool, "_call_mcp_tool")
+        assert hasattr(mcp_tool, "_call_tool_via_runtime")
         assert hasattr(mcp_tool, "_process_response")
     except ImportError:
         # Import may fail due to path issues in test environment
@@ -67,6 +68,7 @@ def test_template_module_structure() -> None:
             assert callable(getattr(mcp_tool, "_validate", None))
             assert callable(getattr(mcp_tool, "_prepare_request", None))
             assert callable(getattr(mcp_tool, "_call_mcp_tool", None))
+            assert callable(getattr(mcp_tool, "_call_tool_via_runtime", None))
             assert callable(getattr(mcp_tool, "_process_response", None))
         else:
             pytest.skip("Could not load template module")

@@ -1,18 +1,27 @@
+from __future__ import annotations
+
 """
 Result Aggregation Skill
 
 Aggregates sub-agent results into unified output.
 """
 
-from typing import Any, Dict
+from typing import Any, Optional
+
+from agdd.mcp import MCPRuntime
 
 
-def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+async def run(
+    payload: dict[str, Any],
+    *,
+    mcp: Optional[MCPRuntime] = None,
+) -> dict[str, Any]:
     """
     Aggregate results from multiple sub-agents.
 
     Args:
         payload: Dict with 'results' key containing list of sub-agent outputs
+        mcp: Optional MCP runtime. Not used in the default aggregation strategy.
 
     Returns:
         Aggregated output (typically offer packet format)
@@ -29,7 +38,7 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
         return results[0]
 
     # Multiple results: merge strategy
-    aggregated = {}
+    aggregated: dict[str, Any] = {}
     for result in results:
         aggregated.update(result)
 

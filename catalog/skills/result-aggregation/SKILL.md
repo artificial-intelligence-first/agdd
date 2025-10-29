@@ -3,8 +3,8 @@ name: result-aggregation
 description: >
   Aggregates results from multiple sub-agent executions into a unified output.
 iface:
-  input_schema: (list of result objects)
-  output_schema: contracts/offer_packet.json
+  input_schema: list of result payloads from SAG executions
+  output_schema: catalog/contracts/offer_packet.json
 slo:
   success_rate_min: 0.99
   latency_p95_ms: 200
@@ -13,18 +13,17 @@ slo:
 # Result Aggregation (result-aggregation)
 
 ## Purpose
-Combines outputs from multiple sub-agent executions into a coherent final result.
+Surface the first successful SAG result and provide a deterministic fallback when multiple results are available.
 
 ## When to Use
-- Multiple SAGs have completed their tasks
-- MAG needs to synthesize outputs into final deliverable
-- Results need normalization or conflict resolution
+- MAG execution collects outputs from one or more `compensation-advisor-sag` runs.
+- The orchestration flow needs a stable aggregation step even when sub-agents partially fail.
 
 ## Procedures
-1. Validate each sub-agent result
-2. Merge complementary data
-3. Resolve conflicts using policy rules
-4. Format output according to target schema
+1. Inspect the `results` list supplied by the caller.
+2. Return `{}` when no successful results are present.
+3. When exactly one result exists, return it unchanged.
+4. When multiple results exist, merge dictionaries with later entries taking precedence. This mirrors the current Phase 2 behavior and can be replaced with domain-specific resolution later.
 
 ## Examples
-Aggregating compensation data from compensation-advisor-sag into final offer packet.
+`{"results": [{"offer": {...}}, {"offer": {..., "metadata": {...}}]}` → merged dictionary with second result’s overrides.

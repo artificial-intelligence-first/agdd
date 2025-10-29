@@ -1399,21 +1399,16 @@ skills:
 - [x] PostgreSQL server adapter
 - [x] Integration tests
 
-### Phase 2: Skill Migration (In Progress - v0.2.0)
+### Phase 2: Skill Migration (Completed - v0.2.0)
 
-**Status:** 🚧 In Progress
+**Status:** ✅ Complete
 
-**Available Now:**
-- MCP-enabled skill signature (`mcp` parameter)
-- Permission declaration in skill metadata
-- Test patterns for MCP and non-MCP modes
-- Migration guide (this document)
-
-**Coming Soon:**
-- Async skill signatures (native `async def run()`)
-- Automatic MCP runtime injection
-- Enhanced error reporting
-- Performance monitoring
+**Delivered:**
+- Async skill signatures with optional `mcp` parameter across catalog templates
+- Automatic MCP runtime injection via `SkillRuntime`
+- Updated sample skills (`doc-gen`, `task-decomposition`, `result-aggregation`) running in Phase 2 mode with graceful fallbacks
+- Test patterns for dual-mode (MCP/non-MCP) execution
+- This migration guide reflecting the new baseline
 
 ### Phase 3: Production Hardening (Planned - v0.3.0)
 
