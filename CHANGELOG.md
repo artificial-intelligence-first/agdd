@@ -1,3 +1,13 @@
+---
+title: Changelog
+last_synced: 2025-10-29
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/files/CHANGELOG.md
+description: Version history following Keep a Changelog format
+change_log:
+  - 2025-10-29: Relocated to project root as CHANGELOG.md with standardized structure
+  - 2025-10-29: Added YAML front matter for documentation validation
+---
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

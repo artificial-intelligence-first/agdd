@@ -1,3 +1,13 @@
+---
+title: SSOT (Single Source of Truth)
+last_synced: 2025-10-29
+source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/files/SSOT.md
+description: AGDD terminology, policies, and permissions - the authoritative source for all project definitions
+change_log:
+  - 2025-10-29: Relocated to project root as SSOT.md with standardized structure
+  - 2025-10-29: Added YAML front matter for documentation validation
+---
+
 # SSOT (Single Source of Truth)
 
 Authoritative source for AGDD terminology, policies, and permissions. When conflicts arise between documentation sources, this document takes precedence. Announce changes here first via PR and let other documents reference this canon.
