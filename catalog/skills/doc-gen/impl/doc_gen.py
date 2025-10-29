@@ -31,7 +31,7 @@ from typing import Any, Dict, List
 import jsonschema
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]  # Point to repo root
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.json"
 OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "offer_packet.json"
 
