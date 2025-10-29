@@ -132,8 +132,12 @@ class TestSkillWithMCPParameter:
         assert result_without_mcp["source"] == "fallback"
 
 
+@pytest.mark.slow
 class TestSkillRuntimeInvokeAsync:
-    """Test cases for SkillRuntime.invoke_async() with MCP support."""
+    """Test cases for SkillRuntime.invoke_async() with MCP support.
+
+    Note: These tests involve actual MCP server initialization and can be slow.
+    """
 
     @pytest.fixture
     def temp_dirs(self) -> tuple[Path, Path]:
@@ -281,8 +285,12 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
+@pytest.mark.slow
 class TestSalaryBandLookupWithMCP:
-    """Test cases for the actual salary-band-lookup skill with MCP."""
+    """Test cases for the actual salary-band-lookup skill with MCP.
+
+    Note: These tests involve actual MCP server initialization and can be slow.
+    """
 
     @pytest.fixture
     def mcp_registry(self) -> MCPRegistry:
