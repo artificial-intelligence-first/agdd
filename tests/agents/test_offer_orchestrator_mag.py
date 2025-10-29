@@ -1,10 +1,18 @@
-"""Tests for OfferOrchestratorMAG"""
+"""Tests for OfferOrchestratorMAG
+
+All tests in this module perform actual agent execution with LLM calls,
+which can take 30-60+ seconds per test. Tests are marked as 'slow' to
+allow quick CI runs with `-m "not slow"`.
+"""
+
+import pytest
 
 from agdd.runners.agent_runner import AgentRunner
 
 
+@pytest.mark.slow
 class TestOfferOrchestratorMAG:
-    """Test suite for OfferOrchestratorMAG"""
+    """Test suite for OfferOrchestratorMAG (actual agent execution)"""
 
     def test_basic_orchestration(self) -> None:
         """Test basic offer packet generation"""
