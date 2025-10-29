@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -523,7 +524,7 @@ class AgentRunner:
         # Check if agent is async
         if inspect.iscoroutinefunction(run_fn):
             logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-            return asyncio.run(self._execute_mag_async(exec_ctx, payload))
+            return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
 
         # Sync agent (legacy)
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
@@ -776,6 +777,49 @@ class AgentRunner:
         duration_ms = int((time.time() - t0) * MS_PER_SECOND)
         return output, duration_ms
 
+    def _run_async_safely(self, coro):
+        """
+        Run an async coroutine safely, handling both sync and async contexts.
+
+        If already in an event loop (e.g., async MAG calling async SAG),
+        runs the coroutine in a new thread with its own event loop to avoid
+        RuntimeError from nested asyncio.run() calls.
+
+        Args:
+            coro: The coroutine to run
+
+        Returns:
+            The result of the coroutine
+
+        Raises:
+            Any exception raised by the coroutine
+        """
+        try:
+            asyncio.get_running_loop()
+            # We're already in an event loop - run in a new thread
+            logger.debug("Detected running event loop, executing async agent in new thread")
+
+            result_container = {}
+            exception_container = {}
+
+            def run_in_new_loop():
+                try:
+                    result_container['value'] = asyncio.run(coro)
+                except Exception as e:
+                    exception_container['error'] = e
+
+            thread = threading.Thread(target=run_in_new_loop)
+            thread.start()
+            thread.join()
+
+            if 'error' in exception_container:
+                raise exception_container['error']
+            return result_container['value']
+
+        except RuntimeError:
+            # No event loop running - safe to use asyncio.run() directly
+            return asyncio.run(coro)
+
     def _execute_agent(
         self,
         exec_ctx: _ExecutionContext,
@@ -798,7 +842,7 @@ class AgentRunner:
         # Check if agent is async
         if inspect.iscoroutinefunction(run_fn):
             logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-            return asyncio.run(self._execute_agent_async(exec_ctx, delegation))
+            return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
 
         # Sync agent (legacy)
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
