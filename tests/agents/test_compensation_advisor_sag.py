@@ -1,10 +1,18 @@
-"""Tests for CompensationAdvisorSAG"""
+"""Tests for CompensationAdvisorSAG
+
+All tests in this module perform actual agent execution with LLM calls,
+which can take 30-60+ seconds per test. Tests are marked as 'slow' to
+allow quick CI runs with `-m "not slow"`.
+"""
+
+import pytest
 
 from agdd.runners.agent_runner import AgentRunner, Delegation
 
 
+@pytest.mark.slow
 class TestCompensationAdvisorSAG:
-    """Test suite for CompensationAdvisorSAG"""
+    """Test suite for CompensationAdvisorSAG (actual agent execution)"""
 
     def test_basic_compensation_generation(self) -> None:
         """Test basic compensation offer generation"""

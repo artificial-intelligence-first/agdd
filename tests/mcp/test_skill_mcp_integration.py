@@ -216,41 +216,12 @@ async def run(payload: Dict[str, Any], mcp=None) -> Dict[str, Any]:
         mock_registry.resolve_entrypoint.return_value = module.run
 
         # Create SkillRuntime with MCP support
-        skill_runtime = SkillRuntime(registry=mock_registry)
-
-        # Add invoke_async method if it doesn't exist (for TDD)
-        if not hasattr(skill_runtime, "invoke_async"):
-            async def invoke_async(
-                self, skill_id: str, payload: Dict[str, Any], mcp_registry: MCPRegistry | None = None
-            ) -> Dict[str, Any]:
-                """Async skill invocation with MCP support."""
-                skill_desc = self.registry.load_skill(skill_id)
-                callable_fn = self.registry.resolve_entrypoint(skill_desc.entrypoint)
-
-                # Check if skill is async
-                if not inspect.iscoroutinefunction(callable_fn):
-                    raise TypeError(f"Skill {skill_id} is not async")
-
-                # Check if skill accepts MCP parameter
-                sig = inspect.signature(callable_fn)
-                accepts_mcp = "mcp" in sig.parameters
-
-                if accepts_mcp and mcp_registry and skill_desc.permissions:
-                    # Create MCP runtime and grant permissions
-                    mcp_runtime = MCPRuntime(mcp_registry)
-                    mcp_runtime.grant_permissions(skill_desc.permissions)
-                    return await callable_fn(payload, mcp=mcp_runtime)
-                else:
-                    return await callable_fn(payload)
-
-            # Bind method to instance
-            import types
-            skill_runtime.invoke_async = types.MethodType(invoke_async, skill_runtime)
+        # SkillRuntime creates its own MCPRegistry internally, so we replace it
+        skill_runtime = SkillRuntime(registry=mock_registry, enable_mcp=True)
+        skill_runtime.mcp_registry = mock_mcp_registry
 
         # Execute skill
-        result = await skill_runtime.invoke_async(
-            "skill.test-mcp", {"input": "test"}, mcp_registry=mock_mcp_registry
-        )
+        result = await skill_runtime.invoke_async("skill.test-mcp", {"input": "test"})
 
         # Verify results
         assert result["status"] == "success"
