@@ -20,10 +20,6 @@ def ensure_files_exist(paths: list[str]) -> list[str]:
 
 def validate_front_matter(path: Path) -> list[str]:
     """Validate YAML front-matter in documentation files."""
-    # Skip symlinks (e.g., docs/reference/ssot.md -> ../../SSOT.md)
-    if path.is_symlink():
-        return []
-
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
     warnings: list[str] = []
@@ -84,15 +80,14 @@ def validate_front_matter(path: Path) -> list[str]:
 def validate_changelog(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     errors: list[str] = []
-    relative_path = str(path.relative_to(ROOT))
 
     if "## [Unreleased]" not in text:
-        errors.append(f"{relative_path} must contain an [Unreleased] section")
+        errors.append("docs/development/changelog.md must contain an [Unreleased] section")
 
     release_pattern = re.compile(r"^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}$", re.MULTILINE)
     matches = list(release_pattern.finditer(text))
     if not matches:
-        errors.append(f"{relative_path} must contain at least one dated release entry")
+        errors.append("docs/development/changelog.md must contain at least one dated release entry")
         return errors
 
     for idx, match in enumerate(matches):
@@ -109,30 +104,19 @@ def validate_changelog(path: Path) -> list[str]:
 
 if __name__ == "__main__":
     problem_reports: list[str] = []
-
-    # Check required files (including standardized documentation)
     problem_reports.extend(
         ensure_files_exist(
             [
-                # Standardized documentation files (root level)
-                "README.md",
-                "AGENTS.md",
-                "CHANGELOG.md",
-                "PLANS.md",
-                "SSOT.md",
-                # Documentation guides
                 "docs/guides/agent-development.md",
-                "docs/guides/runner-integration.md",
-                "docs/development/roadmap.md",
-                # Symlinks to standardized files
                 "docs/reference/ssot.md",
+                "docs/development/roadmap.md",
+                "README.md",
                 "docs/development/changelog.md",
+                "docs/guides/runner-integration.md",
             ]
         )
     )
-
-    # Validate CHANGELOG format (use root CHANGELOG.md)
-    problem_reports.extend(validate_changelog(ROOT / "CHANGELOG.md"))
+    problem_reports.extend(validate_changelog(ROOT / "docs" / "development" / "changelog.md"))
 
     # Validate front-matter in all documentation files
     docs_with_frontmatter = [
