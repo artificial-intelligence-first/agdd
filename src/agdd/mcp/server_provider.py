@@ -8,26 +8,108 @@ MCP clients.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from agdd.registry import Registry
 from agdd.runners.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
+try:
+    import sys
+    from contextlib import contextmanager
+except ImportError:  # pragma: no cover - standard library always available
+    sys = None  # type: ignore[assignment]
+    contextmanager = None  # type: ignore[assignment]
+
 # Check if mcp package is available
 try:
-    from mcp.server.fastmcp import FastMCP
-    from mcp.server.fastmcp import Context
-
-    HAS_MCP_SDK = True
+    from mcp.server.fastmcp import Context as _FastMCPContext
+    from mcp.server.fastmcp import FastMCP as _FastMCPServer
 except ImportError:
-    HAS_MCP_SDK = False
-    FastMCP = None  # type: ignore
-    Context = None  # type: ignore
+    _FastMCPServer = None  # type: ignore[assignment]
+    _FastMCPContext = None  # type: ignore[assignment]
+
+
+def _tests_dir() -> Path:
+    """Return the absolute path to the repository's tests directory."""
+
+    return (Path(__file__).resolve().parents[3] / "tests").resolve()
+
+
+def _without_tests_path() -> "contextmanager[None]":
+    """Temporarily remove the local tests directory from sys.path.
+
+    Pytest adds the repository's tests directory to the front of sys.path.
+    That creates a naming conflict with the third-party ``mcp`` package
+    because we also have ``tests/mcp``. When that happens, importing
+    ``mcp.server.fastmcp`` resolves to the tests package instead of the SDK.
+    This helper momentarily drops the conflicting path so the real SDK
+    can be imported, then restores the original order.
+    """
+
+    if sys is None or contextmanager is None:
+        raise RuntimeError("contextlib or sys unavailable")
+
+    tests_dir = _tests_dir()
+
+    @contextmanager
+    def _manager() -> "Generator[None, None, None]":
+        removed: list[tuple[int, str]] = []
+
+        for idx, entry in enumerate(list(sys.path)):
+            try:
+                resolved = Path(entry).resolve()
+            except Exception:  # pragma: no cover - defensive
+                continue
+            if resolved == tests_dir:
+                removed.append((idx, entry))
+
+        for idx, _ in reversed(removed):
+            sys.path.pop(idx)
+
+        try:
+            yield
+        finally:
+            for idx, entry in removed:
+                sys.path.insert(idx, entry)
+
+    return _manager()
+
+
+def _load_fastmcp() -> tuple[bool, Any | None, Any | None]:
+    """Attempt to load FastMCP, handling path conflicts with tests/mcp."""
+    try:
+        from mcp.server.fastmcp import Context, FastMCP  # type: ignore[no-redef]
+        return True, FastMCP, Context
+    except ImportError:
+        try:
+            with _without_tests_path():
+                if sys is not None:
+                    existing = sys.modules.get("mcp")
+                    if existing and getattr(existing, "__file__", ""):
+                        try:
+                            module_path = Path(existing.__file__).resolve()
+                            tests_dir = _tests_dir()
+                            is_tests_pkg = False
+                            try:
+                                is_tests_pkg = module_path.is_relative_to(tests_dir)
+                            except AttributeError:  # pragma: no cover - py<3.9 fallback
+                                is_tests_pkg = str(module_path).startswith(str(tests_dir))
+                        except Exception:  # pragma: no cover - defensive
+                            is_tests_pkg = False
+                        if is_tests_pkg:
+                            sys.modules.pop("mcp", None)
+                from mcp.server.fastmcp import Context, FastMCP  # type: ignore[no-redef]
+                return True, FastMCP, Context
+        except ImportError:
+            return False, None, None
+
+
+_has_sdk, FastMCP, Context = _load_fastmcp()
+HAS_MCP_SDK = bool(_has_sdk)
 
 
 class AGDDMCPServer:

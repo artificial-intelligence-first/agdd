@@ -66,6 +66,10 @@ test-integration:
 test-coverage:
 	uv run -m pytest --cov=agdd --cov-report=term-missing --cov-report=html
 
+test-mcp:
+	@echo "Running MCP tests (sequential mode with proper cleanup)..."
+	PYTEST_ADDOPTS='-n 0 --import-mode=importlib -m "slow or not slow"' uv run -m pytest tests/mcp -q --tb=short
+
 # Quality Checks
 docs-check:
 	uv run python ops/tools/check_docs.py

@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -149,7 +150,7 @@ class TestMCPToolExecution:
     """Test cases for MCP tool execution."""
 
     @pytest.fixture
-    def temp_servers_dir(self) -> Path:
+    def temp_servers_dir(self) -> Generator[Path, None, None]:
         """Create a temporary directory for server configs."""
         with tempfile.TemporaryDirectory() as tmpdir:
             yield Path(tmpdir)
@@ -191,6 +192,7 @@ class TestMCPToolExecution:
         )
 
         assert not result.success
+        assert result.error is not None
         assert "Permission denied" in result.error
 
     @pytest.mark.asyncio
@@ -265,6 +267,7 @@ class TestMCPToolExecution:
                 )
 
                 assert not result.success
+                assert result.error is not None
                 assert "not found" in result.error.lower()
 
             finally:

@@ -289,6 +289,8 @@ If any step fails or times out, the subprocess is terminated and the error is su
 
 Integration tests live under `tests/mcp/test_execution.py` and validate handshake, tool discovery, and `tools/call` execution using mocked subprocesses. Extend these tests when adding new transports or server types.
 
+Use `make test-mcp` to run the entire MCP suite sequentially with the correct pytest flags (`-n 0 --import-mode=importlib -m "slow or not slow"`). The target resets `PYTEST_ADDOPTS`, enabling both slow and unmarked cases so no regressions are hidden behind marker filters.
+
 ## Using MCP in Agents
 
 ### Implicit Tool Usage

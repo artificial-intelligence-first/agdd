@@ -38,6 +38,10 @@ sources:
   uv run -m pytest -m slow
   uv run -m pytest tests/integration/test_e2e_offer_flow.py
   ```
+- Run MCP-focused tests with the full suite enabled:
+  ```bash
+  make test-mcp
+  ```
 - Type checking is mandatory:
   ```bash
   uv run mypy src tests

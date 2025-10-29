@@ -116,6 +116,8 @@ pythonpath = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv", "build", "dist"]

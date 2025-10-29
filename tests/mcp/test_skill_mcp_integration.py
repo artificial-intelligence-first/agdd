@@ -6,14 +6,15 @@ including async skill execution, permission management, and backward compatibili
 
 import inspect
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
+from agdd.mcp import MCPRegistry, MCPRuntime
 from agdd.registry import Registry, SkillDescriptor
 from agdd.runners.agent_runner import SkillRuntime
 
@@ -139,101 +140,107 @@ class TestSkillWithMCPParameter:
 class TestSkillRuntimeInvokeAsync:
     """Test cases for SkillRuntime.invoke_async() with MCP support.
 
-    Note: These tests involve actual MCP server initialization and can be slow.
+    The suite now relies on lightweight mocks to avoid slow real MCP startups
+    while still validating permission wiring and lifecycle management.
     """
 
     @pytest.fixture
-    def temp_dirs(self) -> tuple[Path, Path]:
+    def temp_dirs(self) -> Generator[tuple[Path, Path], None, None]:
         """Create temporary directories for skills and MCP servers."""
         with tempfile.TemporaryDirectory() as skills_dir, tempfile.TemporaryDirectory() as servers_dir:
             yield Path(skills_dir), Path(servers_dir)
 
-    @pytest.fixture
-    def mock_mcp_registry(self, temp_dirs: tuple[Path, Path]) -> MCPRegistry:
-        """Create a mock MCP registry."""
-        _, servers_dir = temp_dirs
-
-        # Create server config
-        config_file = servers_dir / "pg-readonly.yaml"
-        with open(config_file, "w") as f:
-            yaml.dump(
-                {
-                    "server_id": "pg-readonly",
-                    "type": "postgres",
-                    "scopes": ["read:tables"],
-                    "conn": {"url_env": "TEST_PG_URL"},
-                },
-                f,
-            )
-
-        registry = MCPRegistry(servers_dir=servers_dir)
-        registry.discover_servers()
-        return registry
-
     @pytest.mark.asyncio
     async def test_skill_runtime_invoke_async_with_mcp(
-        self, temp_dirs: tuple[Path, Path], mock_mcp_registry: MCPRegistry
+        self,
     ) -> None:
-        """Test SkillRuntime.invoke_async() with MCP-enabled skill.
+        """invoke_async should pass an initialized MCP runtime to async skills."""
 
-        Verifies:
-        - invoke_async method exists and works
-        - MCP runtime is initialized for the skill
-        - Permissions are granted based on skill descriptor
-        - Skill receives MCP runtime parameter
-        """
-        skills_dir, _ = temp_dirs
+        async def async_skill(payload: Dict[str, Any], mcp: MCPRuntime | None = None) -> Dict[str, Any]:
+            return {
+                "status": "success",
+                "has_mcp": mcp is not None,
+                "permissions": [] if mcp is None else mcp.get_granted_permissions(),
+                "echo": payload,
+            }
 
-        # Create a test skill file
-        skill_file = skills_dir / "test_skill.py"
-        skill_file.write_text(
-            """
-from typing import Any, Dict
-
-async def run(payload: Dict[str, Any], mcp=None) -> Dict[str, Any]:
-    if mcp:
-        return {
-            "status": "success",
-            "has_mcp": True,
-            "permissions": mcp.get_granted_permissions()
-        }
-    return {"status": "success", "has_mcp": False}
-""",
-            encoding="utf-8",
-        )
-
-        # Create skill descriptor
-        skill_desc = SkillDescriptor(
+        descriptor = SkillDescriptor(
             id="skill.test-mcp",
             version="0.1.0",
-            entrypoint=f"{skill_file}:run",
+            entrypoint="tests.fake_module:async_skill",
             permissions=["mcp:pg-readonly"],
             raw={},
         )
 
-        # Mock registry to return our skill
         mock_registry = MagicMock(spec=Registry)
-        mock_registry.load_skill.return_value = skill_desc
+        mock_registry.load_skill.return_value = descriptor
+        mock_registry.resolve_entrypoint.return_value = async_skill
 
-        # Mock resolve_entrypoint to return the actual function
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("test_skill", skill_file)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        mock_registry.resolve_entrypoint.return_value = module.run
-
-        # Create SkillRuntime with MCP support
-        # SkillRuntime creates its own MCPRegistry internally, so we replace it
         skill_runtime = SkillRuntime(registry=mock_registry, enable_mcp=True)
-        skill_runtime.mcp_registry = mock_mcp_registry
 
-        # Execute skill
-        result = await skill_runtime.invoke_async("skill.test-mcp", {"input": "test"})
+        # Inject a mocked MCP registry to avoid starting real servers
+        fake_registry = MagicMock(spec=MCPRegistry)
+        fake_registry.start_all_servers = AsyncMock()
+        fake_registry.stop_all_servers = AsyncMock()
+        skill_runtime.mcp_registry = fake_registry
 
-        # Verify results
+        result = await skill_runtime.invoke_async(
+            "skill.test-mcp",
+            {"input": "test"},
+            _auto_cleanup=True,
+        )
+
+        fake_registry.start_all_servers.assert_awaited_once()
+        fake_registry.stop_all_servers.assert_awaited_once()
         assert result["status"] == "success"
         assert result["has_mcp"] is True
+        assert result["echo"] == {"input": "test"}
         assert "mcp:pg-readonly" in result["permissions"]
+        assert skill_runtime._mcp_started is False
+
+    @pytest.mark.asyncio
+    async def test_skill_runtime_restarts_mcp_after_cleanup(self) -> None:
+        """Second invocation should re-start MCP servers after cleanup."""
+
+        async def async_skill(payload: Dict[str, Any], mcp: MCPRuntime | None = None) -> Dict[str, Any]:
+            return {
+                "status": "success",
+                "has_mcp": mcp is not None,
+            }
+
+        descriptor = SkillDescriptor(
+            id="skill.test-mcp",
+            version="0.1.0",
+            entrypoint="tests.fake_module:async_skill",
+            permissions=["mcp:pg-readonly"],
+            raw={},
+        )
+
+        mock_registry = MagicMock(spec=Registry)
+        mock_registry.load_skill.return_value = descriptor
+        mock_registry.resolve_entrypoint.return_value = async_skill
+
+        skill_runtime = SkillRuntime(registry=mock_registry, enable_mcp=True)
+        fake_registry = MagicMock(spec=MCPRegistry)
+        fake_registry.start_all_servers = AsyncMock()
+        fake_registry.stop_all_servers = AsyncMock()
+        skill_runtime.mcp_registry = fake_registry
+
+        await skill_runtime.invoke_async(
+            "skill.test-mcp",
+            {"input": "one"},
+            _auto_cleanup=True,
+        )
+
+        await skill_runtime.invoke_async(
+            "skill.test-mcp",
+            {"input": "two"},
+            _auto_cleanup=True,
+        )
+
+        assert fake_registry.start_all_servers.await_count == 2
+        assert fake_registry.stop_all_servers.await_count == 2
+        assert skill_runtime._mcp_started is False
 
     @pytest.mark.asyncio
     async def test_skill_runtime_invoke_async_without_mcp(
@@ -272,19 +279,29 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
         mock_registry = MagicMock(spec=Registry)
         mock_registry.load_skill.return_value = skill_desc
 
-        # Load actual function
+        # Load actual function with proper cleanup
         import importlib.util
-        spec = importlib.util.spec_from_file_location("sync_skill", skill_file)
+        import sys
+        module_name = f"sync_skill_{id(skill_file)}"
+        spec = importlib.util.spec_from_file_location(module_name, skill_file)
+        assert spec is not None
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        mock_registry.resolve_entrypoint.return_value = module.run
+        sys.modules[module_name] = module
+        try:
+            assert spec.loader is not None
+            spec.loader.exec_module(module)
+            mock_registry.resolve_entrypoint.return_value = module.run
 
-        # Use regular invoke (not invoke_async) for sync skills
-        skill_runtime = SkillRuntime(registry=mock_registry)
-        result = skill_runtime.invoke("skill.sync-test", {"value": 21})
+            # Use regular invoke (not invoke_async) for sync skills
+            skill_runtime = SkillRuntime(registry=mock_registry)
+            result = skill_runtime.invoke("skill.sync-test", {"value": 21})
 
-        assert result["result"] == 42
-        assert result["type"] == "sync"
+            assert result["result"] == 42
+            assert result["type"] == "sync"
+        finally:
+            # Cleanup module
+            if module_name in sys.modules:
+                del sys.modules[module_name]
 
 
 @pytest.mark.skipif(not HAS_ASYNCPG, reason="asyncpg not installed")
@@ -333,7 +350,6 @@ class TestSalaryBandLookupWithMCP:
             """Enhanced salary band lookup with MCP support."""
             role = payload.get("role", "")
             level = payload.get("level", "")
-            location = payload.get("location", "")
 
             # Try to use MCP if available
             if mcp and mcp.check_permission("pg-readonly"):
