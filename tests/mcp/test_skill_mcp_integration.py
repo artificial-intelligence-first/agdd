@@ -21,6 +21,8 @@ from agdd.runners.agent_runner import SkillRuntime
 try:
     import asyncpg  # noqa: F401
 
+pytestmark = pytest.mark.slow
+
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False

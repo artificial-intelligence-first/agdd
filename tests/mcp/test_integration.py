@@ -19,6 +19,8 @@ from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 try:
     import asyncpg  # noqa: F401
 
+pytestmark = pytest.mark.slow
+
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False

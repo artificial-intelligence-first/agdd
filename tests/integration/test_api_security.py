@@ -12,6 +12,8 @@ from agdd.api.config import Settings, get_settings
 from agdd.api.server import app
 
 
+pytestmark = pytest.mark.slow
+
 @pytest.fixture
 def test_runs_dir(tmp_path: Path) -> Path:
     """Create a temporary runs directory with test data."""

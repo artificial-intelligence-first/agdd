@@ -18,6 +18,8 @@ from agdd.mcp.server import MCPServer
 try:
     import asyncpg  # noqa: F401
 
+pytestmark = pytest.mark.slow
+
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False

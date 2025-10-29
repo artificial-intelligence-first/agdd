@@ -16,6 +16,8 @@ from agdd.api.config import Settings, get_settings
 from agdd.api.server import app
 
 
+pytestmark = pytest.mark.slow
+
 @pytest.fixture
 def test_settings(tmp_path: Path) -> Settings:
     """Create test settings with GitHub configuration."""

@@ -9,6 +9,9 @@ from agdd.api.config import Settings, get_settings
 from agdd.api.server import app
 
 
+import pytest
+pytestmark = pytest.mark.slow
+
 def test_custom_runs_base_dir(tmp_path: Path) -> None:
     """Test that custom RUNS_BASE_DIR is honored for both execution and tracking."""
     custom_runs_dir = tmp_path / "custom_runs"
