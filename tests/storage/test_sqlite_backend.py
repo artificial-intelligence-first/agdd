@@ -11,6 +11,8 @@ import pytest_asyncio
 
 from agdd.storage.backends.sqlite import SQLiteStorageBackend
 
+pytestmark = pytest.mark.slow
+
 
 @pytest_asyncio.fixture
 async def storage():
