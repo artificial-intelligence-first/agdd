@@ -8,6 +8,7 @@ dependency resolution, and metrics collection.
 from __future__ import annotations
 
 import asyncio
+import functools
 import inspect
 import logging
 import threading
@@ -53,6 +54,10 @@ def _is_async_callable(fn: Any) -> bool:
     # Check if fn itself is a coroutine function
     if inspect.iscoroutinefunction(fn):
         return True
+
+    # Unwrap functools.partial to check the underlying function
+    if isinstance(fn, functools.partial):
+        return _is_async_callable(fn.func)
 
     # Check if fn has an async __call__ method
     if hasattr(fn, "__call__"):
