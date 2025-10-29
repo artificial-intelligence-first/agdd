@@ -8,8 +8,9 @@ import yaml
 
 from agdd.mcp import MCPRegistry, MCPRegistryError
 
-
 pytestmark = pytest.mark.slow
+
+
 
 class TestMCPRegistryDiscovery:
     """Test cases for MCP server auto-discovery."""

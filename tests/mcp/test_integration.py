@@ -15,11 +15,12 @@ import yaml
 
 from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 
+
+pytestmark = pytest.mark.slow
 # Check if asyncpg is available
 try:
     import asyncpg  # noqa: F401
 
-pytestmark = pytest.mark.slow
 
     HAS_ASYNCPG = True
 except ImportError:

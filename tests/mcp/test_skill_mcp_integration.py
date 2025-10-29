@@ -17,11 +17,12 @@ from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 from agdd.registry import Registry, SkillDescriptor
 from agdd.runners.agent_runner import SkillRuntime
 
+
+pytestmark = pytest.mark.slow
 # Check if asyncpg is available
 try:
     import asyncpg  # noqa: F401
 
-pytestmark = pytest.mark.slow
 
     HAS_ASYNCPG = True
 except ImportError:

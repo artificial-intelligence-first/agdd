@@ -6,10 +6,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import pytest
+
+pytestmark = pytest.mark.slow
+
 # Import HAS_MCP_SDK from server_provider to check if FastMCP is actually available
 try:
     from agdd.mcp.server_provider import HAS_MCP_SDK
-pytestmark = pytest.mark.slow
 
 except ImportError:
     # server_provider module itself couldn't be imported

@@ -16,11 +16,12 @@ from agdd.mcp import (
     MCPServerError,
 )
 
+
+pytestmark = pytest.mark.slow
 # Check if asyncpg is available
 try:
     import asyncpg  # noqa: F401
 
-pytestmark = pytest.mark.slow
 
     HAS_ASYNCPG = True
 except ImportError:
