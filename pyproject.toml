@@ -23,6 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development tools (testing, linting, type checking)
 dev = [
     "pytest>=8.4.2",
     "pytest-asyncio>=0.23.0",
@@ -56,8 +57,25 @@ google = [
     "google-generativeai>=0.8.0",
     "google-genai>=0.2.0",
 ]
+# For exposing agents as MCP tools (server functionality)
 mcp-server = [
     "mcp>=1.0.0",
+]
+# For skills using MCP servers (client functionality)
+mcp-client = [
+    "asyncpg>=0.29.0",  # For PostgreSQL MCP servers
+]
+# Both MCP client and server functionality
+mcp = [
+    "agdd[mcp-client,mcp-server]",
+]
+# Recommended for production deployments
+production = [
+    "agdd[mcp,postgres,redis,observability]",
+]
+# Everything including dev tools
+all = [
+    "agdd[dev,production]",
 ]
 
 

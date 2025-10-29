@@ -7,6 +7,8 @@ dependency resolution, and metrics collection.
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 import time
 import uuid
@@ -17,6 +19,7 @@ from typing import Any, Callable, Dict, Mapping, Optional, cast
 import yaml
 
 from agdd.evaluation.runtime import EvalRuntime
+from agdd.mcp import MCPRegistry, MCPRuntime
 from agdd.observability.logger import ObservabilityLogger
 from agdd.registry import AgentDescriptor, Registry, get_registry
 from agdd.router import ExecutionPlan, Router, get_router
@@ -66,8 +69,15 @@ class _ExecutionContext:
 class SkillRuntime:
     """Skill execution runtime - delegates to skill implementations"""
 
-    def __init__(self, registry: Optional[Registry] = None):
+    def __init__(
+        self,
+        registry: Optional[Registry] = None,
+        enable_mcp: bool = True,
+    ):
         self.registry = registry or get_registry()
+        self.enable_mcp = enable_mcp
+        self.mcp_registry: Optional[MCPRegistry] = None
+        self._mcp_started = False
 
     def exists(self, skill_id: str) -> bool:
         """Check if skill exists in registry"""
@@ -77,11 +87,153 @@ class SkillRuntime:
         except (FileNotFoundError, ValueError):
             return False
 
-    def invoke(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a skill and return result"""
+    async def _ensure_mcp_started(self) -> None:
+        """Lazily initialize and start MCP servers on first use."""
+        if not self.enable_mcp:
+            return
+
+        if self._mcp_started:
+            return
+
+        logger.info("Initializing MCP registry and starting servers")
+        self.mcp_registry = MCPRegistry()
+        self.mcp_registry.discover_servers()
+        await self.mcp_registry.start_all_servers()
+        self._mcp_started = True
+        logger.info(f"MCP servers started: {self.mcp_registry.list_running_servers()}")
+
+    async def _cleanup_mcp(self) -> None:
+        """Stop all MCP servers and cleanup resources."""
+        if self.mcp_registry and self._mcp_started:
+            logger.info("Stopping MCP servers")
+            await self.mcp_registry.stop_all_servers()
+            self._mcp_started = False
+
+    def _create_mcp_runtime(self, skill_id: str) -> Optional[MCPRuntime]:
+        """Create MCP runtime for a skill with its declared permissions.
+
+        Args:
+            skill_id: Skill identifier to load permissions for
+
+        Returns:
+            MCPRuntime with granted permissions, or None if MCP not enabled
+        """
+        if not self.enable_mcp or not self.mcp_registry:
+            return None
+
+        try:
+            skill_desc = self.registry.load_skill(skill_id)
+            mcp_permissions = [
+                perm for perm in skill_desc.permissions if perm.startswith("mcp:")
+            ]
+
+            if not mcp_permissions:
+                return None
+
+            runtime = MCPRuntime(self.mcp_registry)
+            runtime.grant_permissions(mcp_permissions)
+            logger.debug(f"Created MCP runtime for skill '{skill_id}' with permissions: {mcp_permissions}")
+            return runtime
+
+        except Exception as e:
+            logger.warning(f"Failed to create MCP runtime for skill '{skill_id}': {e}")
+            return None
+
+    async def invoke_async(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a skill asynchronously with MCP support.
+
+        Supports four types of skills:
+        1. Async skills with MCP parameter (Phase 2+)
+        2. Async skills without MCP (Phase 2)
+        3. Sync skills with MCP request (warns and provides None)
+        4. Sync skills without MCP (Phase 1 legacy)
+
+        Args:
+            skill_id: Skill identifier
+            payload: Input payload for skill
+
+        Returns:
+            Skill execution result
+        """
         skill_desc = self.registry.load_skill(skill_id)
-        callable_fn = cast(SkillCallable, self.registry.resolve_entrypoint(skill_desc.entrypoint))
-        return callable_fn(payload)
+        callable_fn = self.registry.resolve_entrypoint(skill_desc.entrypoint)
+
+        # Inspect skill signature to detect MCP parameter
+        sig = inspect.signature(callable_fn)
+        has_mcp_param = "mcp" in sig.parameters
+        is_async = inspect.iscoroutinefunction(callable_fn)
+
+        mcp_runtime: Optional[MCPRuntime] = None
+
+        # If skill expects MCP, ensure servers are started and create runtime
+        if has_mcp_param and self.enable_mcp:
+            await self._ensure_mcp_started()
+            mcp_runtime = self._create_mcp_runtime(skill_id)
+
+        try:
+            if is_async:
+                # Async skill (Phase 2+)
+                if has_mcp_param:
+                    logger.debug(f"Invoking async skill '{skill_id}' with MCP")
+                    result = await callable_fn(payload, mcp=mcp_runtime)
+                else:
+                    logger.debug(f"Invoking async skill '{skill_id}' without MCP")
+                    result = await callable_fn(payload)
+            else:
+                # Sync skill (Phase 1)
+                if has_mcp_param:
+                    logger.warning(
+                        f"Skill '{skill_id}' requests MCP but is synchronous. "
+                        "MCP requires async skills. Passing None."
+                    )
+                    result = callable_fn(payload, mcp=None)
+                else:
+                    logger.debug(f"Invoking sync skill '{skill_id}' (legacy)")
+                    result = callable_fn(payload)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Skill '{skill_id}' execution failed: {e}", exc_info=True)
+            raise
+
+    def invoke(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a skill and return result (sync wrapper for invoke_async).
+
+        This method handles async/sync context automatically:
+        - If called from async context, runs invoke_async directly
+        - If called from sync context, creates event loop to run invoke_async
+
+        Args:
+            skill_id: Skill identifier
+            payload: Input payload for skill
+
+        Returns:
+            Skill execution result
+        """
+        # Try to get running event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop running, create one
+            loop = None
+
+        if loop is not None:
+            # We're in an async context, but invoke() is sync
+            # This shouldn't happen in normal usage, but handle it
+            logger.warning(
+                f"invoke() called from async context for skill '{skill_id}'. "
+                "Consider using invoke_async() directly."
+            )
+            # We can't use await here, so we need to create a task
+            # However, this is tricky. Let's just run it in the current loop.
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self.invoke_async(skill_id, payload))
+                return future.result()
+        else:
+            # No event loop, create one and run
+            return asyncio.run(self.invoke_async(skill_id, payload))
 
 
 class AgentRunner:
@@ -92,10 +244,12 @@ class AgentRunner:
         registry: Optional[Registry] = None,
         base_dir: Optional[Path] = None,
         router: Optional[Router] = None,
+        enable_mcp: bool = True,
     ):
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
-        self.skills = SkillRuntime(registry=self.registry)
+        self.enable_mcp = enable_mcp
+        self.skills = SkillRuntime(registry=self.registry, enable_mcp=enable_mcp)
         self.evals = EvalRuntime(registry=self.registry)
         self.router: Router = router or get_router()
         self._task_index: dict[str, list[str]] | None = None
@@ -320,13 +474,13 @@ class AgentRunner:
             step=step,
         )
 
-    def _execute_mag(
+    async def _execute_mag_async(
         self,
         exec_ctx: _ExecutionContext,
         payload: Dict[str, Any],
     ) -> tuple[Dict[str, Any], int]:
         """
-        Execute the MAG agent and return output with duration.
+        Execute the MAG agent asynchronously and return output with duration.
 
         Args:
             exec_ctx: Execution context
@@ -335,7 +489,44 @@ class AgentRunner:
         Returns:
             Tuple of (output, duration_ms)
         """
-        run_fn = cast(AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint))
+        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+        t0 = time.time()
+        output: Dict[str, Any] = await run_fn(
+            payload,
+            registry=self.registry,
+            skills=self.skills,
+            runner=self,  # Allow MAG to delegate to SAG
+            obs=exec_ctx.observer,
+        )
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
+
+    def _execute_mag(
+        self,
+        exec_ctx: _ExecutionContext,
+        payload: Dict[str, Any],
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Execute the MAG agent and return output with duration.
+
+        Automatically detects async agents and runs them appropriately.
+
+        Args:
+            exec_ctx: Execution context
+            payload: Input payload for agent
+
+        Returns:
+            Tuple of (output, duration_ms)
+        """
+        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+
+        # Check if agent is async
+        if inspect.iscoroutinefunction(run_fn):
+            logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
+            return asyncio.run(self._execute_mag_async(exec_ctx, payload))
+
+        # Sync agent (legacy)
+        logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
         t0 = time.time()
         output: Dict[str, Any] = run_fn(
             payload,
@@ -440,6 +631,13 @@ class AgentRunner:
         except Exception as e:
             self._handle_mag_error(exec_ctx, e)
             raise
+        finally:
+            # Cleanup MCP resources
+            if self.enable_mcp and self.skills._mcp_started:
+                try:
+                    asyncio.run(self.skills._cleanup_mcp())
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup failed: {cleanup_error}")
 
     def _run_pre_evaluations(
         self,
@@ -555,13 +753,13 @@ class AgentRunner:
                     f"Post-evaluation failed (fail-closed): {', '.join(failed_slugs)}"
                 )
 
-    def _execute_agent(
+    async def _execute_agent_async(
         self,
         exec_ctx: _ExecutionContext,
         delegation: Delegation,
     ) -> tuple[Dict[str, Any], int]:
         """
-        Execute the agent and return output with duration.
+        Execute the agent asynchronously and return output with duration.
 
         Args:
             exec_ctx: Execution context
@@ -570,9 +768,40 @@ class AgentRunner:
         Returns:
             Tuple of (output, duration_ms)
         """
-        run_fn = cast(
-            AgentCallable, self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+        t0 = time.time()
+        output: Dict[str, Any] = await run_fn(
+            delegation.input, skills=self.skills, obs=exec_ctx.observer
         )
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
+
+    def _execute_agent(
+        self,
+        exec_ctx: _ExecutionContext,
+        delegation: Delegation,
+    ) -> tuple[Dict[str, Any], int]:
+        """
+        Execute the agent and return output with duration.
+
+        Automatically detects async agents and runs them appropriately.
+
+        Args:
+            exec_ctx: Execution context
+            delegation: Delegation request
+
+        Returns:
+            Tuple of (output, duration_ms)
+        """
+        run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
+
+        # Check if agent is async
+        if inspect.iscoroutinefunction(run_fn):
+            logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
+            return asyncio.run(self._execute_agent_async(exec_ctx, delegation))
+
+        # Sync agent (legacy)
+        logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
         t0 = time.time()
         output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
         duration_ms = int((time.time() - t0) * MS_PER_SECOND)

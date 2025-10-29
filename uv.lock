@@ -26,6 +26,24 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "asyncpg" },
+    { name = "langfuse" },
+    { name = "mcp" },
+    { name = "mypy" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "redis" },
+    { name = "ruff" },
+    { name = "types-aiofiles" },
+    { name = "types-jsonschema" },
+    { name = "types-pyyaml" },
+    { name = "types-redis" },
+]
 cache = [
     { name = "numpy" },
 ]
@@ -47,6 +65,13 @@ google = [
     { name = "google-genai" },
     { name = "google-generativeai" },
 ]
+mcp = [
+    { name = "asyncpg" },
+    { name = "mcp" },
+]
+mcp-client = [
+    { name = "asyncpg" },
+]
 mcp-server = [
     { name = "mcp" },
 ]
@@ -59,14 +84,27 @@ observability = [
 postgres = [
     { name = "asyncpg" },
 ]
+production = [
+    { name = "asyncpg" },
+    { name = "langfuse" },
+    { name = "mcp" },
+    { name = "opentelemetry-api" },
+    { name = "opentelemetry-exporter-otlp" },
+    { name = "opentelemetry-sdk" },
+    { name = "redis" },
+]
 redis = [
     { name = "redis" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "agdd", extras = ["dev", "production"], marker = "extra == 'all'" },
+    { name = "agdd", extras = ["mcp", "postgres", "redis", "observability"], marker = "extra == 'production'" },
+    { name = "agdd", extras = ["mcp-client", "mcp-server"], marker = "extra == 'mcp'" },
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "anyio", specifier = ">=4.0.0" },
+    { name = "asyncpg", marker = "extra == 'mcp-client'", specifier = ">=0.29.0" },
     { name = "asyncpg", marker = "extra == 'postgres'", specifier = ">=0.29.0" },
     { name = "faiss-cpu", marker = "extra == 'faiss'", specifier = ">=1.8.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
@@ -97,7 +135,7 @@ requires-dist = [
     { name = "types-redis", marker = "extra == 'dev'", specifier = ">=4.6.0.20241004" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
-provides-extras = ["dev", "redis", "postgres", "faiss", "cache", "observability", "google", "mcp-server"]
+provides-extras = ["dev", "redis", "postgres", "faiss", "cache", "observability", "google", "mcp-server", "mcp-client", "mcp", "production", "all"]
 
 [[package]]
 name = "aiofiles"
