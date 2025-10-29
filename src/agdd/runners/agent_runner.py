@@ -140,7 +140,9 @@ class SkillRuntime:
             logger.warning(f"Failed to create MCP runtime for skill '{skill_id}': {e}")
             return None
 
-    async def invoke_async(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def invoke_async(
+        self, skill_id: str, payload: Dict[str, Any], _auto_cleanup: bool = False
+    ) -> Dict[str, Any]:
         """Execute a skill asynchronously with MCP support.
 
         Supports four types of skills:
@@ -152,6 +154,8 @@ class SkillRuntime:
         Args:
             skill_id: Skill identifier
             payload: Input payload for skill
+            _auto_cleanup: If True, cleanup MCP servers after execution.
+                          Used by sync wrapper to ensure cleanup in same event loop.
 
         Returns:
             Skill execution result
@@ -165,9 +169,12 @@ class SkillRuntime:
         is_async = inspect.iscoroutinefunction(callable_fn)
 
         mcp_runtime: Optional[MCPRuntime] = None
+        mcp_started_here = False
 
         # If skill expects MCP, ensure servers are started and create runtime
         if has_mcp_param and self.enable_mcp:
+            if not self._mcp_started:
+                mcp_started_here = True
             await self._ensure_mcp_started()
             mcp_runtime = self._create_mcp_runtime(skill_id)
 
@@ -197,6 +204,14 @@ class SkillRuntime:
         except Exception as e:
             logger.error(f"Skill '{skill_id}' execution failed: {e}", exc_info=True)
             raise
+        finally:
+            # Cleanup MCP if we started it here and auto_cleanup is requested
+            # This ensures sync wrappers cleanup in the same event loop
+            if _auto_cleanup and mcp_started_here and self._mcp_started:
+                try:
+                    await self._cleanup_mcp()
+                except Exception as cleanup_error:
+                    logger.warning(f"MCP cleanup in invoke_async failed: {cleanup_error}")
 
     def invoke(self, skill_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a skill and return result (sync wrapper for invoke_async).
@@ -204,6 +219,9 @@ class SkillRuntime:
         This method handles async/sync context automatically:
         - If called from async context, runs invoke_async directly
         - If called from sync context, creates event loop to run invoke_async
+
+        Note: When called from sync context, MCP servers are automatically
+        cleaned up in the same event loop to prevent process leaks.
 
         Args:
             skill_id: Skill identifier
@@ -230,11 +248,13 @@ class SkillRuntime:
             # However, this is tricky. Let's just run it in the current loop.
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, self.invoke_async(skill_id, payload))
+                future = executor.submit(
+                    asyncio.run, self.invoke_async(skill_id, payload, _auto_cleanup=True)
+                )
                 return future.result()
         else:
-            # No event loop, create one and run
-            return asyncio.run(self.invoke_async(skill_id, payload))
+            # No event loop, create one and run with auto cleanup
+            return asyncio.run(self.invoke_async(skill_id, payload, _auto_cleanup=True))
 
 
 class AgentRunner:
@@ -308,25 +328,6 @@ class AgentRunner:
             except Exception as e:
                 logger.warning(f"MCP cleanup failed: {e}")
 
-    def _cleanup_mcp_sync(self) -> None:
-        """
-        Cleanup MCP resources in sync context.
-
-        This should be called from sync code paths. It creates a new event
-        loop to stop MCP servers. This is only safe when not already in an
-        event loop (which should be the case for sync agents).
-        """
-        if self.enable_mcp and self.skills._mcp_started:
-            try:
-                # Check if we're in an event loop (shouldn't happen for sync agents)
-                try:
-                    asyncio.get_running_loop()
-                    logger.warning("Sync agent cleanup called from event loop context - skipping MCP cleanup")
-                except RuntimeError:
-                    # No event loop - safe to use asyncio.run()
-                    asyncio.run(self.skills._cleanup_mcp())
-            except Exception as e:
-                logger.warning(f"MCP cleanup failed in sync context: {e}")
 
     def _serialize_execution_plan(self, plan: ExecutionPlan) -> dict[str, Any]:
         return {
@@ -563,20 +564,18 @@ class AgentRunner:
             return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
 
         # Sync agent (legacy)
+        # Note: MCP cleanup is handled automatically in SkillRuntime.invoke()
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        try:
-            t0 = time.time()
-            output: Dict[str, Any] = run_fn(
-                payload,
-                registry=self.registry,
-                skills=self.skills,
-                runner=self,  # Allow MAG to delegate to SAG
-                obs=exec_ctx.observer,
-            )
-            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-            return output, duration_ms
-        finally:
-            self._cleanup_mcp_sync()
+        t0 = time.time()
+        output: Dict[str, Any] = run_fn(
+            payload,
+            registry=self.registry,
+            skills=self.skills,
+            runner=self,  # Allow MAG to delegate to SAG
+            obs=exec_ctx.observer,
+        )
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
 
     def _finalize_mag_success(
         self,
@@ -880,14 +879,12 @@ class AgentRunner:
             return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
 
         # Sync agent (legacy)
+        # Note: MCP cleanup is handled automatically in SkillRuntime.invoke()
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        try:
-            t0 = time.time()
-            output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
-            duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-            return output, duration_ms
-        finally:
-            self._cleanup_mcp_sync()
+        t0 = time.time()
+        output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
+        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+        return output, duration_ms
 
     def _build_success_metrics(
         self,
