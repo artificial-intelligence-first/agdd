@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import tempfile
 import time
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -192,6 +194,45 @@ class ObservabilityLogger:
         if self._llm_plan_snapshot:
             summary["llm_plan"] = self._llm_plan_snapshot
         self._write_json(summary_file, summary)
+
+    def write_plan(self, plan: dict) -> None:
+        """Write plan.json to run directory."""
+        if not self.run_dir:
+            return
+        plan_path = self.run_dir / "plan.json"
+        with open(plan_path, "w", encoding="utf-8") as f:
+            json.dump(plan, f, indent=2)
+
+    def log_event_envelope(self, event: dict) -> None:
+        """Log event in EventEnvelope v1 format."""
+        envelope = {
+            "ts": datetime.utcnow().isoformat(),
+            "run_id": self.run_id,
+            "span_id": self.span_id,
+            "type": event.get("type", "unknown"),
+            "payload": event.get("payload", {}),
+            "level": event.get("level", "INFO"),
+            "kv": event.get("kv", {}),
+        }
+        self._write_event(envelope)
+
+    def _write_event(self, envelope: dict) -> None:
+        """Write event envelope to events.jsonl."""
+        events_file = self.run_dir / "events.jsonl"
+        with open(events_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(envelope, ensure_ascii=False) + "\n")
+
+    def snapshot_env_hash(self) -> str:
+        """Create hash of current environment for determinism tracking."""
+        import os
+
+        env_subset = {
+            k: v
+            for k, v in os.environ.items()
+            if k.startswith(("AGDD_", "OPENAI_", "ANTHROPIC_"))
+        }
+        env_json = json.dumps(env_subset, sort_keys=True)
+        return hashlib.sha256(env_json.encode()).hexdigest()
 
 
 __all__ = ["ObservabilityLogger"]
