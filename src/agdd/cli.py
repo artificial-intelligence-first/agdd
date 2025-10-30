@@ -169,7 +169,15 @@ def agent_run(
             typer.echo(f"Error: Replay file not found: {replay}", err=True)
             raise typer.Exit(1)
         try:
-            replay_snapshot = json.loads(replay_path.read_text(encoding="utf-8"))
+            replay_data = json.loads(replay_path.read_text(encoding="utf-8"))
+
+            # Extract environment_snapshot if present (from summary.json)
+            # Otherwise use the data directly (raw snapshot format)
+            if "environment_snapshot" in replay_data:
+                replay_snapshot = replay_data["environment_snapshot"]
+            else:
+                replay_snapshot = replay_data
+
             context = create_replay_context(replay_snapshot, context)
         except Exception as e:
             typer.echo(f"Error loading replay snapshot: {e}", err=True)
