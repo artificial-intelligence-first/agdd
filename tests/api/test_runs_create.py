@@ -230,6 +230,120 @@ class TestIdempotencyMiddleware:
         assert data2["code"] == "conflict"
         assert "already used" in data2["message"]
 
+    def test_idempotency_with_body_key(self, client, mock_invoke_mag):
+        """Test idempotency with key in request body."""
+        # First request with idempotency_key in body
+        response1 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+                "idempotency_key": "body-key-1",
+            },
+        )
+
+        assert response1.status_code == 200
+        data1 = response1.json()
+        assert "run_id" in data1
+
+        # Second request with same body key should return cached response
+        response2 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+                "idempotency_key": "body-key-1",
+            },
+        )
+
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert data2["run_id"] == data1["run_id"]
+        assert response2.headers.get("X-Idempotency-Replay") == "true"
+
+        # invoke_mag should only be called once
+        assert mock_invoke_mag.call_count == 1
+
+    def test_idempotency_header_precedence(self, client, mock_invoke_mag):
+        """Test that Idempotency-Key header takes precedence over body field."""
+        # First request with both header and body key
+        response1 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+                "idempotency_key": "body-key-ignored",
+            },
+            headers={"Idempotency-Key": "header-key-1"},
+        )
+
+        assert response1.status_code == 200
+        data1 = response1.json()
+
+        # Second request with same header key and same body should be cached
+        # (header takes precedence for key selection, body must match for replay)
+        response2 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+                "idempotency_key": "body-key-ignored",
+            },
+            headers={"Idempotency-Key": "header-key-1"},
+        )
+
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert data2["run_id"] == data1["run_id"]
+        assert response2.headers.get("X-Idempotency-Replay") == "true"
+
+        # invoke_mag should only be called once (header key matched and body matched)
+        assert mock_invoke_mag.call_count == 1
+
+        # Third request: same header key but different body should conflict
+        response3 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "different"},
+                "idempotency_key": "body-key-ignored",
+            },
+            headers={"Idempotency-Key": "header-key-1"},
+        )
+
+        assert response3.status_code == 409
+        data3 = response3.json()
+        assert data3["code"] == "conflict"
+
+    def test_idempotency_body_key_conflict(self, client, mock_invoke_mag):
+        """Test idempotency conflict detection with body-based key."""
+        # First request with body key
+        response1 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test1"},
+                "idempotency_key": "body-conflict-key",
+            },
+        )
+
+        assert response1.status_code == 200
+
+        # Second request with same body key but different payload
+        response2 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test2"},
+                "idempotency_key": "body-conflict-key",
+            },
+        )
+
+        assert response2.status_code == 409
+        data2 = response2.json()
+        assert data2["code"] == "conflict"
+        assert "already used" in data2["message"]
+
     def test_no_idempotency_without_header(self, client, mock_invoke_mag):
         """Test that requests without Idempotency-Key are not cached."""
         # First request

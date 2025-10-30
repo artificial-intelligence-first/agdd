@@ -84,8 +84,22 @@ def find_new_run_id(
         return candidates[0]
     elif len(candidates) > 1:
         # Return most recently created
-        candidates.sort(key=lambda r: (base / r).stat().st_mtime, reverse=True)
-        return candidates[0]
+        # Build list of (run_id, mtime) tuples, handling race conditions
+        candidates_with_mtime = []
+        for run_id in candidates:
+            try:
+                mtime = (base / run_id).stat().st_mtime
+                candidates_with_mtime.append((run_id, mtime))
+            except OSError:
+                # Directory was deleted between filtering and sorting - skip it
+                continue
+
+        if not candidates_with_mtime:
+            return None
+
+        # Sort by mtime and return most recent
+        candidates_with_mtime.sort(key=lambda x: x[1], reverse=True)
+        return candidates_with_mtime[0][0]
 
     return None
 

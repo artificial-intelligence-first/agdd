@@ -5,6 +5,7 @@ and prevent duplicate requests. Duplicate requests return a 409 Conflict respons
 """
 
 import hashlib
+import json
 import time
 from typing import Any, Dict, Optional, Tuple
 
@@ -117,15 +118,26 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         if request.method != "POST":
             return await call_next(request)
 
-        # Check for Idempotency-Key header
-        idempotency_key = request.headers.get("Idempotency-Key")
-        if not idempotency_key:
-            # No idempotency key, process normally
-            return await call_next(request)
-
         # Read and hash the request body
         body = await request.body()
         request_hash = hashlib.sha256(body).hexdigest()
+
+        # Check for Idempotency-Key in header (takes precedence) or in request body
+        idempotency_key = request.headers.get("Idempotency-Key")
+
+        if not idempotency_key:
+            # Try to extract idempotency_key from JSON body
+            try:
+                body_json = json.loads(body.decode("utf-8"))
+                if isinstance(body_json, dict):
+                    idempotency_key = body_json.get("idempotency_key")
+            except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                # Not JSON or can't decode - no idempotency key in body
+                pass
+
+        if not idempotency_key:
+            # No idempotency key in header or body, process normally
+            return await call_next(request)
 
         # Check if we've seen this idempotency key before
         stored = self._store.get(idempotency_key)
