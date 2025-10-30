@@ -1,7 +1,7 @@
 .PHONY: help install test test-unit test-agents test-integration \
         setup-flowrunner clean-flowrunner agent-run flow-run \
         docs-check vendor-check build install-dev \
-        api-server api-test api-examples
+        api-server api-test api-examples bench bench-cache
 
 # Default target
 help:
@@ -37,6 +37,10 @@ help:
 	@echo "Flow Runner:"
 	@echo "  make setup-flowrunner - Setup Flow Runner (one-time)"
 	@echo "  make clean-flowrunner - Remove Flow Runner installation"
+	@echo ""
+	@echo "Benchmarks:"
+	@echo "  make bench            - Run benchmark harness"
+	@echo "  make bench-cache      - Run cache benchmark"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean            - Remove build artifacts and caches"
@@ -156,3 +160,7 @@ clean:
 bench-cache:
 	@echo "Running cache benchmark..."
 	@uv run python benchmarks/cache_benchmark.py
+
+bench:
+	@echo "Running benchmark harness..."
+	@uv run python benchmarks/harness.py
