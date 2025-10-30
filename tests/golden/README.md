@@ -10,6 +10,8 @@ Golden tests serve as reference implementations and regression tests for agent b
 - **Expected output**: The expected result from the agent
 - **Test metadata**: Additional information about the test case
 
+**Note**: The current benchmark harness uses a dummy implementation (no real LLM calls). The `sample_agent` test is expected to fail with the dummy implementation to demonstrate that the comparison logic works correctly. When integrating real agent execution, update the harness to invoke actual agents and the golden tests will properly validate outputs.
+
 ## Directory Structure
 
 Each golden test case is organized as a directory with the following structure:
@@ -153,8 +155,25 @@ Golden tests are validated by:
 
 1. **Structure validation**: Ensuring all required files exist
 2. **Schema validation**: Verifying JSON structure and types
-3. **Output comparison**: Comparing actual vs. expected outputs
+3. **Output comparison**: Comparing actual vs. expected outputs using deep comparison
+   - Compares nested dictionaries and lists recursively
+   - Reports specific differences (missing keys, type mismatches, value differences)
+   - Marks tests as failed if outputs don't match
 4. **Regression detection**: Alerting on unexpected changes
+
+### Output Comparison Details
+
+The harness performs deep comparison of actual vs. expected outputs:
+
+- **Dictionary comparison**: Checks for missing/extra keys and recursively compares values
+- **List comparison**: Validates length and compares elements in order
+- **Type checking**: Ensures types match (e.g., string vs. int)
+- **Value equality**: Uses exact equality for primitives
+
+When a mismatch is detected, the test fails and the error message includes:
+- The location of the difference (e.g., key name, list index)
+- The type of mismatch (missing key, value difference, type error)
+- The expected vs. actual values
 
 ## Integration with CI/CD
 

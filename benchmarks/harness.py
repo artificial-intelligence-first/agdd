@@ -18,6 +18,63 @@ from pathlib import Path
 from typing import Any
 
 
+def _compare_outputs(actual: Any, expected: Any) -> tuple[bool, str | None]:
+    """Compare actual output with expected output.
+
+    Args:
+        actual: The actual output from the agent
+        expected: The expected output to compare against
+
+    Returns:
+        Tuple of (matches, diff_message)
+        - matches: True if outputs match, False otherwise
+        - diff_message: Description of differences if they don't match, None if they match
+    """
+    if actual == expected:
+        return True, None
+
+    # Generate a helpful diff message
+    if type(actual) != type(expected):
+        return False, f"Type mismatch: expected {type(expected).__name__}, got {type(actual).__name__}"
+
+    if isinstance(actual, dict):
+        expected_keys = set(expected.keys())
+        actual_keys = set(actual.keys())
+
+        missing_keys = expected_keys - actual_keys
+        extra_keys = actual_keys - expected_keys
+
+        if missing_keys or extra_keys:
+            parts = []
+            if missing_keys:
+                parts.append(f"missing keys: {sorted(missing_keys)}")
+            if extra_keys:
+                parts.append(f"extra keys: {sorted(extra_keys)}")
+            return False, f"Key mismatch - {', '.join(parts)}"
+
+        # Check values for matching keys
+        for key in expected_keys:
+            matches, diff = _compare_outputs(actual[key], expected[key])
+            if not matches:
+                return False, f"Difference in key '{key}': {diff}"
+
+        return True, None
+
+    elif isinstance(actual, list):
+        if len(actual) != len(expected):
+            return False, f"List length mismatch: expected {len(expected)}, got {len(actual)}"
+
+        for i, (actual_item, expected_item) in enumerate(zip(actual, expected)):
+            matches, diff = _compare_outputs(actual_item, expected_item)
+            if not matches:
+                return False, f"Difference at index {i}: {diff}"
+
+        return True, None
+
+    else:
+        return False, f"Value mismatch: expected {expected!r}, got {actual!r}"
+
+
 @dataclass
 class BenchResult:
     """Result of a single benchmark run.
@@ -303,12 +360,21 @@ def run_golden_tests(golden_dir: Path = Path("tests/golden")) -> list[BenchResul
             with expected_file.open() as f:
                 expected_output = json.load(f)
 
-            # In a real implementation, we would compare result.output_data
-            # with expected_output and update result.success accordingly
             result.metadata["has_expected"] = True
             result.metadata["expected_file"] = str(expected_file)
 
-        print(f"✓ Ran golden test: {agent_name} ({result.duration_ms:.2f}ms)")
+            # Compare actual output with expected output
+            matches, diff_message = _compare_outputs(result.output_data, expected_output)
+            if not matches:
+                result.success = False
+                result.error = f"Golden test output mismatch: {diff_message}"
+                result.metadata["output_diff"] = diff_message
+                print(f"✗ FAILED golden test: {agent_name} - {diff_message}")
+            else:
+                result.metadata["golden_match"] = True
+                print(f"✓ Ran golden test: {agent_name} ({result.duration_ms:.2f}ms)")
+        else:
+            print(f"✓ Ran golden test: {agent_name} ({result.duration_ms:.2f}ms) [no expected output]")
 
     return results
 
