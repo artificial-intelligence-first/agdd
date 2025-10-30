@@ -74,6 +74,12 @@ Or using Make:
 make bench
 ```
 
+**Exit Status**: The harness exits with:
+- **Status 0**: All tests passed
+- **Status 1**: One or more tests failed
+
+This allows golden tests to be integrated into CI/CD pipelines - failed tests will fail the build.
+
 ### Using pytest
 
 Golden tests can be integrated into the pytest suite:

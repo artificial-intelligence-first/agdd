@@ -7,11 +7,16 @@ and generating reports in HTML and Markdown formats.
 Usage:
     python benchmarks/harness.py
     make bench
+
+Exit Status:
+    0 - All tests passed
+    1 - One or more tests failed (for CI/CD integration)
 """
 
 from __future__ import annotations
 
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -420,6 +425,23 @@ def main() -> None:
     output_path = Path("benchmark_report.html")
     output_path.write_text(html_report)
     print(f"Saved HTML report to: {output_path}")
+
+    # Check for failures and exit with appropriate status
+    failed_results = [r for r in runner.results if not r.success]
+    if failed_results:
+        print()
+        print("=" * 50)
+        print(f"❌ FAILED: {len(failed_results)} test(s) failed")
+        for result in failed_results:
+            print(f"  - {result.agent}: {result.error}")
+        print("=" * 50)
+        sys.exit(1)
+    else:
+        print()
+        print("=" * 50)
+        print(f"✅ SUCCESS: All {len(runner.results)} test(s) passed")
+        print("=" * 50)
+        sys.exit(0)
 
 
 if __name__ == "__main__":
