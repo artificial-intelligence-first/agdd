@@ -85,7 +85,7 @@ class Planner:
         Convert Router Plan to PlanIR format.
 
         This method ensures compatibility between the Router's Plan format
-        and the PlanIR format expected by other components.
+        and the PlanIR format expected by other components per PLANS.md spec.
 
         Args:
             plan: Plan instance from Router
@@ -94,9 +94,39 @@ class Planner:
             PlanIR instance with equivalent data
 
         Note:
-            The conversion is currently a direct mapping. As PlanIR evolves,
-            this method may include additional transformations.
+            PlanIR structure per PLANS.md includes chain, sla_ms, cost_budget
+            which are not present in router Plan. These are extracted from
+            metadata or provided as reasonable defaults.
         """
-        # For now, PlanIR is structurally compatible with Plan
-        # When PlanIR is fully defined, this may include additional transformations
-        return plan  # type: ignore
+        # Extract optional fields from metadata
+        sla_ms = plan.metadata.get("sla_ms", 30000)  # Default 30s
+        cost_budget = plan.metadata.get("cost_budget", None)
+
+        # Create single-step chain from current plan
+        # Chain represents ordered fallback steps; initially just one step
+        chain = [
+            {
+                "provider": plan.provider,
+                "model": plan.model,
+                "use_batch": plan.use_batch,
+                "use_cache": plan.use_cache,
+                "structured_output": plan.structured_output,
+                "moderation": plan.moderation,
+            }
+        ]
+
+        # Construct PlanIR-compatible structure
+        # When actual PlanIR type is available (WS-01), this will return that type
+        plan_ir = {
+            "chain": chain,
+            "provider": plan.provider,
+            "model": plan.model,
+            "use_batch": plan.use_batch,
+            "use_cache": plan.use_cache,
+            "structured_output": plan.structured_output,
+            "moderation": plan.moderation,
+            "sla_ms": sla_ms,
+            "cost_budget": cost_budget,
+        }
+
+        return plan_ir  # type: ignore
