@@ -6,6 +6,7 @@ to the Provider SPI protocol.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 if TYPE_CHECKING:
@@ -121,8 +122,8 @@ class AnthropicAdapter:
         if tools:
             request["tools"] = tools
 
-        # Execute the request (non-streaming)
-        response = self._legacy.complete(request)
+        # Execute the request (non-streaming) in thread pool to avoid blocking event loop
+        response = await asyncio.to_thread(self._legacy.complete, request)
 
         # Extract usage information
         usage = response.get("usage", {})

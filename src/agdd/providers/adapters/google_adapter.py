@@ -6,6 +6,7 @@ to the Provider SPI protocol.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 if TYPE_CHECKING:
@@ -112,8 +113,9 @@ class GoogleAdapter:
         else:
             prompt_text = str(prompt)
 
-        # Execute the request using the legacy provider
-        response = self._legacy.generate(
+        # Execute the request using the legacy provider in thread pool to avoid blocking event loop
+        response = await asyncio.to_thread(
+            self._legacy.generate,
             prompt=prompt_text,
             temperature=temperature,
             max_tokens=max_tokens,
