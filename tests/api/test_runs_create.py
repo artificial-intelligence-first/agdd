@@ -267,6 +267,36 @@ class TestIdempotencyMiddleware:
 
         assert response.status_code == 200
 
+    def test_idempotency_preserves_status_code_and_headers(self, client, mock_invoke_mag):
+        """Test that idempotency middleware preserves original status code and headers."""
+        # First request
+        response1 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+            },
+            headers={"Idempotency-Key": "status-test-key"},
+        )
+
+        assert response1.status_code == 200
+        original_headers = dict(response1.headers)
+
+        # Second request with same key should return same status and preserve headers
+        response2 = client.post(
+            "/api/v1/runs",
+            json={
+                "agent": "test-agent",
+                "payload": {"input": "test"},
+            },
+            headers={"Idempotency-Key": "status-test-key"},
+        )
+
+        assert response2.status_code == 200
+        assert response2.headers.get("X-Idempotency-Replay") == "true"
+        # Verify content-type is preserved
+        assert response2.headers.get("content-type") == original_headers.get("content-type")
+
 
 class TestAuthenticationAndRateLimit:
     """Tests for authentication and rate limiting on POST /runs."""

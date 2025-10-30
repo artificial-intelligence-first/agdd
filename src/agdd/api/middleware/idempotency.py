@@ -5,9 +5,8 @@ and prevent duplicate requests. Duplicate requests return a 409 Conflict respons
 """
 
 import hashlib
-import json
 import time
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -17,7 +16,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 class IdempotencyStore:
     """In-memory store for idempotency keys and request hashes.
 
-    Stores tuples of (request_hash, response_body, timestamp) keyed by idempotency key.
+    Stores tuples of (request_hash, response_body_bytes, status_code, headers, timestamp)
+    keyed by idempotency key.
     """
 
     def __init__(self, ttl_seconds: int = 86400):  # 24 hours default
@@ -26,45 +26,56 @@ class IdempotencyStore:
         Args:
             ttl_seconds: Time-to-live for stored entries in seconds
         """
-        self._store: Dict[str, Tuple[str, str, float]] = {}
+        self._store: Dict[str, Tuple[str, bytes, int, Dict[str, str], float]] = {}
         self._ttl = ttl_seconds
 
-    def get(self, key: str) -> Optional[Tuple[str, str]]:
-        """Get stored request hash and response for a given idempotency key.
+    def get(self, key: str) -> Optional[Tuple[str, bytes, int, Dict[str, str]]]:
+        """Get stored request hash and response metadata for a given idempotency key.
 
         Args:
             key: The idempotency key
 
         Returns:
-            Tuple of (request_hash, response_body) if found and not expired, None otherwise
+            Tuple of (request_hash, response_body_bytes, status_code, headers) if found
+            and not expired, None otherwise
         """
         if key not in self._store:
             return None
 
-        request_hash, response_body, timestamp = self._store[key]
+        request_hash, response_body, status_code, headers, timestamp = self._store[key]
 
         # Check if expired
         if time.time() - timestamp > self._ttl:
             del self._store[key]
             return None
 
-        return (request_hash, response_body)
+        return (request_hash, response_body, status_code, headers)
 
-    def set(self, key: str, request_hash: str, response_body: str) -> None:
-        """Store an idempotency key with its request hash and response.
+    def set(
+        self,
+        key: str,
+        request_hash: str,
+        response_body: bytes,
+        status_code: int,
+        headers: Dict[str, str],
+    ) -> None:
+        """Store an idempotency key with its request hash and response metadata.
 
         Args:
             key: The idempotency key
             request_hash: Hash of the request body
-            response_body: The response body to return for duplicate requests
+            response_body: The response body bytes to return for duplicate requests
+            status_code: HTTP status code of the original response
+            headers: Headers dict from the original response
         """
-        self._store[key] = (request_hash, response_body, time.time())
+        self._store[key] = (request_hash, response_body, status_code, headers, time.time())
 
     def cleanup_expired(self) -> None:
         """Remove expired entries from the store."""
         current_time = time.time()
         expired_keys = [
-            key for key, (_, _, timestamp) in self._store.items()
+            key
+            for key, (_, _, _, _, timestamp) in self._store.items()
             if current_time - timestamp > self._ttl
         ]
         for key in expired_keys:
@@ -119,7 +130,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         # Check if we've seen this idempotency key before
         stored = self._store.get(idempotency_key)
         if stored:
-            stored_hash, stored_response = stored
+            stored_hash, stored_body, stored_status, stored_headers = stored
 
             if stored_hash != request_hash:
                 # Same key, different body - conflict
@@ -131,17 +142,17 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     }
                 )
 
-            # Exact duplicate - return cached response
-            try:
-                cached_data = json.loads(stored_response)
-                return JSONResponse(
-                    status_code=200,
-                    content=cached_data,
-                    headers={"X-Idempotency-Replay": "true"}
-                )
-            except json.JSONDecodeError:
-                # If cached response is not valid JSON, fall through to process normally
-                pass
+            # Exact duplicate - return cached response with original status code and headers
+            # Add X-Idempotency-Replay header to indicate this is a cached response
+            replay_headers = dict(stored_headers)
+            replay_headers["X-Idempotency-Replay"] = "true"
+
+            return Response(
+                content=stored_body,
+                status_code=stored_status,
+                headers=replay_headers,
+                media_type=stored_headers.get("content-type"),
+            )
 
         # Process the request normally
         # We need to reconstruct the request with the body we already read
@@ -159,8 +170,15 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             async for chunk in response.body_iterator:
                 response_body += chunk
 
-            # Store in idempotency cache
-            self._store.set(idempotency_key, request_hash, response_body.decode())
+            # Store in idempotency cache with status code and headers
+            # Store bytes directly without decoding to support binary responses
+            self._store.set(
+                idempotency_key,
+                request_hash,
+                response_body,
+                response.status_code,
+                dict(response.headers),
+            )
 
             # Return response with reconstructed body
             return Response(
