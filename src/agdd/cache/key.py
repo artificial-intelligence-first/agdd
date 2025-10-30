@@ -15,23 +15,40 @@ from typing import Any
 def normalize_input(data: dict[str, Any]) -> dict[str, Any]:
     """Normalize a dictionary to ensure stable ordering.
 
-    Recursively sorts all dictionary keys and list items containing dictionaries
-    to ensure consistent ordering for cache key generation.
+    Recursively sorts all dictionary keys and normalizes lists to ensure
+    consistent ordering for cache key generation. Lists are sorted by their
+    stable JSON representation to handle semantically equivalent but
+    differently ordered collections.
 
     Args:
         data: Input dictionary to normalize.
 
     Returns:
-        A new dictionary with all keys sorted recursively.
+        A new dictionary with all keys sorted recursively and lists normalized.
 
     Example:
         >>> normalize_input({"b": 1, "a": 2})
         {'a': 2, 'b': 1}
+        >>> normalize_input({"items": [{"z": 1}, {"a": 2}]})
+        {'items': [{'a': 2}, {'z': 1}]}
     """
     if isinstance(data, dict):
         return {k: normalize_input(v) for k, v in sorted(data.items())}
     elif isinstance(data, list):
-        return [normalize_input(item) for item in data]
+        # Recursively normalize each item first
+        normalized_items = [normalize_input(item) for item in data]
+
+        # Sort the list by stable JSON representation to ensure order independence
+        # This handles lists of dicts, primitives, and mixed types uniformly
+        try:
+            sorted_items = sorted(
+                normalized_items,
+                key=lambda x: json.dumps(x, sort_keys=True, separators=(",", ":"))
+            )
+            return sorted_items
+        except (TypeError, ValueError):
+            # If items aren't JSON-serializable or can't be compared, preserve order
+            return normalized_items
     else:
         return data
 
@@ -86,13 +103,11 @@ def compute_key(
         ... )
         'e4d909c3...'
     """
-    # Sort tool specs by name for stability
-    sorted_tools = sorted(tool_specs, key=lambda x: x.get("name", ""))
-
     # Create normalized composite structure
+    # normalize_input will handle sorting all lists and dicts consistently
     normalized = {
         "template": template_id,
-        "tools": normalize_input(sorted_tools),
+        "tools": normalize_input(tool_specs),
         "schema": normalize_input(schema),
         "capabilities": normalize_input(caps),
     }

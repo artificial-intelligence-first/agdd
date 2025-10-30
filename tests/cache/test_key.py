@@ -51,6 +51,54 @@ class TestNormalizeInput:
         assert normalize_input(True) is True
         assert normalize_input(None) is None
 
+    def test_normalize_list_order_independence(self) -> None:
+        """Test that list item order doesn't affect normalized output."""
+        data1 = {"items": [{"name": "z"}, {"name": "a"}, {"name": "m"}]}
+        data2 = {"items": [{"name": "a"}, {"name": "m"}, {"name": "z"}]}
+        result1 = normalize_input(data1)
+        result2 = normalize_input(data2)
+        assert result1 == result2
+        # Verify items are sorted
+        assert result1["items"][0] == {"name": "a"}
+        assert result1["items"][1] == {"name": "m"}
+        assert result1["items"][2] == {"name": "z"}
+
+    def test_normalize_list_of_primitives_sorted(self) -> None:
+        """Test that lists of primitives are sorted."""
+        data1 = {"values": [3, 1, 2]}
+        data2 = {"values": [1, 2, 3]}
+        result1 = normalize_input(data1)
+        result2 = normalize_input(data2)
+        assert result1 == result2
+        assert result1["values"] == [1, 2, 3]
+
+    def test_normalize_list_of_strings_sorted(self) -> None:
+        """Test that lists of strings are sorted."""
+        data1 = {"tags": ["zebra", "apple", "mango"]}
+        data2 = {"tags": ["apple", "mango", "zebra"]}
+        result1 = normalize_input(data1)
+        result2 = normalize_input(data2)
+        assert result1 == result2
+        assert result1["tags"] == ["apple", "mango", "zebra"]
+
+    def test_normalize_nested_list_with_dicts(self) -> None:
+        """Test that nested structures with lists of dicts are normalized."""
+        data1 = {
+            "outer": [
+                {"inner": [{"z": 1}, {"a": 2}]},
+                {"inner": [{"y": 3}, {"b": 4}]},
+            ]
+        }
+        data2 = {
+            "outer": [
+                {"inner": [{"b": 4}, {"y": 3}]},
+                {"inner": [{"a": 2}, {"z": 1}]},
+            ]
+        }
+        result1 = normalize_input(data1)
+        result2 = normalize_input(data2)
+        assert result1 == result2
+
 
 class TestHashStable:
     """Test cases for hash_stable function."""
@@ -203,3 +251,51 @@ class TestComputeKey:
             {},
         )
         assert len(key) == 64
+
+    def test_compute_key_schema_list_order_independent(self) -> None:
+        """Test that list order in schema doesn't affect cache key."""
+        schema1 = {
+            "type": "object",
+            "required": ["field_z", "field_a", "field_m"],
+            "properties": ["prop_c", "prop_a", "prop_b"],
+        }
+        schema2 = {
+            "type": "object",
+            "required": ["field_a", "field_m", "field_z"],
+            "properties": ["prop_a", "prop_b", "prop_c"],
+        }
+        key1 = compute_key("template_v1", [], schema1, {})
+        key2 = compute_key("template_v1", [], schema2, {})
+        assert key1 == key2
+
+    def test_compute_key_capabilities_list_order_independent(self) -> None:
+        """Test that list order in capabilities doesn't affect cache key."""
+        caps1 = {
+            "features": ["feature_z", "feature_a", "feature_m"],
+            "models": [{"name": "model_b"}, {"name": "model_a"}],
+        }
+        caps2 = {
+            "features": ["feature_a", "feature_m", "feature_z"],
+            "models": [{"name": "model_a"}, {"name": "model_b"}],
+        }
+        key1 = compute_key("template_v1", [], {}, caps1)
+        key2 = compute_key("template_v1", [], {}, caps2)
+        assert key1 == key2
+
+    def test_compute_key_all_components_list_order_independent(self) -> None:
+        """Test comprehensive list order independence across all components."""
+        # First set with one ordering
+        key1 = compute_key(
+            "template_v1",
+            [{"name": "tool_z", "id": 3}, {"name": "tool_a", "id": 1}],
+            {"required": ["z", "a"], "type": "object"},
+            {"features": ["feat_c", "feat_a"]},
+        )
+        # Second set with different ordering but same content
+        key2 = compute_key(
+            "template_v1",
+            [{"name": "tool_a", "id": 1}, {"name": "tool_z", "id": 3}],
+            {"type": "object", "required": ["a", "z"]},
+            {"features": ["feat_a", "feat_c"]},
+        )
+        assert key1 == key2
