@@ -48,3 +48,4 @@ flow-runner/
 # Benchmark outputs
 benchmarks/*.json
 benchmarks/*.log
+benchmark_report.html
