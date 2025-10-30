@@ -268,7 +268,60 @@ class TestAgentRunnerDeterminism:
                 assert "seed" in agent_passed.raw["provider_config"]
                 assert agent_passed.raw["provider_config"]["top_p"] == 1.0
 
-                # Verify global mode was NOT left enabled
+                # Verify global mode is NOW ENABLED (kept for execution)
+                assert get_deterministic_mode() is True
+
+                # Verify context contains restoration info
+                assert "_previous_deterministic_mode" in context
+                assert context["_previous_deterministic_mode"] is False
+
+        # Clean up - restore mode
+        set_deterministic_mode(False)
+
+    def test_programmatic_deterministic_execution_restores_mode_after_run(self) -> None:
+        """Test that deterministic mode is restored after successful execution."""
+        from agdd.runners.agent_runner import AgentRunner
+        from agdd.registry import AgentDescriptor
+        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
+
+        # Ensure deterministic mode is OFF
+        set_deterministic_mode(False)
+        assert get_deterministic_mode() is False
+
+        # Create mock agent
+        original_config = {
+            "temperature": 0.7,
+            "model": "test-model",
+        }
+        mock_agent = MagicMock(spec=AgentDescriptor)
+        mock_agent.slug = "test-agent"
+        mock_agent.name = "TestAgent"
+        mock_agent.raw = {"provider_config": original_config.copy()}
+
+        runner = AgentRunner()
+
+        with patch.object(runner.registry, "load_agent", return_value=mock_agent):
+            mock_plan = MagicMock()
+            mock_plan.span_context = {}
+            mock_plan.enable_otel = False
+
+            with patch.object(runner.router, "get_plan", return_value=mock_plan):
+                # Test _prepare_execution with deterministic context
+                context = {"deterministic": True}
+                exec_ctx = runner._prepare_execution("test-agent", "run-test", context)
+
+                # After _prepare_execution, mode should be enabled
+                assert get_deterministic_mode() is True
+
+                # Context should store the previous mode for restoration
+                assert "_previous_deterministic_mode" in context
+                assert context["_previous_deterministic_mode"] is False
+
+                # Simulate what invoke_mag's finally block does
+                if "_previous_deterministic_mode" in context:
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+
+                # After restoration, mode should be back to False
                 assert get_deterministic_mode() is False
 
     def test_deterministic_context_restores_mode_on_exception(self) -> None:

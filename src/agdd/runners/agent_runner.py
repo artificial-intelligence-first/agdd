@@ -569,10 +569,13 @@ class AgentRunner:
                 # Save current deterministic mode state
                 previous_mode = get_deterministic_mode()
 
-                # Temporarily enable deterministic mode for settings application
+                # Enable deterministic mode for settings application AND execution
                 # This ensures apply_deterministic_settings() actually applies settings
+                # and that random.* calls during execution are deterministic
                 if not previous_mode:
                     set_deterministic_mode(True)
+                    # Store previous mode in context so invoke_mag can restore it later
+                    effective_context["_previous_deterministic_mode"] = previous_mode
 
                 try:
                     # Create a shallow copy of the agent descriptor to avoid mutating the cache
@@ -589,11 +592,11 @@ class AgentRunner:
                     # Update the COPY's raw config with deterministic settings
                     # This affects the execution plan and LLM plan creation
                     agent.raw["provider_config"] = deterministic_config
-                finally:
-                    # Restore previous deterministic mode if we changed it
-                    # This prevents leaking deterministic state to other runs
+                except Exception:
+                    # If settings application fails, restore mode immediately
                     if not previous_mode:
                         set_deterministic_mode(False)
+                    raise
             except ImportError:
                 # Gracefully handle if runner_determinism module isn't available
                 logger.warning("Could not import runner_determinism module; skipping deterministic settings")
@@ -810,6 +813,16 @@ class AgentRunner:
         except Exception as e:
             self._handle_mag_error(exec_ctx, e)
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            # This prevents deterministic state from leaking to subsequent runs
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
     # ---------------------------------------------------------------------
     # Backward-compatible helper used by some tests: run a single agent
@@ -1280,6 +1293,15 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
     def invoke_sag(self, delegation: Delegation) -> Result:
         """
@@ -1385,6 +1407,15 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
 
 # Singleton instance
