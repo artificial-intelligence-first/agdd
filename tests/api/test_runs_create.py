@@ -629,6 +629,61 @@ class TestIdempotencyMiddleware:
         after_cleanup_count = len(middleware_instance._locks)
         assert after_cleanup_count == 5, f"Expected 5 locks after cleanup, got {after_cleanup_count}"
 
+    def test_idempotency_preserves_multi_value_headers(self):
+        """Test that multi-value headers like Set-Cookie are preserved in cached responses."""
+        from fastapi import FastAPI, Response
+        from fastapi.testclient import TestClient
+        from agdd.api.middleware import IdempotencyMiddleware
+
+        # Create test app with idempotency middleware
+        test_app = FastAPI()
+        test_app.add_middleware(IdempotencyMiddleware)
+
+        @test_app.post("/test-multi-headers")
+        async def test_endpoint():
+            # Create response with multiple Set-Cookie headers
+            response = Response(content='{"status": "ok"}', media_type="application/json")
+            # Manually add multiple Set-Cookie headers
+            # In Starlette, we need to use raw_headers or Response.set_cookie multiple times
+            response.set_cookie(key="session", value="abc123")
+            response.set_cookie(key="csrf", value="xyz789")
+            return response
+
+        test_client = TestClient(test_app)
+
+        # First request - original execution
+        response1 = test_client.post(
+            "/test-multi-headers",
+            json={},
+            headers={"Idempotency-Key": "multi-header-test"},
+        )
+
+        assert response1.status_code == 200
+
+        # Extract all Set-Cookie headers from first response
+        set_cookie_headers_1 = response1.headers.get_list("set-cookie")
+        assert len(set_cookie_headers_1) == 2, f"Expected 2 Set-Cookie headers, got {len(set_cookie_headers_1)}"
+        assert any("session=abc123" in header for header in set_cookie_headers_1), "Missing session cookie"
+        assert any("csrf=xyz789" in header for header in set_cookie_headers_1), "Missing csrf cookie"
+
+        # Second request - should be replayed from cache
+        response2 = test_client.post(
+            "/test-multi-headers",
+            json={},
+            headers={"Idempotency-Key": "multi-header-test"},
+        )
+
+        assert response2.status_code == 200
+        assert response2.headers.get("X-Idempotency-Replay") == "true"
+
+        # Extract all Set-Cookie headers from cached response
+        set_cookie_headers_2 = response2.headers.get_list("set-cookie")
+        assert len(set_cookie_headers_2) == 2, f"Expected 2 Set-Cookie headers in cached response, got {len(set_cookie_headers_2)}"
+        assert any("session=abc123" in header for header in set_cookie_headers_2), "Missing session cookie in cached response"
+        assert any("csrf=xyz789" in header for header in set_cookie_headers_2), "Missing csrf cookie in cached response"
+
+        # Verify both responses have the same cookies
+        assert set(set_cookie_headers_1) == set(set_cookie_headers_2), "Cached response has different cookies than original"
 
 
 class TestAuthenticationAndRateLimit:

@@ -8,7 +8,7 @@ import asyncio
 import hashlib
 import json
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -18,8 +18,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 class IdempotencyStore:
     """In-memory store for idempotency keys and request hashes.
 
-    Stores tuples of (request_hash, response_body_bytes, status_code, headers, timestamp)
-    keyed by idempotency key.
+    Stores tuples of (request_hash, response_body_bytes, status_code, raw_headers, timestamp)
+    keyed by idempotency key. Headers are stored as raw tuples to preserve multi-value headers.
     """
 
     def __init__(self, ttl_seconds: int = 86400):  # 24 hours default
@@ -28,30 +28,30 @@ class IdempotencyStore:
         Args:
             ttl_seconds: Time-to-live for stored entries in seconds
         """
-        self._store: Dict[str, Tuple[str, bytes, int, Dict[str, str], float]] = {}
+        self._store: Dict[str, Tuple[str, bytes, int, List[Tuple[bytes, bytes]], float]] = {}
         self._ttl = ttl_seconds
 
-    def get(self, key: str) -> Optional[Tuple[str, bytes, int, Dict[str, str]]]:
+    def get(self, key: str) -> Optional[Tuple[str, bytes, int, List[Tuple[bytes, bytes]]]]:
         """Get stored request hash and response metadata for a given idempotency key.
 
         Args:
             key: The idempotency key
 
         Returns:
-            Tuple of (request_hash, response_body_bytes, status_code, headers) if found
-            and not expired, None otherwise
+            Tuple of (request_hash, response_body_bytes, status_code, raw_headers) if found
+            and not expired, None otherwise. raw_headers is a list of (name_bytes, value_bytes) tuples.
         """
         if key not in self._store:
             return None
 
-        request_hash, response_body, status_code, headers, timestamp = self._store[key]
+        request_hash, response_body, status_code, raw_headers, timestamp = self._store[key]
 
         # Check if expired
         if time.time() - timestamp > self._ttl:
             del self._store[key]
             return None
 
-        return (request_hash, response_body, status_code, headers)
+        return (request_hash, response_body, status_code, raw_headers)
 
     def set(
         self,
@@ -59,7 +59,7 @@ class IdempotencyStore:
         request_hash: str,
         response_body: bytes,
         status_code: int,
-        headers: Dict[str, str],
+        raw_headers: List[Tuple[bytes, bytes]],
     ) -> None:
         """Store an idempotency key with its request hash and response metadata.
 
@@ -68,9 +68,10 @@ class IdempotencyStore:
             request_hash: Hash of the request body
             response_body: The response body bytes to return for duplicate requests
             status_code: HTTP status code of the original response
-            headers: Headers dict from the original response
+            raw_headers: Raw headers as list of (name_bytes, value_bytes) tuples,
+                        preserving multi-value headers like Set-Cookie
         """
-        self._store[key] = (request_hash, response_body, status_code, headers, time.time())
+        self._store[key] = (request_hash, response_body, status_code, raw_headers, time.time())
 
     def cleanup_expired(self) -> None:
         """Remove expired entries from the store."""
@@ -166,7 +167,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             # (another request may have completed while we waited for the lock)
             stored = self._store.get(idempotency_key)
             if stored:
-                stored_hash, stored_body, stored_status, stored_headers = stored
+                stored_hash, stored_body, stored_status, raw_headers = stored
 
                 if stored_hash != request_hash:
                     # Same key, different body - conflict
@@ -182,16 +183,34 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 # Add X-Idempotency-Replay header to indicate this is a cached response
                 # Note: We do NOT re-run background tasks for replayed responses,
                 # as they already executed with the original request
-                replay_headers = dict(stored_headers)
-                replay_headers["X-Idempotency-Replay"] = "true"
 
-                return Response(
+                # Extract media_type from raw headers for response reconstruction
+                media_type = None
+                for header_name, header_value in raw_headers:
+                    if header_name.lower() == b"content-type":
+                        media_type = header_value.decode("latin-1")
+                        break
+
+                # Create response without headers first
+                response = Response(
                     content=stored_body,
                     status_code=stored_status,
-                    headers=replay_headers,
-                    media_type=stored_headers.get("content-type"),
+                    media_type=media_type,
                     # background=None by default - tasks already ran with original request
                 )
+
+                # Manually set raw_headers to preserve multi-value headers like Set-Cookie
+                # We need to reconstruct the response's internal headers structure
+                # Use Response.raw_headers property and replace it with our stored headers
+                # Add X-Idempotency-Replay header
+                response_raw_headers = list(raw_headers)  # Make a copy
+                response_raw_headers.append((b"x-idempotency-replay", b"true"))
+
+                # Replace the response's internal headers
+                # We access the private _headers attribute to set raw headers directly
+                response.raw_headers = response_raw_headers
+
+                return response
 
             # Process the request normally
             # We need to reconstruct the request with the body we already read
@@ -223,24 +242,30 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 async for chunk in response.body_iterator:
                     response_body += chunk
 
-                # Store in idempotency cache with status code and headers
-                # Store bytes directly without decoding to support binary responses
+                # Store in idempotency cache with raw headers to preserve multi-value headers
+                # response.raw_headers is a list of (bytes, bytes) tuples that correctly
+                # preserves headers like Set-Cookie which can appear multiple times
                 self._store.set(
                     idempotency_key,
                     request_hash,
                     response_body,
                     response.status_code,
-                    dict(response.headers),
+                    list(response.raw_headers),  # Store as list to allow mutations
                 )
 
                 # Return response with reconstructed body and preserved background tasks
-                return Response(
+                # Create new response and preserve raw_headers to maintain multi-value headers
+                new_response = Response(
                     content=response_body,
                     status_code=response.status_code,
-                    headers=dict(response.headers),
                     media_type=response.media_type,
                     background=response.background,  # Preserve background tasks
                 )
+
+                # Set raw_headers directly to preserve multi-value headers like Set-Cookie
+                new_response.raw_headers = list(response.raw_headers)
+
+                return new_response
 
             # Non-2xx responses are not cached, return as-is
             return response
