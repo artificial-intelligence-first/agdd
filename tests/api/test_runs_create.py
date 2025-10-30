@@ -297,6 +297,60 @@ class TestIdempotencyMiddleware:
         # Verify content-type is preserved
         assert response2.headers.get("content-type") == original_headers.get("content-type")
 
+    def test_idempotency_preserves_background_tasks(self):
+        """Test that background tasks run on first request but not on replayed requests."""
+        from fastapi import BackgroundTasks, FastAPI, Response
+        from fastapi.testclient import TestClient
+        from agdd.api.middleware import IdempotencyMiddleware
+
+        # Track background task executions
+        task_counter = {"count": 0}
+
+        def background_task():
+            task_counter["count"] += 1
+
+        # Create a test app with idempotency middleware
+        test_app = FastAPI()
+        test_app.add_middleware(IdempotencyMiddleware)
+
+        @test_app.post("/test-background")
+        async def test_endpoint():
+            # Create response with background task using Response object directly
+            def add_bg_task(task_response: Response):
+                if hasattr(task_response, "background") and task_response.background:
+                    task_response.background.add_task(background_task)
+
+            response = Response(content='{"status": "ok"}', media_type="application/json")
+            # Import BackgroundTasks from starlette
+            from starlette.background import BackgroundTask
+            response.background = BackgroundTask(background_task)
+            return response
+
+        test_client = TestClient(test_app)
+
+        # First request with idempotency key - background task should run
+        response1 = test_client.post(
+            "/test-background",
+            json={},
+            headers={"Idempotency-Key": "bg-task-test"},
+        )
+
+        assert response1.status_code == 200
+        assert task_counter["count"] == 1
+
+        # Second request with same key - background task should NOT run again
+        # (it already ran with the original request)
+        response2 = test_client.post(
+            "/test-background",
+            json={},
+            headers={"Idempotency-Key": "bg-task-test"},
+        )
+
+        assert response2.status_code == 200
+        assert response2.headers.get("X-Idempotency-Replay") == "true"
+        # Background task should still only have run once
+        assert task_counter["count"] == 1
+
 
 class TestAuthenticationAndRateLimit:
     """Tests for authentication and rate limiting on POST /runs."""

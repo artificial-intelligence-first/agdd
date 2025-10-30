@@ -144,6 +144,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
             # Exact duplicate - return cached response with original status code and headers
             # Add X-Idempotency-Replay header to indicate this is a cached response
+            # Note: We do NOT re-run background tasks for replayed responses,
+            # as they already executed with the original request
             replay_headers = dict(stored_headers)
             replay_headers["X-Idempotency-Replay"] = "true"
 
@@ -152,6 +154,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 status_code=stored_status,
                 headers=replay_headers,
                 media_type=stored_headers.get("content-type"),
+                # background=None by default - tasks already ran with original request
             )
 
         # Process the request normally
@@ -180,12 +183,13 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 dict(response.headers),
             )
 
-            # Return response with reconstructed body
+            # Return response with reconstructed body and preserved background tasks
             return Response(
                 content=response_body,
                 status_code=response.status_code,
                 headers=dict(response.headers),
-                media_type=response.media_type
+                media_type=response.media_type,
+                background=response.background,  # Preserve background tasks
             )
 
         return response
