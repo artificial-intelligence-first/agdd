@@ -172,7 +172,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         # Process the request normally
         # We need to reconstruct the request with the body we already read
         async def receive():
-            return {"type": "http.request", "body": body}
+            return {
+                "type": "http.request",
+                "body": body,
+                "more_body": False,  # We've already read the entire body
+            }
 
         request._receive = receive
 
