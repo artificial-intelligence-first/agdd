@@ -1,0 +1,203 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/artificial-intelligence-first/agdd/schemas/event/v1",
+  "title": "AGDD EventEnvelope v1",
+  "description": "Stable schema for AGDD event logging. All events emitted by agents, runners, and system components must conform to this envelope structure.",
+  "type": "object",
+  "required": ["ts", "run_id", "span_id", "type", "payload"],
+  "properties": {
+    "ts": {
+      "type": "number",
+      "description": "Unix timestamp (seconds since epoch) when the event was emitted",
+      "minimum": 0
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for the run/execution session",
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "span_id": {
+      "type": "string",
+      "description": "OpenTelemetry span identifier for tracing",
+      "minLength": 1
+    },
+    "parent_span_id": {
+      "type": "string",
+      "description": "Parent span identifier for nested operations",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "description": "Event type discriminator for payload interpretation",
+      "enum": [
+        "agent.start",
+        "agent.end",
+        "agent.error",
+        "agent.pre_eval_failure",
+        "agent.post_eval_failure",
+        "skill.start",
+        "skill.end",
+        "skill.error",
+        "flow.start",
+        "flow.end",
+        "flow.step_start",
+        "flow.step_end",
+        "flow.error",
+        "model.call",
+        "model.response",
+        "model.error",
+        "moderation.ingress",
+        "moderation.model_output",
+        "moderation.egress",
+        "moderation.blocked",
+        "cache.hit",
+        "cache.miss",
+        "cache.write",
+        "plan.generated",
+        "plan.diff",
+        "policy.applied",
+        "policy.violation",
+        "cost.recorded",
+        "audit.action",
+        "system.startup",
+        "system.shutdown",
+        "system.error"
+      ]
+    },
+    "level": {
+      "type": "string",
+      "description": "Log level for filtering and display",
+      "enum": ["debug", "info", "warning", "error", "critical"],
+      "default": "info"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event-specific data structure; schema varies by type",
+      "additionalProperties": true
+    },
+    "kv": {
+      "type": "object",
+      "description": "Optional key-value metadata for indexing, filtering, and enrichment",
+      "additionalProperties": true,
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Agent identifier or slug"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier (e.g., gpt-4, claude-3-opus)"
+        },
+        "provider": {
+          "type": "string",
+          "description": "Provider identifier (e.g., openai, anthropic, google)"
+        },
+        "cost_usd": {
+          "type": "number",
+          "description": "Cost in USD for this operation",
+          "minimum": 0
+        },
+        "tokens": {
+          "type": "integer",
+          "description": "Total token count",
+          "minimum": 0
+        },
+        "input_tokens": {
+          "type": "integer",
+          "description": "Input token count",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "description": "Output token count",
+          "minimum": 0
+        },
+        "duration_ms": {
+          "type": "number",
+          "description": "Operation duration in milliseconds",
+          "minimum": 0
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Operation success flag"
+        },
+        "error_code": {
+          "type": "string",
+          "description": "Standardized error code (see error.schema.json)"
+        },
+        "plan_id": {
+          "type": "string",
+          "description": "Plan identifier"
+        },
+        "policy_version": {
+          "type": "string",
+          "description": "Policy version applied"
+        },
+        "cache_hit": {
+          "type": "boolean",
+          "description": "Whether result was retrieved from cache"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "ts": 1698765432.123,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_def456",
+      "type": "agent.start",
+      "level": "info",
+      "payload": {
+        "agent": "code-reviewer",
+        "slug": "code-reviewer",
+        "plan": {
+          "provider": "anthropic",
+          "model": "claude-3-opus"
+        }
+      },
+      "kv": {
+        "agent": "code-reviewer",
+        "provider": "anthropic",
+        "model": "claude-3-opus"
+      }
+    },
+    {
+      "ts": 1698765442.456,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_def456",
+      "type": "agent.end",
+      "level": "info",
+      "payload": {
+        "status": "success",
+        "duration_ms": 10333.0,
+        "cost_usd": 0.025,
+        "tokens": 1500
+      },
+      "kv": {
+        "agent": "code-reviewer",
+        "duration_ms": 10333.0,
+        "cost_usd": 0.025,
+        "tokens": 1500,
+        "success": true
+      }
+    },
+    {
+      "ts": 1698765445.789,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_ghi789",
+      "parent_span_id": "span_def456",
+      "type": "moderation.blocked",
+      "level": "warning",
+      "payload": {
+        "checkpoint": "ingress",
+        "reason": "policy_violation",
+        "policy_id": "pol_default_v1"
+      },
+      "kv": {
+        "error_code": "AGDD-MODERATION-001",
+        "policy_version": "v1.0.0"
+      }
+    }
+  ]
+}
