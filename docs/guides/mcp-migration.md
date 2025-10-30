@@ -1483,7 +1483,7 @@ Use this checklist when migrating a skill to MCP:
 **Reference:**
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [AGDD SSOT](../../SSOT.md) - Terminology and policies
+- [AGDD SSOT](../architecture/ssot.md) - Terminology and policies
 
 ---
 

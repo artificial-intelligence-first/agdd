@@ -1007,4 +1007,4 @@ def delegate_safely(delegation: Delegation, runner, obs, visited: set = None):
 - [Agent Templates](../../catalog/agents/_template/) - MAG/SAG templates
 - [Example MAG](../../catalog/agents/main/offer-orchestrator-mag/) - Reference implementation
 - [Example SAG](../../catalog/agents/sub/compensation-advisor-sag/) - Reference implementation
-- [SSOT](../../SSOT.md) - Terminology and policies
+- [SSOT](../architecture/ssot.md) - Terminology and policies

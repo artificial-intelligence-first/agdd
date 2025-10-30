@@ -197,10 +197,10 @@ uv run mypy src tests
 ### Documentation Standards
 
 - **README.md:** Keep quick start guide current
-- **AGENTS.md:** Update for agent development changes
+- **[AGENTS.md](../architecture/agents.md):** Update for agent development changes
 - **API.md:** Document new API endpoints
-- **SSOT.md:** Record new terminology or policy decisions
-- **PLANS.md:** Update roadmap for significant features
+- **[SSOT.md](../architecture/ssot.md):** Record new terminology or policy decisions
+- **[PLANS.md](../architecture/plans.md):** Update roadmap for significant features
 
 ## Pull Request Process
 

@@ -8,24 +8,24 @@ summary: "Guidelines for contributing to the AG-Driven Development framework and
 sources:
   - { id: R1, title: "AGDD README", url: "README.md", accessed: "2025-10-30" }
   - { id: R2, title: "Agent Development Guide", url: "docs/guides/agent-development.md", accessed: "2025-10-30" }
-  - { id: R3, title: "Single Source of Truth", url: "SSOT.md", accessed: "2025-10-30" }
+  - { id: R3, title: "Single Source of Truth", url: "docs/architecture/ssot.md", accessed: "2025-10-30" }
 ---
 
 # Contributing to AGDD
 
 > **For Humans**: Thank you for improving AGDD. This guide explains our expectations, branching model, and validation steps so your work lands smoothly.
 >
-> **For AI Agents**: Follow every checklist exactly. Keep AGENTS.md and SSOT.md in sync, document changes, and never skip validations unless the user waives them.
+> **For AI Agents**: Follow every checklist exactly. Keep docs/architecture/agents.md and docs/architecture/ssot.md in sync, document changes, and never skip validations unless the user waives them.
 
 ## Project Values
 
-- **Governance-first**: Every change must respect policies defined in `catalog/policies/` and the contracts recorded in `SSOT.md`.
+- **Governance-first**: Every change must respect policies defined in `catalog/policies/` and the contracts recorded in [SSOT.md](./docs/architecture/ssot.md).
 - **Observable**: Record results in `.runs/`, update `CHANGELOG.md`, and cross-link ExecPlans so work stays traceable.
 - **Safe automation**: Prefer minimal diffs, avoid destructive commands, and halt when requirements conflict with repository policies.
 
 ## Before You Start
 
-1. Read `README.md`, `SSOT.md`, and `AGENTS.md` to understand current capabilities and workflow expectations.
+1. Read `README.md`, [SSOT.md](./docs/architecture/ssot.md), and [AGENTS.md](./docs/architecture/agents.md) to understand current capabilities and workflow expectations.
 2. Sync dependencies: `uv sync --extra dev` (add `--extra production` when working with Postgres/Redis/MCP).
 3. Verify local environment by running:
    ```bash
@@ -44,13 +44,13 @@ sources:
 ## Development Process
 
 1. Branch from `main` (`feature/<slug>` or `fix/<issue>`).
-2. Write or update ExecPlan entries (see `PLANS.md`) when work is multi-phase.
+2. Write or update ExecPlan entries (see [PLANS.md](./docs/architecture/plans.md)) when work is multi-phase.
 3. Implement changes with strict type hints and tests.
 4. Update documentation:
    - `README.md` for user-facing capabilities.
-   - `AGENTS.md` for operational changes.
-   - `SKILL.md` when modifying skill conventions.
-   - `SSOT.md` for new terminology, schemas, or policies.
+   - [AGENTS.md](./docs/architecture/agents.md) for operational changes.
+   - [SKILL.md](./docs/architecture/skills.md) when modifying skill conventions.
+   - [SSOT.md](./docs/architecture/ssot.md) for new terminology, schemas, or policies.
 5. Run validation commands (tests, lint, type check, schema validators).
 6. Update `CHANGELOG.md` under `## [Unreleased]` with user-facing changes.
 7. Commit using imperative, Conventional Commit-friendly summaries (≤72 chars).
@@ -80,7 +80,7 @@ Record pass/fail results for each command in the PR description.
 
 - Keep docs concise and actionable. Avoid rhetorical language.
 - Update diagrams, examples, and CLI excerpts when behaviour changes.
-- Maintain Update Log sections at the bottom of AGENTS.md, SKILL.md, SSOT.md, PLANS.md, and similar files.
+- Maintain Update Log sections at the bottom of [AGENTS.md](./docs/architecture/agents.md), [SKILL.md](./docs/architecture/skills.md), [SSOT.md](./docs/architecture/ssot.md), [PLANS.md](./docs/architecture/plans.md), and similar files.
 - Ensure cross-references remain accurate (e.g., README → docs/guides, SSOT definitions → catalog files).
 
 ## Review & Merge

@@ -26,8 +26,8 @@ Anchor the AG-Driven Development (AGDD) repository around a resilient, AI-first 
 - [ ] Publish contributor-facing runbooks for syncing Flow Runner sample assets when upstream tags change.
 
 ### Documentation Hygiene
-- [ ] Cross-link ExecPlan expectations from `README.md`, `AGENTS.md`, and contributor docs.
-- [ ] Capture validation guidance in `CHANGELOG.md` and `SSOT.md` as features graduate from this plan.
+- [ ] Cross-link ExecPlan expectations from `README.md`, [AGENTS.md](../architecture/agents.md), and contributor docs.
+- [ ] Capture validation guidance in `CHANGELOG.md` and [SSOT.md](../architecture/ssot.md) as features graduate from this plan.
 
 ## Progress
 - [2025-10-23 02:30 UTC] Hardened typing and fixtures across runners, registry, governance gate, and API tests; added stub packages so `mypy --strict` succeeds alongside pytest/ruff checks.
