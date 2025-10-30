@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ..config import Settings, get_settings
 from ..models import CreateRunRequest, CreateRunResponse
 from ..rate_limit import rate_limit_dependency
-from ..security import require_api_key
+from ..security import require_api_key, require_scope
 
 # Conditional import to avoid dependency on agent_runner if not available
 try:
@@ -113,7 +113,7 @@ def find_new_run_id(
 )
 async def create_run(
     req: CreateRunRequest,
-    _: None = Depends(require_api_key),
+    _: str = Depends(require_scope(["agents:run"])),
     settings: Settings = Depends(get_settings),
 ) -> CreateRunResponse:
     """
@@ -122,6 +122,8 @@ async def create_run(
     This endpoint initiates an agent execution with the provided payload.
     It supports idempotent requests via the Idempotency-Key header or
     idempotency_key field in the request body.
+
+    **Authorization**: Requires "agents:run" scope.
 
     Args:
         req: Request containing agent slug, payload, and optional idempotency key
@@ -132,6 +134,8 @@ async def create_run(
 
     Raises:
         HTTPException:
+            - 401: Unauthorized (invalid or missing API key)
+            - 403: Forbidden (missing "agents:run" scope)
             - 404: Agent not found
             - 400: Invalid payload or execution failed
             - 409: Idempotency key conflict (handled by middleware)
