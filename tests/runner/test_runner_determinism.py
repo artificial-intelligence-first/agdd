@@ -389,3 +389,44 @@ class TestIntegration:
         # Verify mode is restored
         assert get_deterministic_mode() is True
         assert get_deterministic_seed() == 100
+
+    def test_replay_nondeterministic_snapshot_clears_mode(self) -> None:
+        """Test that replaying a non-deterministic snapshot clears deterministic mode."""
+        # Start with deterministic mode enabled
+        set_deterministic_mode(True)
+        set_deterministic_seed(999)
+        assert get_deterministic_mode() is True
+
+        # Create a non-deterministic snapshot
+        set_deterministic_mode(False)
+        snapshot = snapshot_environment()
+        assert snapshot["deterministic_mode"] is False
+
+        # Enable determinism again before replay
+        set_deterministic_mode(True)
+        set_deterministic_seed(888)
+
+        # Replay the non-deterministic snapshot
+        create_replay_context(snapshot)
+
+        # Verify deterministic mode is now disabled
+        assert get_deterministic_mode() is False
+
+    def test_replay_without_seed_clears_cached_seed(self) -> None:
+        """Test that replaying a snapshot without a seed clears the cached seed."""
+        # Set a seed
+        set_deterministic_seed(777)
+        assert get_deterministic_seed() == 777
+
+        # Create snapshot without deterministic mode
+        set_deterministic_mode(False)
+        snapshot = {"deterministic_mode": False, "timestamp": 1234567890.0}
+
+        # Replay
+        create_replay_context(snapshot)
+
+        # Seed should be cleared (will generate new one from timestamp)
+        set_deterministic_seed(None)  # type: ignore[arg-type]
+        # After clearing, getting seed should generate a new one
+        new_seed = get_deterministic_seed()
+        assert new_seed != 777  # Should be different

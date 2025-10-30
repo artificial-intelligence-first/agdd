@@ -552,6 +552,25 @@ class AgentRunner:
         effective_context: Dict[str, Any] = context or {}
 
         agent = self.registry.load_agent(slug)
+
+        # Apply deterministic settings if deterministic mode is enabled
+        if effective_context.get("deterministic"):
+            try:
+                from agdd.runner_determinism import apply_deterministic_settings
+
+                # Get the provider config from agent definition
+                provider_config = agent.raw.get("provider_config", {})
+
+                # Apply deterministic settings (returns a copy)
+                deterministic_config = apply_deterministic_settings(provider_config)
+
+                # Update the agent's raw config with deterministic settings
+                # This affects the execution plan and LLM plan creation
+                agent.raw["provider_config"] = deterministic_config
+            except ImportError:
+                # Gracefully handle if runner_determinism module isn't available
+                logger.warning("Could not import runner_determinism module; skipping deterministic settings")
+
         execution_plan = self.router.get_plan(agent, effective_context)
         plan_snapshot = self._serialize_execution_plan(execution_plan)
         llm_plan = self._resolve_llm_plan(agent, effective_context, plan_snapshot)

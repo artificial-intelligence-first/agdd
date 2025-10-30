@@ -191,6 +191,9 @@ def create_replay_context(
     Prepares context dictionary with replay settings that can be passed
     to agent execution to reproduce a previous run.
 
+    This function restores the exact deterministic mode state from the snapshot,
+    including both enabling and disabling determinism as needed.
+
     Args:
         replay_snapshot: Environment snapshot from a previous run
         additional_context: Optional additional context to merge
@@ -204,11 +207,17 @@ def create_replay_context(
         "replay_seed": replay_snapshot.get("seed"),
     }
 
-    # If snapshot included deterministic mode, restore it
-    if replay_snapshot.get("deterministic_mode"):
-        set_deterministic_mode(True)
-        if "seed" in replay_snapshot:
-            set_deterministic_seed(replay_snapshot["seed"])
+    # Restore deterministic mode state exactly as it was in the snapshot
+    snapshot_deterministic = replay_snapshot.get("deterministic_mode", False)
+    set_deterministic_mode(snapshot_deterministic)
+
+    if snapshot_deterministic and "seed" in replay_snapshot:
+        # Restore the seed if snapshot was deterministic
+        set_deterministic_seed(replay_snapshot["seed"])
+        context["deterministic"] = True
+    else:
+        # Clear the cached seed if snapshot was non-deterministic
+        set_deterministic_seed(None)  # type: ignore[arg-type]
 
     # Merge additional context
     if additional_context:
