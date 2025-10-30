@@ -7,6 +7,7 @@ to the Provider SPI protocol.
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 if TYPE_CHECKING:
@@ -53,10 +54,15 @@ class GoogleAdapter:
             - structured_output: JSON mode and structured outputs
             - vision: Image understanding (Gemini models)
             - audio: Audio processing capabilities
+
+        Note:
+            Tools and structured_output are set to False because the underlying
+            GoogleProvider doesn't expose these features yet. While Gemini models
+            support these capabilities, proper adapter implementation is needed.
         """
         return {
-            "tools": True,  # Gemini supports function calling
-            "structured_output": True,  # Gemini supports JSON mode
+            "tools": False,  # Not yet wired through GoogleProvider
+            "structured_output": False,  # Not yet wired through GoogleProvider
             "vision": True,  # Gemini models support vision
             "audio": True,  # Gemini 2.0+ supports audio
         }
@@ -91,7 +97,28 @@ class GoogleAdapter:
             - tool_calls: List of tool calls if any
             - model: Model used
             - usage: Token usage information
+
+        Note:
+            The tools and schema parameters are currently ignored because the
+            underlying GoogleProvider doesn't support them yet. A warning will
+            be issued if these are provided.
         """
+        # Warn if unsupported features are requested
+        if tools is not None:
+            warnings.warn(
+                "GoogleAdapter: tools parameter is not yet supported and will be ignored. "
+                "Set capabilities['tools'] = False",
+                UserWarning,
+                stacklevel=2,
+            )
+        if schema is not None:
+            warnings.warn(
+                "GoogleAdapter: schema parameter is not yet supported and will be ignored. "
+                "Set capabilities['structured_output'] = False",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # Convert prompt to string format (Google provider expects string)
         if isinstance(prompt, str):
             prompt_text = prompt
@@ -165,8 +192,8 @@ def _test_adapter_capabilities() -> None:
         caps = adapter.capabilities()
 
         assert isinstance(caps, dict), "Capabilities should be a dict"
-        assert caps["tools"] is True, "Google Gemini supports tools"
-        assert caps["structured_output"] is True, "Google Gemini supports structured output"
+        assert caps["tools"] is False, "Tools not yet wired through GoogleProvider"
+        assert caps["structured_output"] is False, "Structured output not yet wired through GoogleProvider"
         assert caps["vision"] is True, "Google Gemini supports vision"
         assert caps["audio"] is True, "Google Gemini 2.0+ supports audio"
 
