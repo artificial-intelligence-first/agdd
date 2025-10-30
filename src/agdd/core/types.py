@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CapabilityMatrix(BaseModel):
@@ -19,7 +19,11 @@ class CapabilityMatrix(BaseModel):
 
     Indicates which advanced features a provider implementation supports,
     enabling intelligent routing and fallback strategies.
+
+    This model is frozen to ensure capability declarations remain consistent.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     tools: bool = Field(..., description="Support for function/tool calling")
     structured_output: bool = Field(..., description="Support for schema-constrained generation")
@@ -34,6 +38,8 @@ class PolicySnapshot(BaseModel):
     deterministic evaluation and audit trail consistency.
     """
 
+    model_config = ConfigDict(frozen=True)
+
     id: str = Field(..., description="Unique policy identifier")
     version: str = Field(..., description="Semantic version string (e.g., '1.2.3')")
     content_hash: str = Field(
@@ -46,7 +52,11 @@ class PlanIR(BaseModel):
 
     Describes how an agent run should be executed, including provider selection,
     model configuration, optimization flags, and fallback strategies.
+
+    This model is frozen to ensure plan consistency throughout execution.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     chain: list[dict[str, Any]] = Field(
         ..., description="Ordered list of fallback steps, each with provider/model config"
@@ -78,7 +88,12 @@ class RunIR(BaseModel):
 
     Encapsulates all information needed to execute and trace an agent run,
     including input, execution plan, policy context, and observability metadata.
+
+    This model is frozen to ensure audit trail integrity - once a run specification
+    is created, it cannot be modified.
     """
+
+    model_config = ConfigDict(frozen=True)
 
     run_id: str = Field(..., description="Unique run identifier (UUID)")
     agent: str = Field(..., description="Agent slug/identifier")
