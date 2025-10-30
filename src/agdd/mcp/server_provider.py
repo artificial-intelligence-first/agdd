@@ -93,7 +93,6 @@ def _load_fastmcp() -> tuple[bool, Any | None, Any | None]:
                         try:
                             module_path = Path(existing.__file__).resolve()
                             tests_dir = _tests_dir()
-                            is_tests_pkg = False
                             try:
                                 is_tests_pkg = module_path.is_relative_to(tests_dir)
                             except AttributeError:  # pragma: no cover - py<3.9 fallback
@@ -101,7 +100,7 @@ def _load_fastmcp() -> tuple[bool, Any | None, Any | None]:
                         except Exception:  # pragma: no cover - defensive
                             is_tests_pkg = False
                         if is_tests_pkg:
-                            sys.modules.pop("mcp", None)
+                            sys.modules["mcp"] = None
                 from mcp.server.fastmcp import Context, FastMCP  # type: ignore[no-redef]
                 return True, FastMCP, Context
         except ImportError:
