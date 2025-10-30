@@ -23,6 +23,23 @@ SCHEMA_MAP = {
 ROUTING_SCHEMA = "catalog/_schemas/routing.schema.json"
 
 
+def _safe_relative_path(path: pathlib.Path, repo_root: pathlib.Path) -> pathlib.Path:
+    """Safely get relative path, falling back to absolute if outside repo.
+
+    Args:
+        path: Path to make relative
+        repo_root: Repository root path
+
+    Returns:
+        Relative path if inside repo, otherwise absolute path
+    """
+    try:
+        return path.relative_to(repo_root)
+    except ValueError:
+        # Path is outside repo root, return absolute path
+        return path.resolve()
+
+
 def _find_catalog_files() -> list[tuple[pathlib.Path, str]]:
     """Find all catalog YAML files and their associated schemas.
 
@@ -144,10 +161,11 @@ def validate(
 
         # Validate single file
         is_valid, error = _validate_yaml_against_schema(path, schema_path)
+        display_path = _safe_relative_path(path, repo_root)
         if is_valid:
-            typer.echo(f"✓ {path.relative_to(repo_root)}")
+            typer.echo(f"✓ {display_path}")
         else:
-            typer.echo(f"✗ {path.relative_to(repo_root)}")
+            typer.echo(f"✗ {display_path}")
             typer.echo(f"  {error}")
             raise typer.Exit(1)
         return
@@ -167,12 +185,12 @@ def validate(
         schema_path = repo_root / schema_rel_path
         is_valid, error = _validate_yaml_against_schema(yaml_path, schema_path)
 
-        rel_path = yaml_path.relative_to(repo_root)
+        display_path = _safe_relative_path(yaml_path, repo_root)
         if is_valid:
-            typer.echo(f"✓ {rel_path}")
+            typer.echo(f"✓ {display_path}")
             valid += 1
         else:
-            typer.echo(f"✗ {rel_path}")
+            typer.echo(f"✗ {display_path}")
             typer.echo(f"  {error}")
             invalid += 1
 
@@ -231,7 +249,7 @@ def migrate(
 
     migration_count = 0
     for file_path in files:
-        rel_path = file_path.relative_to(repo_root)
+        display_path = _safe_relative_path(file_path, repo_root)
 
         # In a real implementation, we would:
         # 1. Load the file
@@ -240,7 +258,7 @@ def migrate(
         # 4. Optionally write back if --apply is set
 
         # For now, we just show what would be migrated
-        typer.echo(f"  • {rel_path}")
+        typer.echo(f"  • {display_path}")
         migration_count += 1
 
     typer.echo("")
