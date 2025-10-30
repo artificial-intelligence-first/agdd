@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 from pathlib import Path
 
 import pytest
@@ -115,6 +116,79 @@ class TestDeterministicSeed:
         # Should still return cached value
         second_call = get_deterministic_seed()
         assert second_call == 9999  # Still the cached value, not 8888
+
+    def test_set_seed_applies_to_random_module(self) -> None:
+        """Test that setting seed actually seeds Python's random module."""
+        # Set a specific seed
+        set_deterministic_seed(42)
+
+        # Generate random numbers
+        values1 = [random.random() for _ in range(5)]
+
+        # Reset seed to same value
+        set_deterministic_seed(42)
+
+        # Generate random numbers again
+        values2 = [random.random() for _ in range(5)]
+
+        # Values should be identical due to same seed
+        assert values1 == values2
+
+    def test_different_seeds_produce_different_values(self) -> None:
+        """Test that different seeds produce different random values."""
+        set_deterministic_seed(100)
+        values1 = [random.random() for _ in range(5)]
+
+        set_deterministic_seed(200)
+        values2 = [random.random() for _ in range(5)]
+
+        # Values should be different with different seeds
+        assert values1 != values2
+
+    def test_deterministic_mode_applies_seed_to_random(self) -> None:
+        """Test that enabling deterministic mode applies the seed to random module."""
+        # Set seed first
+        set_deterministic_seed(123)
+
+        # Generate some random values
+        values1 = [random.random() for _ in range(5)]
+
+        # Enable deterministic mode (should re-apply seed)
+        set_deterministic_mode(True)
+
+        # Generate random values again - should be same as first set
+        values2 = [random.random() for _ in range(5)]
+
+        assert values1 == values2
+
+    def test_get_seed_applies_to_random_when_deterministic_mode_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that get_deterministic_seed() applies seed to random when mode is enabled."""
+        # Clear cached seed
+        set_deterministic_seed(None)  # type: ignore[arg-type]
+        if "AGDD_DETERMINISTIC_SEED" in os.environ:
+            del os.environ["AGDD_DETERMINISTIC_SEED"]
+
+        # Enable deterministic mode
+        set_deterministic_mode(True)
+
+        # Set env seed
+        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "999")
+
+        # Get seed (should apply to random module)
+        seed = get_deterministic_seed()
+        assert seed == 999
+
+        # Generate random values
+        values1 = [random.random() for _ in range(5)]
+
+        # Reset seed to same value and regenerate
+        random.seed(999)
+        values2 = [random.random() for _ in range(5)]
+
+        # Values should be identical
+        assert values1 == values2
 
 
 class TestSnapshotEnvironment:

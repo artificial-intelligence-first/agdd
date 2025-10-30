@@ -24,13 +24,18 @@ def set_deterministic_mode(enabled: bool) -> None:
     Enable or disable deterministic execution mode.
 
     When enabled, agent runs will use fixed seeds and settings to ensure
-    reproducible results across multiple executions.
+    reproducible results across multiple executions. If a seed has already
+    been set, it is immediately applied to Python's random module.
 
     Args:
         enabled: True to enable deterministic mode, False to disable
     """
-    global _deterministic_mode
+    global _deterministic_mode, _deterministic_seed
     _deterministic_mode = enabled
+
+    # If enabling deterministic mode and a seed is already set, apply it
+    if enabled and _deterministic_seed is not None:
+        random.seed(_deterministic_seed)
 
 
 def get_deterministic_mode() -> bool:
@@ -53,7 +58,9 @@ def get_deterministic_seed() -> int:
     3. Derived from current timestamp (for new runs)
 
     Once computed, the seed is cached for the lifetime of the process to ensure
-    stable values across multiple calls within the same session.
+    stable values across multiple calls within the same session. When a seed is
+    first computed, it is automatically applied to Python's random module if
+    deterministic mode is enabled.
 
     Returns:
         Integer seed value for random number generation
@@ -69,6 +76,9 @@ def get_deterministic_seed() -> int:
         try:
             seed = int(env_seed)
             _deterministic_seed = seed  # Cache the seed
+            # Apply seed to random module if deterministic mode is enabled
+            if _deterministic_mode:
+                random.seed(seed)
             return seed
         except ValueError:
             pass
@@ -77,6 +87,9 @@ def get_deterministic_seed() -> int:
     # Use a stable seed based on process start time rounded to the minute
     timestamp = int(time.time() / 60) * 60  # Round to minute
     _deterministic_seed = timestamp  # Cache the computed seed
+    # Apply seed to random module if deterministic mode is enabled
+    if _deterministic_mode:
+        random.seed(timestamp)
     return timestamp
 
 
@@ -84,11 +97,19 @@ def set_deterministic_seed(seed: int) -> None:
     """
     Explicitly set the deterministic seed value.
 
+    When a seed is set, it is immediately applied to Python's random module
+    to ensure reproducible random number generation.
+
     Args:
-        seed: Integer seed value to use for deterministic execution
+        seed: Integer seed value to use for deterministic execution.
+              Pass None to clear the cached seed.
     """
     global _deterministic_seed
     _deterministic_seed = seed
+
+    # Apply seed to Python's random module for reproducibility
+    if seed is not None:
+        random.seed(seed)
 
 
 def snapshot_environment() -> dict[str, Any]:
