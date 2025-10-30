@@ -184,7 +184,17 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
         # Store successful responses (2xx status codes)
         if 200 <= response.status_code < 300:
-            # Read response body to cache it
+            # Check if this is a streaming response
+            # Streaming responses typically lack Content-Length or have streaming media types
+            is_streaming = self._is_streaming_response(response)
+
+            if is_streaming:
+                # Don't cache streaming responses - pass through directly
+                # Streaming responses (SSE, websockets, large file downloads) are typically
+                # not idempotent and should not be buffered in memory
+                return response
+
+            # Read response body to cache it (only for non-streaming responses)
             response_body = b""
             async for chunk in response.body_iterator:
                 response_body += chunk
@@ -209,6 +219,45 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             )
 
         return response
+
+    def _is_streaming_response(self, response: Response) -> bool:
+        """
+        Detect if a response is a streaming response that should not be cached.
+
+        Streaming responses are identified by:
+        - Lack of Content-Length header
+        - Media types like text/event-stream (Server-Sent Events)
+        - Transfer-Encoding: chunked
+
+        Args:
+            response: The response to check
+
+        Returns:
+            True if the response is streaming and should not be cached
+        """
+        # Check for SSE or other streaming media types
+        content_type = response.headers.get("content-type", "")
+        if "text/event-stream" in content_type or "application/x-ndjson" in content_type:
+            return True
+
+        # Check if Content-Length is missing (typical for streaming)
+        # Presence of Content-Length usually indicates a complete, non-streaming response
+        has_content_length = "content-length" in response.headers
+
+        # Check for chunked transfer encoding
+        transfer_encoding = response.headers.get("transfer-encoding", "")
+        is_chunked = "chunked" in transfer_encoding.lower()
+
+        # If no content-length and chunked encoding, it's likely streaming
+        if not has_content_length and is_chunked:
+            return True
+
+        # If no content-length at all, be conservative and treat as streaming
+        # to avoid buffering potentially large responses
+        if not has_content_length:
+            return True
+
+        return False
 
     def cleanup_expired(self) -> None:
         """Manually trigger cleanup of expired idempotency entries."""

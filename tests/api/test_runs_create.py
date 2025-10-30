@@ -465,6 +465,51 @@ class TestIdempotencyMiddleware:
         # Background task should still only have run once
         assert task_counter["count"] == 1
 
+    def test_idempotency_detects_no_content_length(self):
+        """Test that responses without Content-Length are treated as streaming."""
+        from fastapi import FastAPI, Response
+        from fastapi.testclient import TestClient
+        from agdd.api.middleware import IdempotencyMiddleware
+
+        call_counter = {"count": 0}
+
+        # Create a test app with idempotency middleware
+        test_app = FastAPI()
+        test_app.add_middleware(IdempotencyMiddleware)
+
+        @test_app.post("/test-no-length")
+        async def test_endpoint():
+            call_counter["count"] += 1
+            # Create response without Content-Length header
+            response = Response(content=b"test data", media_type="text/plain")
+            # Remove Content-Length if FastAPI adds it
+            if "content-length" in response.headers:
+                del response.headers["content-length"]
+            return response
+
+        test_client = TestClient(test_app)
+
+        # First request
+        response1 = test_client.post(
+            "/test-no-length",
+            json={},
+            headers={"Idempotency-Key": "no-length-key"},
+        )
+
+        assert response1.status_code == 200
+        assert call_counter["count"] == 1
+
+        # Second request - without Content-Length, should not be cached
+        response2 = test_client.post(
+            "/test-no-length",
+            json={},
+            headers={"Idempotency-Key": "no-length-key"},
+        )
+
+        assert response2.status_code == 200
+        # Should be called again (not cached due to missing Content-Length)
+        assert call_counter["count"] == 2
+
 
 class TestAuthenticationAndRateLimit:
     """Tests for authentication and rate limiting on POST /runs."""
