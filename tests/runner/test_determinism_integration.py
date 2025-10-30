@@ -41,7 +41,7 @@ class TestAgentRunnerDeterminism:
             mock_plan.span_context = {}
             mock_plan.enable_otel = False
 
-            with patch.object(runner.router, "get_plan", return_value=mock_plan):
+            with patch.object(runner.router, "get_plan", return_value=mock_plan) as mock_get_plan:
                 # Enable deterministic mode
                 set_deterministic_mode(True)
                 set_deterministic_seed(42)
@@ -52,10 +52,14 @@ class TestAgentRunnerDeterminism:
                 # Call _prepare_execution
                 exec_ctx = runner._prepare_execution("test-agent", "run-123", context)
 
-                # Verify that the agent's provider_config was modified
-                modified_config = mock_agent.raw["provider_config"]
+                # Verify that the ORIGINAL cached agent was NOT mutated
+                assert mock_agent.raw["provider_config"]["temperature"] == 0.9
 
-                # Check deterministic settings were applied
+                # Get the agent that was passed to get_plan (the modified copy)
+                agent_passed_to_plan = mock_get_plan.call_args[0][0]
+                modified_config = agent_passed_to_plan.raw["provider_config"]
+
+                # Check deterministic settings were applied to the COPY
                 assert modified_config["temperature"] == 0.0
                 assert modified_config["seed"] == 42
                 assert modified_config["top_p"] == 1.0
@@ -137,3 +141,89 @@ class TestAgentRunnerDeterminism:
                 assert obs._deterministic is True
                 assert obs._environment_snapshot is not None
                 assert obs._environment_snapshot["seed"] == 123
+
+    def test_cached_agent_not_mutated_by_deterministic_run(self) -> None:
+        """Test that deterministic runs don't mutate the cached agent descriptor."""
+        from agdd.runners.agent_runner import AgentRunner
+        from agdd.registry import AgentDescriptor
+
+        # Create a mock agent with specific config
+        original_config = {
+            "temperature": 0.9,
+            "top_p": 0.95,
+            "model": "test-model",
+        }
+        mock_agent = MagicMock(spec=AgentDescriptor)
+        mock_agent.slug = "test-agent"
+        mock_agent.name = "TestAgent"
+        mock_agent.raw = {"provider_config": original_config.copy()}
+
+        runner = AgentRunner()
+
+        with patch.object(runner.registry, "load_agent", return_value=mock_agent):
+            mock_plan = MagicMock()
+            mock_plan.span_context = {}
+            mock_plan.enable_otel = False
+
+            with patch.object(runner.router, "get_plan", return_value=mock_plan):
+                set_deterministic_mode(True)
+                set_deterministic_seed(42)
+
+                # Run with deterministic context
+                deterministic_context = {"deterministic": True}
+                exec_ctx = runner._prepare_execution("test-agent", "run-123", deterministic_context)
+
+                # Verify the CACHED agent was NOT mutated
+                cached_config = mock_agent.raw["provider_config"]
+                assert cached_config["temperature"] == 0.9  # Still original value
+                assert "seed" not in cached_config  # Seed was not added
+                assert cached_config["top_p"] == 0.95  # Still original value
+
+    def test_deterministic_then_nondeterministic_runs_isolated(self) -> None:
+        """Test that a deterministic run doesn't affect subsequent non-deterministic runs."""
+        from agdd.runners.agent_runner import AgentRunner
+        from agdd.registry import AgentDescriptor
+
+        original_config = {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "model": "test-model",
+        }
+        mock_agent = MagicMock(spec=AgentDescriptor)
+        mock_agent.slug = "test-agent"
+        mock_agent.name = "TestAgent"
+        mock_agent.raw = {"provider_config": original_config.copy()}
+
+        runner = AgentRunner()
+
+        with patch.object(runner.registry, "load_agent", return_value=mock_agent):
+            mock_plan = MagicMock()
+            mock_plan.span_context = {}
+            mock_plan.enable_otel = False
+
+            with patch.object(runner.router, "get_plan", return_value=mock_plan) as mock_get_plan:
+                set_deterministic_mode(True)
+                set_deterministic_seed(42)
+
+                # First run: deterministic
+                deterministic_context = {"deterministic": True}
+                exec_ctx1 = runner._prepare_execution("test-agent", "run-123", deterministic_context)
+
+                # Get the agent that was passed to get_plan in the first call
+                first_call_agent = mock_get_plan.call_args[0][0]
+                assert first_call_agent.raw["provider_config"]["temperature"] == 0.0
+                assert first_call_agent.raw["provider_config"]["seed"] == 42
+
+                # Reset mock
+                mock_get_plan.reset_mock()
+
+                # Second run: non-deterministic
+                set_deterministic_mode(False)
+                nondeterministic_context: Dict[str, Any] = {}
+                exec_ctx2 = runner._prepare_execution("test-agent", "run-456", nondeterministic_context)
+
+                # Get the agent that was passed to get_plan in the second call
+                second_call_agent = mock_get_plan.call_args[0][0]
+                assert second_call_agent.raw["provider_config"]["temperature"] == 0.7
+                assert "seed" not in second_call_agent.raw["provider_config"]
+                assert second_call_agent.raw["provider_config"]["top_p"] == 0.9

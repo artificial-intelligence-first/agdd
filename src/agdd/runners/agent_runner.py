@@ -549,14 +549,23 @@ class AgentRunner:
         context: Optional[Dict[str, Any]],
     ) -> _ExecutionContext:
         """Load agent, compute plans, and create an observability logger."""
+        import copy
+
         effective_context: Dict[str, Any] = context or {}
 
-        agent = self.registry.load_agent(slug)
+        # Load agent from registry (may be cached)
+        cached_agent = self.registry.load_agent(slug)
 
         # Apply deterministic settings if deterministic mode is enabled
+        # Create a copy to avoid mutating the cached agent descriptor
         if effective_context.get("deterministic"):
             try:
                 from agdd.runner_determinism import apply_deterministic_settings
+
+                # Create a shallow copy of the agent descriptor to avoid mutating the cache
+                agent = copy.copy(cached_agent)
+                # Deep copy the raw dict to avoid mutating nested structures
+                agent.raw = copy.deepcopy(cached_agent.raw)
 
                 # Get the provider config from agent definition
                 provider_config = agent.raw.get("provider_config", {})
@@ -564,12 +573,16 @@ class AgentRunner:
                 # Apply deterministic settings (returns a copy)
                 deterministic_config = apply_deterministic_settings(provider_config)
 
-                # Update the agent's raw config with deterministic settings
+                # Update the COPY's raw config with deterministic settings
                 # This affects the execution plan and LLM plan creation
                 agent.raw["provider_config"] = deterministic_config
             except ImportError:
                 # Gracefully handle if runner_determinism module isn't available
                 logger.warning("Could not import runner_determinism module; skipping deterministic settings")
+                agent = cached_agent
+        else:
+            # Non-deterministic run: use cached agent as-is
+            agent = cached_agent
 
         execution_plan = self.router.get_plan(agent, effective_context)
         plan_snapshot = self._serialize_execution_plan(execution_plan)
