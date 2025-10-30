@@ -80,11 +80,24 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 │   ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐      │
 │   │     CLI      │    │   HTTP API   │    │ GitHub Webhooks  │      │
 │   │  (agdd.cli)  │    │  (agdd.api)  │    │  (integrations)  │      │
+│   │              │    │ + Rate Limit │    │                  │      │
 │   └──────┬───────┘    └───────┬──────┘    └──────────┬───────┘      │
 └──────────┼────────────────────┼──────────────────────┼──────────────┘
            │                    │                      │
            └────────────────────┼──────────────────────┘
                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MCP Integration Layer                            │
+│                                                                     │
+│   ┌─────────────────────────┐         ┌─────────────────────────┐   │
+│   │    MCP Server           │         │    MCP Runtime          │   │
+│   │  - Tool exposure        │◀────────│  - Skill execution      │   │
+│   │  - Schema generation    │         │  - Server management    │   │
+│   │  - Stdio protocol       │         │                         │   │
+│   └─────────────────────────┘         └─────────────────────────┘   │
+└──────────────┼──────────────────────────────────────────────────────┘
+               │
+               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Orchestration & Execution                        │
 │                                                                     │
@@ -94,19 +107,8 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 │   │   - invoke_mag()        │         │   - flowctl adapter     │   │
 │   │   - invoke_sag()        │         │   - dry-run support     │   │
 │   │   - delegation          │         │                         │   │
+│   │   - A2A protocols       │         │                         │   │
 │   └──────────┬──────────────┘         └─────────────────────────┘   │
-└──────────────┼──────────────────────────────────────────────────────┘
-               │
-               ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Security & Moderation                           │
-│                                                                     │
-│   ┌─────────────────────────────────────────────────────────────┐   │
-│   │  Content Moderation (omni-moderation-latest)                │   │
-│   │   - Input/Output safety checks                              │   │
-│   │   - Fail-closed/Fail-open strategies                        │   │
-│   │   - Multimodal content support                              │   │
-│   └─────────────────────────────────────────────────────────────┘   │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
                ▼
@@ -117,7 +119,8 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 │   │  Registry   │────▶│   Skills     │     │   Contracts      │     │
 │   │  - agents   │     │  - reusable  │     │  - JSON Schema   │     │
 │   │  - skills   │     │  - composable│     │  - validation    │     │
-│   │  - routing  │     │              │     │                  │     │
+│   │  - routing  │     │  - async MCP │     │                  │     │
+│   │  - personas │     │              │     │                  │     │
 │   └─────────────┘     └──────────────┘     └──────────────────┘     │
 └─────────────────────────────────────────────────────────────────────┘
                │
@@ -141,7 +144,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 │   │  OpenAI    │   │ Anthropic │   │ Google  │   │ Local (Ollama) │ │
 │   │ - Responses│   │ - Claude  │   │ - Gemini│   │ - Responses API│ │
 │   │  API       │   │   3.5/Opus│   │   Pro   │   │   w/ fallback  │ │
-│   │ - Batch    │   │           │   │         │   │                │ │
+│   │ - Batch    │   │ - Tools   │   │         │   │ - Mock         │ │
 │   └────────────┘   └───────────┘   └─────────┘   └────────────────┘ │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
@@ -162,7 +165,7 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                └──────────────────┬───────────────────┘
                                   ▼
                ┌─────────────────────────────────────┐
-               │       Governance Layer              │
+               │   Governance & Evaluation Layer     │
                │                                     │
                │   ┌─────────────────────────────┐   │
                │   │    Governance Gate          │   │
@@ -170,8 +173,16 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                │   │  - Quality thresholds       │   │
                │   │  - Compliance checks        │   │
                │   └─────────────────────────────┘   │
+               │   ┌─────────────────────────────┐   │
+               │   │    Evaluation Framework     │   │
+               │   │  - Pre/Post-eval hooks      │   │
+               │   │  - Metric scoring           │   │
+               │   │  - Weighted thresholds      │   │
+               │   └─────────────────────────────┘   │
                └─────────────────────────────────────┘
 ```
+
+**Note:** Content Moderation (`ModerationService`) is implemented but not yet integrated into the execution flow. The service supports OpenAI's omni-moderation-latest with fail-open/fail-closed strategies but requires wiring into `agent_runner.py` for active enforcement.
 
 ## Project Structure
 
