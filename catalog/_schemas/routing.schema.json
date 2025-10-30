@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agdd.ai/schemas/routing.schema.json",
+  "title": "AGDD Routing Policy Schema",
+  "description": "Schema for AGDD routing and optimization policies",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "description": "Routing policy version"
+    },
+    "execution_mode": {
+      "type": "object",
+      "description": "Execution mode thresholds",
+      "properties": {
+        "batch_latency_threshold_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Latency threshold for batch mode eligibility in milliseconds"
+        },
+        "default_mode": {
+          "type": "string",
+          "enum": ["realtime", "batch"],
+          "description": "Default execution mode"
+        }
+      },
+      "additionalProperties": false
+    },
+    "model_tiers": {
+      "type": "object",
+      "description": "Model tier configuration",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "max_cost": {
+            "type": ["number", "null"],
+            "minimum": 0,
+            "description": "Maximum cost in USD per request (null for no limit)"
+          },
+          "min_quality": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Minimum quality score (0-1)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the tier"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "cache": {
+      "type": "object",
+      "description": "Cache strategy configuration",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Conditions for applying this cache strategy"
+          },
+          "cache_ttl_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Cache TTL in seconds"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "batch": {
+      "type": "object",
+      "description": "Batch processing configuration",
+      "properties": {
+        "enabled": {
+          "type": "object",
+          "properties": {
+            "conditions": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "description": "Conditions for enabling batching"
+            }
+          },
+          "additionalProperties": false
+        },
+        "max_batch_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum batch size"
+        },
+        "batch_timeout_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Batch timeout in seconds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "model_routing": {
+      "type": "object",
+      "description": "Model-specific routing preferences",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "preferred_models": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of preferred models for this routing category"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "sla_validation": {
+      "type": "object",
+      "description": "SLA compliance validation settings",
+      "properties": {
+        "enforce_cost_budget": {
+          "type": "boolean",
+          "description": "Warn if estimated cost exceeds budget"
+        },
+        "enforce_latency_requirement": {
+          "type": "boolean",
+          "description": "Warn if estimated latency exceeds requirement"
+        },
+        "allow_best_effort": {
+          "type": "boolean",
+          "description": "Allow override if no viable plan meets SLA"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deprecated": {
+      "type": "boolean",
+      "description": "Whether this routing policy is deprecated",
+      "default": false
+    },
+    "deprecated_message": {
+      "type": "string",
+      "description": "Deprecation message with migration guidance"
+    }
+  },
+  "additionalProperties": false
+}

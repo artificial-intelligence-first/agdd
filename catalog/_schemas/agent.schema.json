@@ -1,0 +1,268 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agdd.ai/schemas/agent.schema.json",
+  "title": "AGDD Agent Schema",
+  "description": "Schema for AGDD agent definitions (MAG/SAG)",
+  "type": "object",
+  "required": ["version", "slug", "name", "role", "entrypoint"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the agent definition"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "description": "Unique identifier for the agent (kebab-case)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the agent (PascalCase)"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["main", "sub"],
+      "description": "Agent role: main (MAG) or sub (SAG)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the agent's purpose"
+    },
+    "entrypoint": {
+      "type": "string",
+      "pattern": "^catalog/agents/(main|sub)/[^/]+/code/[^:]+\\.py:[a-zA-Z_][a-zA-Z0-9_]*$",
+      "description": "Python entrypoint in format: path/to/file.py:function_name"
+    },
+    "depends_on": {
+      "type": "object",
+      "description": "Dependencies on other agents and skills",
+      "properties": {
+        "sub_agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of sub-agent dependencies (agdd:// URIs or slugs)"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of skill dependencies (agdd:// URIs or slugs)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "contracts": {
+      "type": "object",
+      "description": "Input and output contract schemas",
+      "properties": {
+        "input_schema": {
+          "type": "string",
+          "description": "Path to input JSON schema"
+        },
+        "output_schema": {
+          "type": "string",
+          "description": "Path to output JSON schema"
+        }
+      },
+      "additionalProperties": false
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Risk classification for the agent"
+    },
+    "budgets": {
+      "type": "object",
+      "description": "Resource budgets for agent execution",
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum token budget"
+        },
+        "time_s": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum execution time in seconds"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum token budget (alternative field name)"
+        },
+        "max_cost_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum cost in USD"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum execution time in seconds (alternative field name)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "provider_config": {
+      "type": "object",
+      "description": "Provider-specific configuration",
+      "properties": {
+        "task_type": {
+          "type": "string",
+          "enum": ["orchestration", "computation", "retrieval", "analysis"],
+          "description": "Type of task the agent performs"
+        },
+        "estimated_duration": {
+          "type": "string",
+          "enum": ["short", "medium", "long"],
+          "description": "Estimated execution duration"
+        },
+        "resource_hint": {
+          "type": "string",
+          "enum": ["minimal", "standard", "high"],
+          "description": "Resource requirements hint"
+        },
+        "provider_hint": {
+          "type": "string",
+          "description": "Preferred provider hint (e.g., 'local', 'cloud')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "observability": {
+      "type": "object",
+      "description": "Observability settings",
+      "properties": {
+        "logs": {
+          "type": "boolean",
+          "description": "Enable logging"
+        },
+        "metrics": {
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Enable metrics collection"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of specific metrics to collect"
+            }
+          ]
+        },
+        "traces": {
+          "type": "string",
+          "enum": ["none", "basic", "detailed"],
+          "description": "Tracing level"
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "description": "Logging level"
+        },
+        "trace_delegations": {
+          "type": "boolean",
+          "description": "Enable tracing of delegation events"
+        },
+        "trace_a2a_calls": {
+          "type": "boolean",
+          "description": "Enable tracing of A2A calls"
+        }
+      },
+      "additionalProperties": true
+    },
+    "evaluation": {
+      "type": "object",
+      "description": "Evaluation and testing configuration",
+      "properties": {
+        "success_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of success criteria"
+        },
+        "performance_targets": {
+          "type": "object",
+          "properties": {
+            "p95_latency_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "P95 latency target in milliseconds"
+            },
+            "success_rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Target success rate (0-1)"
+            }
+          },
+          "additionalProperties": false
+        },
+        "retry_policy": {
+          "type": "object",
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum retry attempts"
+            },
+            "backoff_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Backoff time in milliseconds between retries"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "deprecated": {
+      "type": "boolean",
+      "description": "Whether this agent definition is deprecated",
+      "default": false
+    },
+    "deprecated_message": {
+      "type": "string",
+      "description": "Deprecation message with migration guidance"
+    },
+    "a2a": {
+      "type": "object",
+      "description": "Agent-to-Agent (A2A) protocol configuration",
+      "properties": {
+        "api_version": {
+          "type": "string",
+          "description": "A2A API version"
+        },
+        "discovery_enabled": {
+          "type": "boolean",
+          "description": "Whether agent discovery is enabled"
+        },
+        "supports_async": {
+          "type": "boolean",
+          "description": "Whether asynchronous A2A calls are supported"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of A2A capabilities"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
