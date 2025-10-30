@@ -3,8 +3,8 @@ name: salary-band-lookup
 description: >
   Provides recommended salary bands by combining internal compensation tables with candidate attributes.
 iface:
-  input_schema: catalog/contracts/candidate_profile.json
-  output_schema: catalog/contracts/salary_band.json
+  input_schema: catalog/contracts/candidate_profile.schema.json
+  output_schema: catalog/contracts/salary_band.schema.json
 mcp:
   server_ref: "pg-readonly"
 slo:
@@ -20,7 +20,7 @@ limits:
 Compute salary band recommendations that align with internal compensation policy, using candidate attributes, job level expectations, and available market benchmarks.
 
 ## When to Use
-- A candidate profile satisfying `catalog/contracts/candidate_profile.json` is available and the workflow requires salary guidance.
+- A candidate profile satisfying `catalog/contracts/candidate_profile.schema.json` is available and the workflow requires salary guidance.
 - Downstream skills or humans need normalized band information before generating offer packets or advisor summaries.
 - The orchestrator must validate that proposed compensation falls within governance thresholds defined by policy.
 
@@ -32,12 +32,12 @@ Compute salary band recommendations that align with internal compensation policy
 ## Procedures
 
 ### Retrieve and Calculate Salary Bands
-1. **Validate Candidate Payload** – Confirm the input conforms to `catalog/contracts/candidate_profile.json`. Pay special attention to `role_family`, `level`, and `location` fields.
+1. **Validate Candidate Payload** – Confirm the input conforms to `catalog/contracts/candidate_profile.schema.json`. Pay special attention to `role_family`, `level`, and `location` fields.
 2. **Query Compensation Tables** – Execute deterministic reads via `pg-readonly` to fetch base, target, and stretch ranges for the specified job family and level. Incorporate location adjustments when available.
 3. **Incorporate Market Benchmarks** – Blend internal tables with benchmark adjustments to produce a recommended range. Document the benchmark source in the response metadata.
 4. **Apply Governance Rules** – Enforce policy thresholds (e.g., maximum variance vs. current employee compensation) and raise warnings if the recommended band conflicts with governance constraints.
-5. **Emit Structured Output** – Populate fields defined in `catalog/contracts/salary_band.json`, including `recommended_band`, numeric ranges, currency codes, and rationale or caveats.
-6. **Validate Results** – Run schema validation against `catalog/contracts/salary_band.json` to ensure completeness before returning the payload.
+5. **Emit Structured Output** – Populate fields defined in `catalog/contracts/salary_band.schema.json`, including `recommended_band`, numeric ranges, currency codes, and rationale or caveats.
+6. **Validate Results** – Run schema validation against `catalog/contracts/salary_band.schema.json` to ensure completeness before returning the payload.
 
 ## Examples
 

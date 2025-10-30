@@ -271,7 +271,7 @@ Every agent execution is assigned a unique `run_id` that identifies the run and 
 - **Main Agent (MAG)**: `mag-{8-char-hex}`
   - Example: `mag-a1b2c3d4`
 - **Sub-Agent (SAG)**: `sag-{8-char-hex}`
-  - Example: `sag-e5f6g7h8`
+  - Example: `sag-e5f6a7b8`
 
 The hex suffix is generated from a UUID v4 (8 characters = first 8 hex digits of UUID).
 

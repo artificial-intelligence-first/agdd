@@ -23,7 +23,7 @@ Use the helper script to create or update the webhook:
 
 ```bash
 GITHUB_WEBHOOK_SECRET="your-secret" \
-./scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
+ops/scripts/setup-github-webhook.sh owner/repo https://api.example.com/api/v1/github/webhook
 ```
 
 The script verifies `gh` authentication and registers the webhook for the following events:
@@ -102,7 +102,7 @@ The integration posts rich feedback summarizing the run outcome.
 
 ## GitHub Actions Integration
 
-The repository includes [`examples/api/github_actions.yml`](./examples/api/github_actions.yml) with two primary jobs:
+The repository includes [`examples/api/github_actions.yml`](../../examples/api/github_actions.yml) with two primary jobs:
 
 1. **CLI execution:** Checks out the repo, installs dependencies with `uv`, and runs `agdd agent run` locally.
 2. **API execution:** Calls the HTTP API using secrets `AGDD_API_URL` and `AGDD_API_KEY`, then fetches run summaries and logs.

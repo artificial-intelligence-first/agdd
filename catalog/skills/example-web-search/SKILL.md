@@ -4,8 +4,8 @@ description: >
   Example MCP tool wrapper for web content fetching and search.
   Demonstrates how to integrate the fetch MCP server for web search capabilities.
 iface:
-  input_schema: contracts/web_search_query.json
-  output_schema: contracts/web_search_result.json
+  input_schema: contracts/web_search_query.schema.json
+  output_schema: contracts/web_search_result.schema.json
 mcp:
   server_ref: "fetch"
 slo:
@@ -29,7 +29,7 @@ Demonstrates integration with the fetch MCP server to retrieve and process web c
 ## Prerequisites
 - The `fetch` MCP server must be configured in `.mcp/servers/fetch.yaml`
 - Internet connectivity for accessing web resources
-- Input conforms to `contracts/web_search_query.json`
+- Input conforms to `contracts/web_search_query.schema.json`
 - Rate limits configured to respect web service constraints
 
 ## Procedures

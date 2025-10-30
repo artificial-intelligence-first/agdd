@@ -55,7 +55,7 @@ AGDD provides:
 - Used by: `compensation-advisor-sag`
 - Contains `candidate_profile` object validated against candidate schema
 
-### Flow Summary (`agdd/assets/contracts/flow_summary.schema.json`)
+### Flow Summary (`src/agdd/assets/contracts/flow_summary.schema.json`)
 - Input for governance gate evaluations
 - Key metrics: `runs`, `success_rate`, `avg_latency_ms`, `steps[]`, `mcp.calls`
 
@@ -132,7 +132,7 @@ AGDD provides:
 - `CONTRIBUTING.md` – Contribution workflow, tests, and review process
 - `SKILL.md` – Skill development handbook
 - `docs/guides/` – Deep dives (MCP integration, cost optimisation, semantic cache, moderation, runner integration)
-- `docs/reference/ssot.md` – Extended glossary used by downstream docs
+- `SSOT.md` – Single source of truth for all terminology and policies
 
 ## Update Log
 

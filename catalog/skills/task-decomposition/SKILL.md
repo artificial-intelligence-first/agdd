@@ -3,7 +3,7 @@ name: task-decomposition
 description: >
   Decomposes a high-level task into sub-tasks for delegation to sub-agents.
 iface:
-  input_schema: catalog/contracts/candidate_profile.json
+  input_schema: catalog/contracts/candidate_profile.schema.json
   output_schema: list of delegation objects (`{"sag_id": str, "input": dict}`)
 slo:
   success_rate_min: 0.95

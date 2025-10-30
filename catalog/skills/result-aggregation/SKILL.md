@@ -4,7 +4,7 @@ description: >
   Aggregates results from multiple sub-agent executions into a unified output.
 iface:
   input_schema: list of result payloads from SAG executions
-  output_schema: catalog/contracts/offer_packet.json
+  output_schema: catalog/contracts/offer_packet.schema.json
 slo:
   success_rate_min: 0.99
   latency_p95_ms: 200

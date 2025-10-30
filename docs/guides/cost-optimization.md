@@ -749,7 +749,7 @@ uv run agdd flow gate summary.json --dry-run
 - [Multi-Provider Guide](./multi-provider.md) - Multiple LLM provider support
 - [Agent Development Guide](./agent-development.md) - Building cost-aware agents
 - [Storage Layer](../storage.md) - Querying cost data
-- [Governance](../reference/ssot.md) - Policy enforcement
+- [Governance](../../SSOT.md) - Policy enforcement
 
 ## References
 

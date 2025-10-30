@@ -50,7 +50,7 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 ## Context and Orientation
 - Repository: `agdd` (feature lineage: `feat/bootstrap-agdd`).
 - Core directories: `src/agdd/`, `catalog/`, `ops/`, `docs/`.
-- Supporting documentation: `docs/guides/agent-development.md`, `README.md`, `docs/reference/ssot.md`, `docs/development/changelog.md`.
+- Supporting documentation: `docs/guides/agent-development.md`, `README.md`, `SSOT.md`, `docs/development/changelog.md`.
 
 ## Plan of Work
 1. **Stabilize Governance Spine** – Formalize adapter upgrade guidance and extend policy coverage.
