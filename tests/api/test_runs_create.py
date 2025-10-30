@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 
 @pytest.fixture
@@ -509,6 +511,66 @@ class TestIdempotencyMiddleware:
         assert response2.status_code == 200
         # Should be called again (not cached due to missing Content-Length)
         assert call_counter["count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_idempotency_concurrent_requests(self):
+        """Test that concurrent requests with same idempotency key execute only once."""
+        from httpx import ASGITransport
+        from agdd.api.server import app
+
+        # Track how many times the endpoint is called
+        call_counter = {"count": 0}
+
+        # Mock invoke_mag to simulate execution and track calls
+        with patch("agdd.api.routes.runs_create.invoke_mag") as mock:
+            def _mock_invoke(slug: str, payload: dict, base_dir, context: dict):
+                # Simulate run_id generation
+                call_counter["count"] += 1
+                # Add a small delay to simulate work
+                import time
+                time.sleep(0.1)
+                context["run_id"] = f"mag-concurrent-test-{slug}"
+                return {"status": "success", "result": "concurrent-test"}
+
+            mock.side_effect = _mock_invoke
+
+            # Create async client
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                # Send 5 concurrent requests with the same idempotency key
+                tasks = [
+                    client.post(
+                        "/api/v1/runs",
+                        json={
+                            "agent": "test-agent",
+                            "payload": {"input": "concurrent-test"},
+                        },
+                        headers={"Idempotency-Key": "concurrent-test-key"},
+                    )
+                    for _ in range(5)
+                ]
+
+                # Execute all requests concurrently
+                responses = await asyncio.gather(*tasks)
+
+            # All responses should be successful
+            for response in responses:
+                assert response.status_code == 200
+                data = response.json()
+                assert "run_id" in data
+                assert data["run_id"] == "mag-concurrent-test-test-agent"
+                assert data["status"] == "completed"
+
+            # Verify that the endpoint was only called ONCE despite 5 concurrent requests
+            # This proves the lock-based solution prevents the race condition
+            assert call_counter["count"] == 1, f"Expected 1 execution, got {call_counter['count']}"
+
+            # Verify that at least some responses have the X-Idempotency-Replay header
+            # (the ones that waited for the first request to complete)
+            replay_count = sum(
+                1 for r in responses
+                if r.headers.get("X-Idempotency-Replay") == "true"
+            )
+            assert replay_count >= 1, "At least one response should be a replay"
 
 
 class TestAuthenticationAndRateLimit:

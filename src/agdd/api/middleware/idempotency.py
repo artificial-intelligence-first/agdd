@@ -4,6 +4,7 @@ This middleware uses Idempotency-Key headers and request body hashes to detect
 and prevent duplicate requests. Duplicate requests return a 409 Conflict response.
 """
 
+import asyncio
 import hashlib
 import json
 import time
@@ -103,6 +104,10 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
         self._store = store or IdempotencyStore()
+        # Track locks per idempotency key to prevent concurrent execution
+        self._locks: Dict[str, asyncio.Lock] = {}
+        # Lock to synchronize access to _locks dictionary
+        self._locks_lock = asyncio.Lock()
 
     async def dispatch(self, request: Request, call_next):
         """Process the request and apply idempotency logic.
@@ -139,86 +144,96 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             # No idempotency key in header or body, process normally
             return await call_next(request)
 
-        # Check if we've seen this idempotency key before
-        stored = self._store.get(idempotency_key)
-        if stored:
-            stored_hash, stored_body, stored_status, stored_headers = stored
+        # Get or create a lock for this idempotency key to prevent concurrent execution
+        async with self._locks_lock:
+            if idempotency_key not in self._locks:
+                self._locks[idempotency_key] = asyncio.Lock()
+            key_lock = self._locks[idempotency_key]
 
-            if stored_hash != request_hash:
-                # Same key, different body - conflict
-                return JSONResponse(
-                    status_code=409,
-                    content={
-                        "code": "conflict",
-                        "message": "Idempotency key already used with different request body"
-                    }
+        # Acquire the key-specific lock to ensure only one request with this key executes
+        async with key_lock:
+            # Double-check if the response is now in the store
+            # (another request may have completed while we waited for the lock)
+            stored = self._store.get(idempotency_key)
+            if stored:
+                stored_hash, stored_body, stored_status, stored_headers = stored
+
+                if stored_hash != request_hash:
+                    # Same key, different body - conflict
+                    return JSONResponse(
+                        status_code=409,
+                        content={
+                            "code": "conflict",
+                            "message": "Idempotency key already used with different request body"
+                        }
+                    )
+
+                # Exact duplicate - return cached response with original status code and headers
+                # Add X-Idempotency-Replay header to indicate this is a cached response
+                # Note: We do NOT re-run background tasks for replayed responses,
+                # as they already executed with the original request
+                replay_headers = dict(stored_headers)
+                replay_headers["X-Idempotency-Replay"] = "true"
+
+                return Response(
+                    content=stored_body,
+                    status_code=stored_status,
+                    headers=replay_headers,
+                    media_type=stored_headers.get("content-type"),
+                    # background=None by default - tasks already ran with original request
                 )
 
-            # Exact duplicate - return cached response with original status code and headers
-            # Add X-Idempotency-Replay header to indicate this is a cached response
-            # Note: We do NOT re-run background tasks for replayed responses,
-            # as they already executed with the original request
-            replay_headers = dict(stored_headers)
-            replay_headers["X-Idempotency-Replay"] = "true"
+            # Process the request normally
+            # We need to reconstruct the request with the body we already read
+            async def receive():
+                return {
+                    "type": "http.request",
+                    "body": body,
+                    "more_body": False,  # We've already read the entire body
+                }
 
-            return Response(
-                content=stored_body,
-                status_code=stored_status,
-                headers=replay_headers,
-                media_type=stored_headers.get("content-type"),
-                # background=None by default - tasks already ran with original request
-            )
+            request._receive = receive
 
-        # Process the request normally
-        # We need to reconstruct the request with the body we already read
-        async def receive():
-            return {
-                "type": "http.request",
-                "body": body,
-                "more_body": False,  # We've already read the entire body
-            }
+            response = await call_next(request)
 
-        request._receive = receive
+            # Store successful responses (2xx status codes)
+            if 200 <= response.status_code < 300:
+                # Check if this is a streaming response
+                # Streaming responses typically lack Content-Length or have streaming media types
+                is_streaming = self._is_streaming_response(response)
 
-        response = await call_next(request)
+                if is_streaming:
+                    # Don't cache streaming responses - pass through directly
+                    # Streaming responses (SSE, websockets, large file downloads) are typically
+                    # not idempotent and should not be buffered in memory
+                    return response
 
-        # Store successful responses (2xx status codes)
-        if 200 <= response.status_code < 300:
-            # Check if this is a streaming response
-            # Streaming responses typically lack Content-Length or have streaming media types
-            is_streaming = self._is_streaming_response(response)
+                # Read response body to cache it (only for non-streaming responses)
+                response_body = b""
+                async for chunk in response.body_iterator:
+                    response_body += chunk
 
-            if is_streaming:
-                # Don't cache streaming responses - pass through directly
-                # Streaming responses (SSE, websockets, large file downloads) are typically
-                # not idempotent and should not be buffered in memory
-                return response
+                # Store in idempotency cache with status code and headers
+                # Store bytes directly without decoding to support binary responses
+                self._store.set(
+                    idempotency_key,
+                    request_hash,
+                    response_body,
+                    response.status_code,
+                    dict(response.headers),
+                )
 
-            # Read response body to cache it (only for non-streaming responses)
-            response_body = b""
-            async for chunk in response.body_iterator:
-                response_body += chunk
+                # Return response with reconstructed body and preserved background tasks
+                return Response(
+                    content=response_body,
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    media_type=response.media_type,
+                    background=response.background,  # Preserve background tasks
+                )
 
-            # Store in idempotency cache with status code and headers
-            # Store bytes directly without decoding to support binary responses
-            self._store.set(
-                idempotency_key,
-                request_hash,
-                response_body,
-                response.status_code,
-                dict(response.headers),
-            )
-
-            # Return response with reconstructed body and preserved background tasks
-            return Response(
-                content=response_body,
-                status_code=response.status_code,
-                headers=dict(response.headers),
-                media_type=response.media_type,
-                background=response.background,  # Preserve background tasks
-            )
-
-        return response
+            # Non-2xx responses are not cached, return as-is
+            return response
 
     def _is_streaming_response(self, response: Response) -> bool:
         """
