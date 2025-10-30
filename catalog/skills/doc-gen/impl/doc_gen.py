@@ -19,8 +19,8 @@ import yaml
 from agdd.mcp import MCPRuntime
 
 ROOT = Path(__file__).resolve().parents[4]  # Point to repo root
-INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.json"
-OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "offer_packet.json"
+INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.schema.json"
+OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "offer_packet.schema.json"
 
 
 def _load_schema(path: Path) -> dict[str, Any]:

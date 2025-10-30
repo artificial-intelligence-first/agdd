@@ -94,7 +94,8 @@ async def get_logs(
         follow: If True, stream logs in real-time using Server-Sent Events
 
     Returns:
-        Streaming response with logs (text/event-stream if follow=True, application/x-ndjson otherwise)
+        Streaming response with logs (text/event-stream if follow=True,
+        application/x-ndjson otherwise)
 
     Raises:
         HTTPException: 400 if run_id is invalid, 404 if logs not found

@@ -403,5 +403,5 @@ Moderation results are logged in observability artifacts:
 
 - [OpenAI Moderation API](https://platform.openai.com/docs/guides/moderation)
 - [Content Policy](https://openai.com/policies/usage-policies)
-- [AGDD Routing Guide](./routing.md)
-- [AGDD Observability](../reference/observability.md)
+- [AGDD Routing Guide](./multi-provider.md)
+- [AGDD Observability](../storage.md)

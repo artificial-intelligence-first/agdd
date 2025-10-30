@@ -37,3 +37,11 @@ ops/scripts/flowrunner-env.sh
 
 # External tools
 flow-runner/
+
+# Flow Runner artifacts
+.runs/
+.flow_runs/
+
+# Benchmark outputs
+benchmarks/*.json
+benchmarks/*.log

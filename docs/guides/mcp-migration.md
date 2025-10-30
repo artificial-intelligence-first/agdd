@@ -310,7 +310,7 @@ skills:
       - mcp:pg-readonly  # PostgreSQL read access
     contracts:
       input: catalog/contracts/salary_lookup_input.json
-      output: catalog/contracts/salary_band.json
+      output: catalog/contracts/salary_band.schema.json
 
   # Strict MCP requirement skill
   - id: skill.compliance-check
@@ -1123,7 +1123,7 @@ skills:
       - mcp:pg-readonly
     contracts:
       input: catalog/contracts/salary_lookup_input.json
-      output: catalog/contracts/salary_band.json
+      output: catalog/contracts/salary_band.schema.json
 ```
 
 **MCP Server Configuration:**
@@ -1384,7 +1384,7 @@ skills:
       - mcp:filesystem
     contracts:
       input: catalog/contracts/profile_builder_input.json
-      output: catalog/contracts/candidate_profile.json
+      output: catalog/contracts/candidate_profile.schema.json
 ```
 
 ## Timeline and Status
@@ -1483,7 +1483,7 @@ Use this checklist when migrating a skill to MCP:
 **Reference:**
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [AGDD SSOT](../reference/ssot.md) - Terminology and policies
+- [AGDD SSOT](../../SSOT.md) - Terminology and policies
 
 ---
 

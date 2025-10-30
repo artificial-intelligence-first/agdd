@@ -596,7 +596,7 @@ uv run agdd flow gate flow_summary.json \
 
 ### Reference
 - [docs/storage.md](./docs/storage.md) - Storage layer and data management
-- [docs/reference/ssot.md](./docs/reference/ssot.md) - Terminology and policies reference
+- [SSOT.md](./SSOT.md) - Terminology and policies reference
 - [docs/development/roadmap.md](./docs/development/roadmap.md) - Roadmap and execution plans
 - [docs/development/changelog.md](./docs/development/changelog.md) - Version history
 
@@ -604,7 +604,7 @@ uv run agdd flow gate flow_summary.json \
 
 ### Workflow
 
-1. Review `docs/reference/ssot.md` for terminology and policies
+1. Review `SSOT.md` for terminology and policies
 2. Update `docs/development/roadmap.md` before making changes
 3. Implement changes following `docs/guides/agent-development.md` guidelines
 4. Run validation checks
@@ -655,7 +655,7 @@ Contributions are welcome. Please refer to [agent-development.md](./docs/guides/
 - Pass all automated tests and validation checks
 - Follow documentation standards
 - Update relevant documentation files
-- Record terminology changes in `docs/reference/ssot.md`
+- Record terminology changes in `SSOT.md`
 - Add tests for new features
 - Update `docs/development/changelog.md`
 

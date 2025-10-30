@@ -139,3 +139,8 @@ clean:
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete
 	@echo "Clean complete."
+
+# Benchmarks (optional)
+bench-cache:
+	@echo "Running cache benchmark..."
+	@uv run python benchmarks/cache_benchmark.py

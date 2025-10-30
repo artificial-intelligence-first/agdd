@@ -51,13 +51,10 @@ sources:
   uv run ruff format .
   uv run ruff check .
   ```
-- Validate catalog schemas when modifying contracts or registry entries:
-  ```bash
-  uv run python ops/tools/validate_catalog.py
-  ```
+- Validate catalog schemas via pytest (covered in test suite)
 - Flow Runner governance checks:
   ```bash
-  uv run agdd flow validate catalog/flows/<flow>.yaml
+  uv run agdd flow validate examples/flowrunner/prompt_flow.yaml
   uv run agdd flow gate path/to/summary.json
   ```
 - Record test results in your message; never claim success without running the commands above unless the user explicitly waives them.
@@ -110,7 +107,7 @@ sources:
 
 ## Reference Surfaces
 
-- **Canonical terminology**: `SSOT.md` and `docs/reference/ssot.md`.
+- **Canonical terminology**: `SSOT.md`.
 - **Agent orchestration**: `src/agdd/runners/agent_runner.py`.
 - **Skill runtime**: `catalog/registry/skills.yaml`, `catalog/skills/*/` directories.
 - **Governance configuration**: `catalog/policies/`, `catalog/routing/`.

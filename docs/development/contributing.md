@@ -102,10 +102,10 @@ uv run ruff check .
 uv run ruff format .
 
 # Type checking (mypy strict mode)
-uv run mypy agdd tests tools
+uv run mypy src tests
 
 # Documentation validation
-uv run python tools/check_docs.py
+uv run python ops/tools/check_docs.py
 
 # Or use the Makefile
 make lint
@@ -178,7 +178,7 @@ git push origin feature/your-feature-name
 All code must pass `mypy --strict` checks:
 
 ```bash
-uv run mypy agdd tests tools
+uv run mypy src tests
 ```
 
 - Avoid `Any` types where possible

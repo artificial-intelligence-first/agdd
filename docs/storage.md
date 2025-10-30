@@ -153,13 +153,13 @@ If you have existing data in `.runs/agents/`, migrate it:
 
 ```bash
 # Preview migration
-python scripts/migrate_to_storage.py --source .runs/agents --dry-run
+python ops/scripts/migrate_to_storage.py --source .runs/agents --dry-run
 
 # Perform migration
-python scripts/migrate_to_storage.py --source .runs/agents
+python ops/scripts/migrate_to_storage.py --source .runs/agents
 
 # Custom database path
-python scripts/migrate_to_storage.py \
+python ops/scripts/migrate_to_storage.py \
   --source .runs/agents \
   --backend sqlite \
   --db-path /var/agdd/storage.db

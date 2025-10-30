@@ -70,7 +70,7 @@ sources:
 | `uv run ruff format .` | Auto-format. |
 | `uv run ruff check .` | Lint enforcement. |
 | `uv run bandit -r src` | Security scanning for Python code. |
-| `uv run python ops/tools/validate_catalog.py` | Validate catalog YAML + JSON Schemas. |
+| Catalog validation | Covered by pytest (catalog tests validate schemas). |
 | `uv run agdd flow validate <flow>` | Ensure Flow Runner configs remain valid. |
 | `uv run agdd flow gate <summary.json>` | Apply governance thresholds to flow summaries. |
 

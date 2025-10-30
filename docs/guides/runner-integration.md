@@ -14,7 +14,7 @@ This document captures the expectations for runner adapters that integrate with 
 - **Flow Runner (`FlowRunner`)**
   - Capabilities: `dry-run`, `artifacts`
   - CLI support: `agdd cli flow available|validate|run|summarize|gate`
-  - Artifacts: `.runs/<RUN_ID>/runs.jsonl`, `summary.json`, `mcp_calls.jsonl`
+  - Artifacts: `.runs/<RUN_ID>/logs.jsonl`, `summary.json`, `mcp_calls.jsonl`
   - Governance: `policies/flow_governance.yaml`, validated via `agdd flow gate` or `make flow-run`
 
 ## Required Interface
@@ -55,7 +55,7 @@ When adding a new runner adapter:
 
 ## Governance & Observability
 
-- Flow summaries must conform to `contracts/flow_summary.schema.json`.
+- Flow summaries must conform to `src/agdd/assets/contracts/flow_summary.schema.json`.
 - Vendor assets (e.g., Flow Runner schema) are locked via `tools/verify_vendor.py`.
 - CI must execute the runner integration tests and publish run summaries for policy evaluation.
 

@@ -6,8 +6,8 @@ description: Example MCP tool wrapper for web content fetching demonstrating fet
 entrypoint: catalog/skills/example-web-search/impl/mcp_tool.py:run
 
 contracts:
-  input_schema: catalog/contracts/web_search_query.json
-  output_schema: catalog/contracts/web_search_result.json
+  input_schema: catalog/contracts/web_search_query.schema.json
+  output_schema: catalog/contracts/web_search_result.schema.json
 
 # MCP permissions - grants access to the fetch server
 permissions:

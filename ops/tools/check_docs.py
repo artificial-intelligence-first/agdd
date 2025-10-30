@@ -108,7 +108,7 @@ if __name__ == "__main__":
         ensure_files_exist(
             [
                 "docs/guides/agent-development.md",
-                "docs/reference/ssot.md",
+                "SSOT.md",
                 "docs/development/roadmap.md",
                 "README.md",
                 "docs/development/changelog.md",
@@ -120,7 +120,6 @@ if __name__ == "__main__":
 
     # Validate front-matter in all documentation files
     docs_with_frontmatter = [
-        "docs/reference/ssot.md",
         "docs/guides/agent-development.md",
         "docs/guides/api-usage.md",
         "docs/guides/a2a-communication.md",

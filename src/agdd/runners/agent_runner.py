@@ -209,11 +209,9 @@ class SkillRuntime:
     ) -> Dict[str, Any]:
         """Execute a skill asynchronously with MCP support.
 
-        Supports four types of skills:
-        1. Async skills with MCP parameter (Phase 2+)
-        2. Async skills without MCP (Phase 2)
-        3. Sync skills with MCP request (warns and provides None)
-        4. Sync skills without MCP (Phase 1 legacy)
+        Supports two types of skills:
+        1. Async skills with MCP parameter
+        2. Async skills without MCP
 
         Args:
             skill_id: Skill identifier
@@ -243,25 +241,16 @@ class SkillRuntime:
             mcp_runtime = self._create_mcp_runtime(skill_id)
 
         try:
-            if is_async:
-                # Async skill (Phase 2+)
-                if has_mcp_param:
-                    logger.debug(f"Invoking async skill '{skill_id}' with MCP")
-                    result = await callable_fn(payload, mcp=mcp_runtime)
-                else:
-                    logger.debug(f"Invoking async skill '{skill_id}' without MCP")
-                    result = await callable_fn(payload)
+            if not is_async:
+                raise ValueError(f"Skill '{skill_id}' must be async. Synchronous skills are not supported.")
+
+            # Async skill
+            if has_mcp_param:
+                logger.debug(f"Invoking async skill '{skill_id}' with MCP")
+                result = await callable_fn(payload, mcp=mcp_runtime)
             else:
-                # Sync skill (Phase 1)
-                if has_mcp_param:
-                    logger.warning(
-                        f"Skill '{skill_id}' requests MCP but is synchronous. "
-                        "MCP requires async skills. Passing None."
-                    )
-                    result = callable_fn(payload, mcp=None)
-                else:
-                    logger.debug(f"Invoking sync skill '{skill_id}' (legacy)")
-                    result = callable_fn(payload)
+                logger.debug(f"Invoking async skill '{skill_id}' without MCP")
+                result = await callable_fn(payload)
 
             return result
 
@@ -623,23 +612,11 @@ class AgentRunner:
         run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
 
         # Check if agent is async (handles async def, async __call__, and partials)
-        if _is_async_callable(run_fn):
-            logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-            return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
+        if not _is_async_callable(run_fn):
+            raise ValueError(f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported.")
 
-        # Sync agent (legacy)
-        # Note: MCP cleanup is handled automatically in SkillRuntime.invoke()
-        logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        t0 = time.time()
-        output: Dict[str, Any] = run_fn(
-            payload,
-            registry=self.registry,
-            skills=self.skills,
-            runner=self,  # Allow MAG to delegate to SAG
-            obs=exec_ctx.observer,
-        )
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
+        return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
 
     def _finalize_mag_success(
         self,
@@ -938,17 +915,11 @@ class AgentRunner:
         run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
 
         # Check if agent is async (handles async def, async __call__, and partials)
-        if _is_async_callable(run_fn):
-            logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-            return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
+        if not _is_async_callable(run_fn):
+            raise ValueError(f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported.")
 
-        # Sync agent (legacy)
-        # Note: MCP cleanup is handled automatically in SkillRuntime.invoke()
-        logger.debug(f"Agent '{exec_ctx.agent.slug}' is sync (legacy)")
-        t0 = time.time()
-        output: Dict[str, Any] = run_fn(delegation.input, skills=self.skills, obs=exec_ctx.observer)
-        duration_ms = int((time.time() - t0) * MS_PER_SECOND)
-        return output, duration_ms
+        logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
+        return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
 
     def _build_success_metrics(
         self,

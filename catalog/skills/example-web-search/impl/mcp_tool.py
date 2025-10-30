@@ -64,8 +64,8 @@ def _find_repo_root(start_path: Path) -> Path:
 
 
 ROOT = _find_repo_root(Path(__file__))
-INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_query.json"
-OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_result.json"
+INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_query.schema.json"
+OUTPUT_CONTRACT = ROOT / "catalog" / "contracts" / "web_search_result.schema.json"
 
 
 def _load_schema(path: Path) -> Dict[str, Any]:

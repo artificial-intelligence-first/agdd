@@ -87,7 +87,7 @@ Add or update entries in `catalog/registry/skills.yaml` with:
 | Integration (MCP) | `uv run -m pytest tests/mcp/test_skill_mcp_integration.py` |
 | Async validation | Use `pytest.mark.asyncio` and cover success/failure branches |
 | Type checking | `uv run mypy catalog/skills/<skill>/code` |
-| Catalog validation | `uv run python ops/tools/validate_catalog.py skills` |
+| Catalog validation | Covered by pytest (catalog tests validate schemas). |
 
 Testing checklist:
 - Cover both MCP-present and MCP-absent paths.

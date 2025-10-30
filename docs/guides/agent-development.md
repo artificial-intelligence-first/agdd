@@ -99,7 +99,7 @@ uv run -m pytest tests/integration/ -v
 
 - **Documentation checks:**
   ```bash
-  uv run python tools/check_docs.py
+  uv run python ops/tools/check_docs.py
   ```
 
 ### Manual Validation
@@ -227,7 +227,7 @@ All tests must pass before a pull request is opened.
 ## Linting & Code Quality
 - Run `uv run ruff check .` to enforce formatting and linting rules (configured
   in `pyproject.toml`). Use `uv run ruff check . --fix` for safe autofixes.
-- Enforce typing guarantees with `uv run mypy agdd tests tools`.
+- Enforce typing guarantees with `uv run mypy src tests`.
 - Maintain observability instrumentation under `src/agdd/observability/` so generated
   summaries expose `runs`, `success_rate`, latency metrics, and MCP statistics.
 - Cost tracking artifacts are persisted under `.runs/costs/` for downstream governance.

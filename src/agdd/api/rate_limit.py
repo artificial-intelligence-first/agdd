@@ -202,7 +202,8 @@ def get_rate_limiter(
             global _warned_inmemory
             if not _warned_inmemory:
                 logger.warning(
-                    "Using in-memory rate limiting. Configure REDIS_URL for multi-process deployments."
+                    "Using in-memory rate limiting. "
+                    "Configure REDIS_URL for multi-process deployments."
                 )
                 _warned_inmemory = True
             _rate_limiter = InMemoryRateLimiter(settings.RATE_LIMIT_QPS)

@@ -2,20 +2,10 @@
 
 This module provides the foundational building blocks for creating skills
 in the AGDD framework, including:
-- Legacy synchronous Skill protocol (Phase 1)
-- Modern asynchronous MCPSkill protocol with MCP support (Phase 2+)
+- Asynchronous MCPSkill protocol with MCP support
 - SkillBase helper class with validation and MCP utilities
 
-Example usage for Phase 1 (legacy sync):
-    ```python
-    from agdd.skills.base import Skill
-
-    class EchoSkill:
-        def __call__(self, text: str) -> str:
-            return text
-    ```
-
-Example usage for Phase 2+ (async with MCP):
+Example usage (async with MCP):
     ```python
     from agdd.skills.base import MCPSkill, SkillBase
     from agdd.mcp import MCPRuntime
@@ -62,33 +52,6 @@ class SkillMCPError(Exception):
     """Exception raised when MCP runtime is not available or misconfigured."""
 
     pass
-
-
-@runtime_checkable
-class Skill(Protocol):
-    """Protocol for Phase 1 legacy synchronous skills.
-
-    This is the original skill interface for simple text-in/text-out
-    transformations. For new skills with MCP integration, use MCPSkill instead.
-
-    Example:
-        ```python
-        class EchoSkill:
-            def __call__(self, text: str) -> str:
-                return text
-        ```
-    """
-
-    def __call__(self, text: str) -> str:  # pragma: no cover - interface contract
-        """Execute the skill with text input.
-
-        Args:
-            text: Input text to process
-
-        Returns:
-            Processed output text
-        """
-        ...
 
 
 @runtime_checkable
