@@ -61,61 +61,91 @@ def verify_github_signature(secret: str, signature_header: str | None, raw_body:
     return hmac.compare_digest(expected_sig, computed_sig)
 
 
-def require_scope(*required_scopes: str):
-    """
-    Create a dependency that verifies the API key has required scopes.
+# RBAC Scope-based authorization (added for WS-09)
 
-    This is a basic RBAC scope checking mechanism. Currently, it verifies
-    authentication (via require_api_key) and can be extended to check
-    specific scopes against user/key metadata.
+
+def get_scopes_for_key(api_key: str) -> list[str]:
+    """
+    Get the list of scopes/permissions for a given API key.
+
+    This is a mock implementation that returns all available scopes.
+    In a production system, this would query a database or configuration
+    to determine the actual scopes assigned to each API key.
 
     Args:
-        *required_scopes: One or more scope strings that are required
+        api_key: The API key to look up scopes for
 
     Returns:
-        Async dependency function that can be used with Depends()
+        List of scope strings (e.g., ["agents:run", "runs:read"])
+    """
+    # Mock implementation: return all scopes for now
+    # TODO: Replace with actual scope lookup from database/config
+    return ["agents:run", "agents:read", "runs:read", "runs:logs"]
+
+
+def require_scope(required_scopes: list[str]):
+    """
+    Create a FastAPI dependency that enforces RBAC scope requirements.
+
+    This function returns a dependency that verifies the API key has
+    all required scopes before allowing access to an endpoint.
+
+    Args:
+        required_scopes: List of scope strings that must all be present
+
+    Returns:
+        FastAPI dependency function that checks scopes
+
+    Raises:
+        HTTPException: 403 Forbidden if any required scope is missing
 
     Example:
-        @router.post("/admin/users", dependencies=[Depends(require_scope("admin:write"))])
-        async def create_user(...):
+        @router.post("/agents/{slug}/run",
+                     dependencies=[Depends(require_scope(["agents:run"]))])
+        async def run_agent(...):
             ...
     """
-    async def _check_scopes(
-        _: None = Depends(require_api_key),
+
+    async def check_scope(
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+        x_api_key: str | None = Header(default=None),
         settings: Settings = Depends(get_settings),
-    ) -> None:
-        """
-        Verify that the authenticated request has the required scopes.
+    ) -> str:
+        """Verify API key and check required scopes."""
+        # First verify the API key exists and is valid
+        if settings.API_KEY is None:
+            # Authentication disabled in development mode
+            # Return a mock key for scope checking
+            api_key = "dev-mode-key"
+        else:
+            token = None
+            if credentials is not None:
+                token = credentials.credentials
+            elif x_api_key is not None:
+                token = x_api_key
 
-        For now, this is a placeholder that ensures authentication.
-        Future implementations can check scopes against API key metadata,
-        user permissions stored in a database, or JWT claims.
+            if token != settings.API_KEY:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={"code": "unauthorized", "message": "Invalid API key"},
+                )
+            api_key = token
 
-        Args:
-            _: Authentication check via require_api_key
-            settings: API settings
+        # Check scopes
+        user_scopes = get_scopes_for_key(api_key)
+        missing_scopes = [scope for scope in required_scopes if scope not in user_scopes]
 
-        Raises:
-            HTTPException: 403 if required scopes are not present
-        """
-        # TODO: Implement actual scope checking when scope metadata is available
-        # For now, if we've passed require_api_key, we allow all scopes
-        # This can be extended to check against:
-        # - API key metadata in a database
-        # - JWT claims
-        # - User permissions table
-        #
-        # Example future implementation:
-        # user_scopes = get_user_scopes_from_token(token)
-        # missing_scopes = set(required_scopes) - set(user_scopes)
-        # if missing_scopes:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_403_FORBIDDEN,
-        #         detail={
-        #             "code": "forbidden",
-        #             "message": f"Missing required scopes: {', '.join(missing_scopes)}"
-        #         }
-        #     )
-        pass
+        if missing_scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "insufficient_permissions",
+                    "message": f"Missing required scopes: {', '.join(missing_scopes)}",
+                    "required_scopes": required_scopes,
+                    "missing_scopes": missing_scopes,
+                },
+            )
 
-    return _check_scopes
+        return api_key
+
+    return check_scope

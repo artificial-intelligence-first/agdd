@@ -18,7 +18,7 @@ from ..config import Settings, get_settings
 from ..models import AgentInfo, AgentRunRequest, AgentRunResponse
 from ..rate_limit import rate_limit_dependency
 from ..run_tracker import find_new_run_id, snapshot_runs
-from ..security import require_api_key
+from ..security import require_api_key, require_scope
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ router = APIRouter(tags=["agents"])
     "/agents", response_model=list[AgentInfo], dependencies=[Depends(rate_limit_dependency)]
 )
 async def list_agents(
-    _: None = Depends(require_api_key),
+    _: str = Depends(require_scope(["agents:read"])),
     settings: Settings = Depends(get_settings),
 ) -> list[AgentInfo]:
     """
@@ -91,7 +91,7 @@ async def list_agents(
 async def run_agent(
     slug: str,
     req: AgentRunRequest,
-    _: None = Depends(require_api_key),
+    _: str = Depends(require_scope(["agents:run"])),
     settings: Settings = Depends(get_settings),
 ) -> AgentRunResponse:
     """

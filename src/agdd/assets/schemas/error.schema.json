@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/artificial-intelligence-first/agdd/schemas/error/v1",
+  "title": "AGDD Error Taxonomy v1",
+  "description": "Standardized error codes and error response structure for AGDD. All errors should use these codes for consistent handling, logging, and user feedback.",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Standardized error code following AGDD-{DOMAIN}-{NUMBER} pattern",
+      "enum": [
+        "AGDD-INPUT-001",
+        "AGDD-INPUT-002",
+        "AGDD-INPUT-003",
+        "AGDD-POLICY-001",
+        "AGDD-POLICY-002",
+        "AGDD-POLICY-003",
+        "AGDD-MODERATION-001",
+        "AGDD-MODERATION-002",
+        "AGDD-MODERATION-003",
+        "AGDD-PROVIDER-RETRIABLE-001",
+        "AGDD-PROVIDER-RETRIABLE-002",
+        "AGDD-PROVIDER-RETRIABLE-003",
+        "AGDD-PROVIDER-FATAL-001",
+        "AGDD-PROVIDER-FATAL-002",
+        "AGDD-PROVIDER-FATAL-003",
+        "AGDD-PROVIDER-RATE-LIMIT",
+        "AGDD-PROVIDER-AUTH-FAILED",
+        "AGDD-PROVIDER-INVALID-REQUEST",
+        "AGDD-PROVIDER-TIMEOUT",
+        "AGDD-PROVIDER-NETWORK",
+        "AGDD-STORE-001",
+        "AGDD-STORE-002",
+        "AGDD-STORE-003",
+        "AGDD-CACHE-001",
+        "AGDD-CACHE-002",
+        "AGDD-AGENT-NOT-FOUND",
+        "AGDD-AGENT-INVALID",
+        "AGDD-SKILL-NOT-FOUND",
+        "AGDD-SKILL-VALIDATION-FAILED",
+        "AGDD-SKILL-EXECUTION-FAILED",
+        "AGDD-MCP-SERVER-ERROR",
+        "AGDD-MCP-REGISTRY-ERROR",
+        "AGDD-MCP-RUNTIME-ERROR",
+        "AGDD-RUN-NOT-FOUND",
+        "AGDD-RUN-INVALID-STATE",
+        "AGDD-FLOW-STEP-FAILED",
+        "AGDD-FLOW-TIMEOUT",
+        "AGDD-AUTH-UNAUTHORIZED",
+        "AGDD-AUTH-FORBIDDEN",
+        "AGDD-AUTH-SIGNATURE-INVALID",
+        "AGDD-RATE-LIMIT-EXCEEDED",
+        "AGDD-INTERNAL-ERROR",
+        "AGDD-UNKNOWN-ERROR"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable error message",
+      "minLength": 1
+    },
+    "details": {
+      "type": "object",
+      "description": "Additional error context and metadata",
+      "additionalProperties": true
+    },
+    "retriable": {
+      "type": "boolean",
+      "description": "Whether the operation can be retried",
+      "default": false
+    },
+    "retry_after": {
+      "type": "number",
+      "description": "Suggested retry delay in seconds",
+      "minimum": 0
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Associated run identifier"
+    },
+    "span_id": {
+      "type": "string",
+      "description": "Associated span identifier"
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Unix timestamp when error occurred",
+      "minimum": 0
+    }
+  },
+  "definitions": {
+    "errorDomains": {
+      "description": "Error domain classification",
+      "type": "object",
+      "properties": {
+        "INPUT": {
+          "description": "User input validation errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "AGDD-INPUT-001"},
+              "description": {"const": "Invalid payload structure"}
+            }
+          }
+        },
+        "POLICY": {
+          "description": "Policy evaluation and enforcement errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "AGDD-POLICY-001"},
+              "description": {"const": "Policy violation"}
+            }
+          }
+        },
+        "MODERATION": {
+          "description": "Content moderation errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "AGDD-MODERATION-001"},
+              "description": {"const": "Content blocked by moderation"}
+            }
+          }
+        },
+        "PROVIDER": {
+          "description": "Provider/LLM integration errors",
+          "type": "object",
+          "properties": {
+            "RETRIABLE": {
+              "description": "Transient provider errors that can be retried",
+              "type": "array"
+            },
+            "FATAL": {
+              "description": "Non-retriable provider errors",
+              "type": "array"
+            }
+          }
+        },
+        "STORE": {
+          "description": "Storage and persistence errors",
+          "type": "array"
+        },
+        "CACHE": {
+          "description": "Cache operation errors",
+          "type": "array"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "code": "AGDD-INPUT-001",
+      "message": "Invalid payload structure",
+      "details": {
+        "field": "messages",
+        "reason": "Field is required but missing"
+      },
+      "retriable": false,
+      "timestamp": 1698765432.123
+    },
+    {
+      "code": "AGDD-PROVIDER-RATE-LIMIT",
+      "message": "Rate limit exceeded for provider",
+      "details": {
+        "provider": "openai",
+        "model": "gpt-4",
+        "limit": "10000 tokens per minute"
+      },
+      "retriable": true,
+      "retry_after": 60,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_def456",
+      "timestamp": 1698765442.456
+    },
+    {
+      "code": "AGDD-MODERATION-001",
+      "message": "Content blocked by moderation",
+      "details": {
+        "checkpoint": "ingress",
+        "policy_id": "pol_default_v1",
+        "reason": "Potentially harmful content detected"
+      },
+      "retriable": false,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_ghi789",
+      "timestamp": 1698765445.789
+    },
+    {
+      "code": "AGDD-AGENT-NOT-FOUND",
+      "message": "Agent not found",
+      "details": {
+        "agent": "non-existent-agent",
+        "catalog_path": "catalog/agents"
+      },
+      "retriable": false,
+      "timestamp": 1698765450.012
+    }
+  ]
+}

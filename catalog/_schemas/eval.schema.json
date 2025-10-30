@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agdd.ai/schemas/eval.schema.json",
+  "title": "AGDD Evaluation Schema",
+  "description": "Schema for AGDD evaluator definitions",
+  "type": "object",
+  "required": ["version", "slug", "name", "hook_type", "target_agents", "metrics"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the evaluator definition"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+      "description": "Unique identifier for the evaluator (kebab-case)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name for the evaluator (PascalCase)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the evaluator's purpose"
+    },
+    "hook_type": {
+      "type": "string",
+      "enum": ["pre_eval", "post_eval"],
+      "description": "When the evaluator runs: pre_eval (before SAG) or post_eval (after SAG)"
+    },
+    "target_agents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of agent slugs this evaluator applies to"
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "weight", "threshold"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
+            "description": "Unique metric identifier (snake_case)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable metric name (PascalCase)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of what the metric measures"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Weight of this metric in overall evaluation"
+          },
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Threshold score for this metric (0-1)"
+          },
+          "fail_on_threshold": {
+            "type": "boolean",
+            "description": "Whether to fail evaluation if threshold is not met"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "List of evaluation metrics"
+    },
+    "execution": {
+      "type": "object",
+      "description": "Execution settings for the evaluator",
+      "properties": {
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Execution timeout in milliseconds"
+        },
+        "fail_open": {
+          "type": "boolean",
+          "description": "If true, evaluation failures don't block execution"
+        },
+        "collect_metrics": {
+          "type": "boolean",
+          "description": "Whether to collect and store metrics"
+        },
+        "log_results": {
+          "type": "boolean",
+          "description": "Whether to log evaluation results"
+        }
+      },
+      "additionalProperties": false
+    },
+    "observability": {
+      "type": "object",
+      "description": "Observability settings",
+      "properties": {
+        "logs": {
+          "type": "boolean",
+          "description": "Enable logging"
+        },
+        "metrics": {
+          "type": "boolean",
+          "description": "Enable metrics collection"
+        },
+        "traces": {
+          "type": "string",
+          "enum": ["none", "basic", "detailed"],
+          "description": "Tracing level"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deprecated": {
+      "type": "boolean",
+      "description": "Whether this evaluator definition is deprecated",
+      "default": false
+    },
+    "deprecated_message": {
+      "type": "string",
+      "description": "Deprecation message with migration guidance"
+    }
+  },
+  "additionalProperties": false
+}

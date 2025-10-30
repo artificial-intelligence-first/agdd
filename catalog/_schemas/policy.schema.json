@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agdd.ai/schemas/policy.schema.json",
+  "title": "AGDD Policy Schema",
+  "description": "Schema for AGDD flow governance policies",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "description": "Policy version"
+    },
+    "min_success_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Minimum required success rate (0-1)"
+    },
+    "max_avg_latency_ms": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Maximum average latency in milliseconds"
+    },
+    "per_step": {
+      "type": "object",
+      "description": "Per-step policy configuration",
+      "properties": {
+        "default": {
+          "type": "object",
+          "properties": {
+            "max_error_rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Maximum error rate for default steps"
+            },
+            "max_avg_latency_ms": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Maximum average latency for default steps"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "max_error_rate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "max_avg_latency_ms": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "mcp": {
+      "type": "object",
+      "description": "MCP-specific policies",
+      "properties": {
+        "max_error_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum error rate for MCP operations"
+        }
+      },
+      "additionalProperties": false
+    },
+    "models": {
+      "type": "object",
+      "description": "Model usage policies",
+      "properties": {
+        "denylist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of denied model patterns"
+        },
+        "allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of allowed model patterns"
+        }
+      },
+      "additionalProperties": false
+    },
+    "deprecated": {
+      "type": "boolean",
+      "description": "Whether this policy is deprecated",
+      "default": false
+    },
+    "deprecated_message": {
+      "type": "string",
+      "description": "Deprecation message with migration guidance"
+    }
+  },
+  "additionalProperties": false
+}

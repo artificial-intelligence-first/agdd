@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import pathlib
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import typer
 
@@ -354,6 +354,18 @@ app.add_typer(flow_app, name="flow")
 app.add_typer(agent_app, name="agent")
 app.add_typer(data_app, name="data")
 app.add_typer(mcp_app, name="mcp")
+
+# Catalog management commands
+if TYPE_CHECKING:
+    from agdd.cli_catalog import app as catalog_app
+else:
+    try:
+        from agdd.cli_catalog import app as catalog_app
+
+        app.add_typer(catalog_app, name="catalog")
+    except ImportError:
+        # Catalog CLI not available (missing dependencies like jsonschema)
+        pass
 
 
 if __name__ == "__main__":
