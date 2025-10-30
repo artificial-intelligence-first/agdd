@@ -741,8 +741,14 @@ class AgentRunner:
                 },
             )
 
+            # Check ingress moderation (user input validation)
+            _check_moderation_ingress(payload, observer=obs)
+
             # Execute MAG
             output, duration_ms = self._execute_mag(exec_ctx, payload)
+
+            # Check egress moderation (output artifact validation)
+            _check_moderation_egress(output, observer=obs)
 
             # Finalize and record success
             self._finalize_mag_success(exec_ctx, duration_ms)
@@ -1380,3 +1386,162 @@ __all__ = [
     "invoke_mag",
     "invoke_sag",
 ]
+
+
+# ============================================================================
+# Moderation Control Points Integration (WS-04)
+# ============================================================================
+# These helpers integrate the three canonical moderation hooks (ingress,
+# model_output, egress) at appropriate control points in the agent execution
+# pipeline. Enabled via AGDD_MODERATION_ENABLED environment variable.
+
+
+def _check_moderation_ingress(
+    payload: Dict[str, Any],
+    observer: Optional[ObservabilityLogger] = None,
+) -> bool:
+    """
+    Check ingress moderation hook for user input validation.
+
+    Args:
+        payload: User input to validate
+        observer: Optional observability logger for audit events
+
+    Returns:
+        True if allowed, False if blocked
+
+    Raises:
+        ValueError: If content is blocked by moderation policy
+    """
+    if not os.getenv("AGDD_MODERATION_ENABLED"):
+        return True
+
+    try:
+        from agdd.moderation import hooks
+
+        result = hooks.check_ingress(payload)
+
+        # Log moderation.checked event
+        if observer:
+            observer.log(
+                "moderation.checked",
+                {
+                    "stage": "ingress",
+                    "allowed": result.allowed,
+                    "reason": result.reason,
+                    "scores": result.scores,
+                    "metadata": result.metadata,
+                },
+            )
+
+        if not result.allowed:
+            reason = result.reason or "Input blocked by moderation policy"
+            logger.warning(f"Ingress moderation blocked: {reason}", extra={"metadata": result.metadata})
+            raise ValueError(f"Moderation check failed at ingress: {reason}")
+
+        return True
+
+    except ImportError:
+        logger.debug("Moderation hooks module not available, skipping ingress check")
+        return True
+
+
+def _check_moderation_model_output(
+    text: str,
+    observer: Optional[ObservabilityLogger] = None,
+) -> bool:
+    """
+    Check model output moderation hook for generated content validation.
+
+    Args:
+        text: Model-generated text to validate
+        observer: Optional observability logger for audit events
+
+    Returns:
+        True if allowed, False if blocked
+
+    Raises:
+        ValueError: If content is blocked by moderation policy
+    """
+    if not os.getenv("AGDD_MODERATION_ENABLED"):
+        return True
+
+    try:
+        from agdd.moderation import hooks
+
+        result = hooks.check_model_output(text)
+
+        # Log moderation.checked event
+        if observer:
+            observer.log(
+                "moderation.checked",
+                {
+                    "stage": "model_output",
+                    "allowed": result.allowed,
+                    "reason": result.reason,
+                    "scores": result.scores,
+                    "metadata": result.metadata,
+                },
+            )
+
+        if not result.allowed:
+            reason = result.reason or "Model output blocked by moderation policy"
+            logger.warning(f"Model output moderation blocked: {reason}", extra={"metadata": result.metadata})
+            raise ValueError(f"Moderation check failed at model_output: {reason}")
+
+        return True
+
+    except ImportError:
+        logger.debug("Moderation hooks module not available, skipping model output check")
+        return True
+
+
+def _check_moderation_egress(
+    artifact: Dict[str, Any],
+    observer: Optional[ObservabilityLogger] = None,
+) -> bool:
+    """
+    Check egress moderation hook for external I/O validation.
+
+    Args:
+        artifact: Artifact data to validate
+        observer: Optional observability logger for audit events
+
+    Returns:
+        True if allowed, False if blocked
+
+    Raises:
+        ValueError: If content is blocked by moderation policy
+    """
+    if not os.getenv("AGDD_MODERATION_ENABLED"):
+        return True
+
+    try:
+        from agdd.moderation import hooks
+
+        result = hooks.check_egress(artifact)
+
+        # Log moderation.checked event
+        if observer:
+            observer.log(
+                "moderation.checked",
+                {
+                    "stage": "egress",
+                    "allowed": result.allowed,
+                    "reason": result.reason,
+                    "scores": result.scores,
+                    "metadata": result.metadata,
+                },
+            )
+
+        if not result.allowed:
+            reason = result.reason or "Egress blocked by moderation policy"
+            logger.warning(f"Egress moderation blocked: {reason}", extra={"metadata": result.metadata})
+            raise ValueError(f"Moderation check failed at egress: {reason}")
+
+        return True
+
+    except ImportError:
+        logger.debug("Moderation hooks module not available, skipping egress check")
+        return True
+
