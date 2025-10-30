@@ -67,6 +67,10 @@ def validate_front_matter(path: Path) -> list[str]:
             errors.append(f"{path.relative_to(ROOT)}: Invalid last_synced date format")
 
     # Check for source_of_truth when appropriate (optional but good practice)
+    # Architecture documents should reference the SSOT repository
+    # This check covers files with "ssot" or "agent" in the name, but note that
+    # all architecture docs (agents.md, plans.md, skills.md, ssot.md) should ideally
+    # include source_of_truth for consistency
     if "ssot" in path.name.lower() or "agent" in path.name.lower():
         if "source_of_truth:" not in front_matter:
             warnings.append(
