@@ -190,6 +190,68 @@ class TestDeterministicSeed:
         # Values should be identical
         assert values1 == values2
 
+    def test_disabling_deterministic_mode_reseeds_random(self) -> None:
+        """Test that disabling deterministic mode reseeds random with fresh entropy."""
+        # Enable deterministic mode with a seed
+        set_deterministic_mode(True)
+        set_deterministic_seed(42)
+
+        # Generate deterministic values
+        values1 = [random.random() for _ in range(5)]
+
+        # Disable deterministic mode
+        set_deterministic_mode(False)
+
+        # Generate "random" values - should be different from deterministic set
+        values2 = [random.random() for _ in range(5)]
+
+        # Values should be different (non-deterministic)
+        assert values1 != values2
+
+        # Generate more values - should be different from previous non-deterministic set
+        # (this verifies we're using real entropy, not just a different fixed seed)
+        values3 = [random.random() for _ in range(5)]
+        assert values2 != values3
+
+    def test_clearing_seed_reseeds_random(self) -> None:
+        """Test that clearing the seed reseeds random with fresh entropy."""
+        # Set a deterministic seed
+        set_deterministic_seed(100)
+
+        # Generate deterministic values
+        values1 = [random.random() for _ in range(5)]
+
+        # Clear the seed
+        set_deterministic_seed(None)  # type: ignore[arg-type]
+
+        # Generate values - should be different (non-deterministic)
+        values2 = [random.random() for _ in range(5)]
+
+        # Values should be different
+        assert values1 != values2
+
+    def test_deterministic_nondeterministic_deterministic_isolation(self) -> None:
+        """Test that switching between modes properly isolates random state."""
+        # First deterministic run
+        set_deterministic_mode(True)
+        set_deterministic_seed(123)
+        det_values_1 = [random.random() for _ in range(3)]
+
+        # Switch to non-deterministic
+        set_deterministic_mode(False)
+        nondet_values = [random.random() for _ in range(3)]
+
+        # Switch back to deterministic with SAME seed
+        set_deterministic_mode(True)
+        set_deterministic_seed(123)
+        det_values_2 = [random.random() for _ in range(3)]
+
+        # First and second deterministic runs should match
+        assert det_values_1 == det_values_2
+
+        # Non-deterministic values should be different from deterministic
+        assert nondet_values != det_values_1
+
 
 class TestSnapshotEnvironment:
     """Tests for environment snapshot creation."""

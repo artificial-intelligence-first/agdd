@@ -27,15 +27,23 @@ def set_deterministic_mode(enabled: bool) -> None:
     reproducible results across multiple executions. If a seed has already
     been set, it is immediately applied to Python's random module.
 
+    When disabled, Python's random module is reseeded with fresh system entropy
+    to prevent deterministic behavior from leaking into subsequent runs.
+
     Args:
         enabled: True to enable deterministic mode, False to disable
     """
     global _deterministic_mode, _deterministic_seed
     _deterministic_mode = enabled
 
-    # If enabling deterministic mode and a seed is already set, apply it
-    if enabled and _deterministic_seed is not None:
-        random.seed(_deterministic_seed)
+    if enabled:
+        # If enabling deterministic mode and a seed is already set, apply it
+        if _deterministic_seed is not None:
+            random.seed(_deterministic_seed)
+    else:
+        # If disabling deterministic mode, reseed with fresh entropy
+        # to ensure truly non-deterministic behavior
+        random.seed()
 
 
 def get_deterministic_mode() -> bool:
@@ -100,16 +108,22 @@ def set_deterministic_seed(seed: int) -> None:
     When a seed is set, it is immediately applied to Python's random module
     to ensure reproducible random number generation.
 
+    When seed is cleared (set to None), Python's random module is reseeded
+    with fresh system entropy to restore non-deterministic behavior.
+
     Args:
         seed: Integer seed value to use for deterministic execution.
-              Pass None to clear the cached seed.
+              Pass None to clear the cached seed and restore non-deterministic RNG.
     """
     global _deterministic_seed
     _deterministic_seed = seed
 
-    # Apply seed to Python's random module for reproducibility
     if seed is not None:
+        # Apply seed to Python's random module for reproducibility
         random.seed(seed)
+    else:
+        # Clear the seed - reseed with fresh entropy for non-deterministic behavior
+        random.seed()
 
 
 def snapshot_environment() -> dict[str, Any]:
