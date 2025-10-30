@@ -80,6 +80,42 @@ class TestDeterministicSeed:
         assert seed1 == seed2
         assert isinstance(seed1, int)
 
+    def test_get_seed_caches_computed_value(self) -> None:
+        """Test that computed seed is cached across calls."""
+        import time as time_module
+
+        # Clear explicit seed and env var
+        set_deterministic_seed(None)  # type: ignore[arg-type]
+        if "AGDD_DETERMINISTIC_SEED" in os.environ:
+            del os.environ["AGDD_DETERMINISTIC_SEED"]
+
+        # Get seed once
+        first_seed = get_deterministic_seed()
+
+        # Wait a bit (but not crossing a minute boundary)
+        time_module.sleep(0.1)
+
+        # Get seed again - should be identical due to caching
+        second_seed = get_deterministic_seed()
+
+        assert first_seed == second_seed
+
+    def test_get_seed_from_env_is_cached(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that environment-based seed is cached."""
+        # Clear explicit seed
+        set_deterministic_seed(None)  # type: ignore[arg-type]
+
+        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "9999")
+        first_call = get_deterministic_seed()
+        assert first_call == 9999
+
+        # Change env var after first call
+        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "8888")
+
+        # Should still return cached value
+        second_call = get_deterministic_seed()
+        assert second_call == 9999  # Still the cached value, not 8888
+
 
 class TestSnapshotEnvironment:
     """Tests for environment snapshot creation."""

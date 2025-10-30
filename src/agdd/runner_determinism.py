@@ -52,6 +52,9 @@ def get_deterministic_seed() -> int:
     2. AGDD_DETERMINISTIC_SEED environment variable
     3. Derived from current timestamp (for new runs)
 
+    Once computed, the seed is cached for the lifetime of the process to ensure
+    stable values across multiple calls within the same session.
+
     Returns:
         Integer seed value for random number generation
     """
@@ -64,13 +67,16 @@ def get_deterministic_seed() -> int:
     env_seed = os.getenv("AGDD_DETERMINISTIC_SEED")
     if env_seed is not None:
         try:
-            return int(env_seed)
+            seed = int(env_seed)
+            _deterministic_seed = seed  # Cache the seed
+            return seed
         except ValueError:
             pass
 
     # Generate seed from current timestamp for reproducibility within a session
     # Use a stable seed based on process start time rounded to the minute
     timestamp = int(time.time() / 60) * 60  # Round to minute
+    _deterministic_seed = timestamp  # Cache the computed seed
     return timestamp
 
 
