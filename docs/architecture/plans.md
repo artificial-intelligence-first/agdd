@@ -2,13 +2,13 @@
 title: AGDD ExecPlan Registry
 slug: plans
 status: living
-last_updated: 2025-10-30
+last_synced: 2025-10-30
 tags: [agdd, execplan, roadmap, workflow]
-summary: "Execution-plan convention for coordinating multi-session initiatives across the AG-Driven Development framework."
+description: "Execution-plan convention for coordinating multi-session initiatives across the AG-Driven Development framework."
 sources:
   - { id: R1, title: "OpenAI Cookbook – Exec Plans", url: "https://cookbook.openai.com/articles/codex_exec_plans", accessed: "2025-10-30" }
-  - { id: R2, title: "AGDD Roadmap", url: "docs/development/roadmap.md", accessed: "2025-10-30" }
-  - { id: R3, title: "Single Source of Truth", url: "SSOT.md", accessed: "2025-10-30" }
+  - { id: R2, title: "AGDD Roadmap", url: "../development/roadmap.md", accessed: "2025-10-30" }
+  - { id: R3, title: "Single Source of Truth", url: "./ssot.md", accessed: "2025-10-30" }
 ---
 
 # AGDD ExecPlans (PLANS.md)

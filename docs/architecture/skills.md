@@ -2,13 +2,13 @@
 title: AGDD Skill Development Guide
 slug: skill
 status: living
-last_updated: 2025-10-30
+last_synced: 2025-10-30
 tags: [agdd, skills, mcp, catalog, development]
-summary: "Standards for building, documenting, and validating skills in the AG-Driven Development framework."
+description: "Standards for building, documenting, and validating skills in the AG-Driven Development framework."
 sources:
   - { id: R1, title: "Skill Registry", url: "catalog/registry/skills.yaml", accessed: "2025-10-30" }
   - { id: R2, title: "Skill Runtime", url: "src/agdd/runners/agent_runner.py", accessed: "2025-10-30" }
-  - { id: R3, title: "MCP Integration Guide", url: "docs/guides/mcp-integration.md", accessed: "2025-10-30" }
+  - { id: R3, title: "MCP Integration Guide", url: "../guides/mcp-integration.md", accessed: "2025-10-30" }
 ---
 
 # AGDD Skill Development Guide (SKILL.md)

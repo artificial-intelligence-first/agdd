@@ -2,13 +2,14 @@
 title: AGDD Agents Playbook
 slug: agents
 status: living
-last_updated: 2025-10-30
+last_synced: 2025-10-30
 tags: [agdd, agents, automation, governance]
-summary: "Machine-oriented operating manual for contributors and AI assistants working inside the AG-Driven Development framework."
+description: "Machine-oriented operating manual for contributors and AI assistants working inside the AG-Driven Development framework."
+source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
 sources:
   - { id: R1, title: "AGDD README", url: "README.md", accessed: "2025-10-30" }
   - { id: R2, title: "Agent Runner Implementation", url: "src/agdd/runners/agent_runner.py", accessed: "2025-10-30" }
-  - { id: R3, title: "Single Source of Truth", url: "SSOT.md", accessed: "2025-10-30" }
+  - { id: R3, title: "Single Source of Truth", url: "../architecture/ssot.md", accessed: "2025-10-30" }
 ---
 
 # AGDD Agents Playbook (AGENTS.md)

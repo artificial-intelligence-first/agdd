@@ -1,3 +1,9 @@
+---
+title: AGDD Migration Guide
+last_synced: 2025-10-30
+description: "Guide for migrating from legacy features to current AGDD implementation."
+---
+
 # AGDD Migration Guide
 
 This guide helps you migrate from legacy features to the current implementation.
@@ -8,7 +14,7 @@ As of October 2025, AGDD has made significant simplifications:
 - **All skills must be async** - Synchronous skills are no longer supported
 - **All agents must be async** - Synchronous agents are no longer supported  
 - **Google SDK consolidated** - Only `google-genai` SDK is supported
-- **Documentation consolidated** - Single source of truth is now `SSOT.md`
+- **Documentation consolidated** - Single source of truth is now [SSOT.md](../architecture/ssot.md)
 
 ## Migrating from Synchronous to Asynchronous Skills
 

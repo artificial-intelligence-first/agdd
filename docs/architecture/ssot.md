@@ -2,9 +2,10 @@
 title: AGDD Single Source of Truth
 slug: ssot
 status: living
-last_updated: 2025-10-30
+last_synced: 2025-10-30
 tags: [agdd, ssot, governance, contracts, terminology]
-summary: "Canonical definitions, data contracts, policies, and interfaces for the AG-Driven Development framework."
+description: "Canonical definitions, data contracts, policies, and interfaces for the AG-Driven Development framework."
+source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
 sources:
   - { id: R1, title: "AGDD Catalog", url: "catalog/", accessed: "2025-10-30" }
   - { id: R2, title: "AGDD API Server", url: "src/agdd/api/server.py", accessed: "2025-10-30" }
