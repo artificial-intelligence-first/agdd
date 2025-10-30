@@ -1,0 +1,13 @@
+{
+  "result": "expected",
+  "status": "success",
+  "data": {
+    "processed": true,
+    "operation": "sample_operation",
+    "output_value": "processed_result"
+  },
+  "metadata": {
+    "version": "1.0",
+    "timestamp": "2025-10-30T00:00:00Z"
+  }
+}

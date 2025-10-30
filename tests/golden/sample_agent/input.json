@@ -1,0 +1,10 @@
+{
+  "payload": {
+    "test": "data",
+    "operation": "sample_operation",
+    "parameters": {
+      "mode": "standard",
+      "threshold": 0.85
+    }
+  }
+}
