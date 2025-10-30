@@ -549,9 +549,62 @@ class AgentRunner:
         context: Optional[Dict[str, Any]],
     ) -> _ExecutionContext:
         """Load agent, compute plans, and create an observability logger."""
+        import copy
+
         effective_context: Dict[str, Any] = context or {}
 
-        agent = self.registry.load_agent(slug)
+        # Load agent from registry (may be cached)
+        cached_agent = self.registry.load_agent(slug)
+
+        # Apply deterministic settings if deterministic mode is enabled
+        # Create a copy to avoid mutating the cached agent descriptor
+        if effective_context.get("deterministic"):
+            try:
+                from agdd.runner_determinism import (
+                    apply_deterministic_settings,
+                    get_deterministic_mode,
+                    set_deterministic_mode,
+                )
+
+                # Save current deterministic mode state
+                previous_mode = get_deterministic_mode()
+
+                # Enable deterministic mode for settings application AND execution
+                # This ensures apply_deterministic_settings() actually applies settings
+                # and that random.* calls during execution are deterministic
+                if not previous_mode:
+                    set_deterministic_mode(True)
+                    # Store previous mode in context so invoke_mag can restore it later
+                    effective_context["_previous_deterministic_mode"] = previous_mode
+
+                try:
+                    # Create a shallow copy of the agent descriptor to avoid mutating the cache
+                    agent = copy.copy(cached_agent)
+                    # Deep copy the raw dict to avoid mutating nested structures
+                    agent.raw = copy.deepcopy(cached_agent.raw)
+
+                    # Get the provider config from agent definition
+                    provider_config = agent.raw.get("provider_config", {})
+
+                    # Apply deterministic settings (returns a copy)
+                    deterministic_config = apply_deterministic_settings(provider_config)
+
+                    # Update the COPY's raw config with deterministic settings
+                    # This affects the execution plan and LLM plan creation
+                    agent.raw["provider_config"] = deterministic_config
+                except Exception:
+                    # If settings application fails, restore mode immediately
+                    if not previous_mode:
+                        set_deterministic_mode(False)
+                    raise
+            except ImportError:
+                # Gracefully handle if runner_determinism module isn't available
+                logger.warning("Could not import runner_determinism module; skipping deterministic settings")
+                agent = cached_agent
+        else:
+            # Non-deterministic run: use cached agent as-is
+            agent = cached_agent
+
         execution_plan = self.router.get_plan(agent, effective_context)
         plan_snapshot = self._serialize_execution_plan(execution_plan)
         llm_plan = self._resolve_llm_plan(agent, effective_context, plan_snapshot)
@@ -559,6 +612,11 @@ class AgentRunner:
         parent_span_id = effective_context.get("parent_span_id") or execution_plan.span_context.get(
             "parent_span_id"
         )
+
+        # Extract determinism information from context
+        deterministic = effective_context.get("deterministic")
+        replay_mode = effective_context.get("replay_mode")
+        environment_snapshot = effective_context.get("environment_snapshot")
 
         observer = ObservabilityLogger(
             run_id,
@@ -568,6 +626,9 @@ class AgentRunner:
             llm_plan=llm_plan,
             enable_otel=execution_plan.enable_otel,
             parent_span_id=parent_span_id,
+            deterministic=deterministic,
+            replay_mode=replay_mode,
+            environment_snapshot=environment_snapshot,
         )
 
         return _ExecutionContext(
@@ -799,6 +860,16 @@ class AgentRunner:
         except Exception as e:
             self._handle_mag_error(exec_ctx, e)
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            # This prevents deterministic state from leaking to subsequent runs
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
     # ---------------------------------------------------------------------
     # Backward-compatible helper used by some tests: run a single agent
@@ -1274,6 +1345,15 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
     def invoke_sag(self, delegation: Delegation) -> Result:
         """
@@ -1384,6 +1464,15 @@ class AgentRunner:
                 exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
                 exec_ctx.observer.finalize()
             raise
+        finally:
+            # Restore deterministic mode if we changed it for this run
+            if context and "_previous_deterministic_mode" in context:
+                try:
+                    from agdd.runner_determinism import set_deterministic_mode
+
+                    set_deterministic_mode(context["_previous_deterministic_mode"])
+                except ImportError:
+                    pass
 
 
 # Singleton instance

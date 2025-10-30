@@ -131,12 +131,27 @@ def agent_run(
         "--json",
         help="JSON file containing input payload (reads from stdin if '-' or omitted).",
     ),
+    deterministic: bool = typer.Option(
+        False,
+        "--deterministic",
+        help="Enable deterministic mode for reproducible execution",
+    ),
+    replay: Optional[str] = typer.Option(
+        None,
+        "--replay",
+        help="Path to replay snapshot JSON file for reproducing a previous run",
+    ),
 ) -> None:
     """Execute a MAG agent with JSON input."""
     import sys
 
     # Lazy import to reduce startup time
     from agdd.runners.agent_runner import invoke_mag
+    from agdd.runner_determinism import (
+        set_deterministic_mode,
+        snapshot_environment,
+        create_replay_context,
+    )
 
     # Read input
     if json_input is None or str(json_input) == "-":
@@ -144,9 +159,39 @@ def agent_run(
     else:
         data = json.loads(json_input.read_text(encoding="utf-8"))
 
+    # Prepare execution context
+    context: dict = {}
+
+    # Handle replay mode
+    if replay is not None:
+        replay_path = pathlib.Path(replay)
+        if not replay_path.exists():
+            typer.echo(f"Error: Replay file not found: {replay}", err=True)
+            raise typer.Exit(1)
+        try:
+            replay_data = json.loads(replay_path.read_text(encoding="utf-8"))
+
+            # Extract environment_snapshot if present (from summary.json)
+            # Otherwise use the data directly (raw snapshot format)
+            if "environment_snapshot" in replay_data:
+                replay_snapshot = replay_data["environment_snapshot"]
+            else:
+                replay_snapshot = replay_data
+
+            context = create_replay_context(replay_snapshot, context)
+        except Exception as e:
+            typer.echo(f"Error loading replay snapshot: {e}", err=True)
+            raise typer.Exit(1)
+
+    # Handle deterministic mode
+    if deterministic:
+        set_deterministic_mode(True)
+        context["deterministic"] = True
+        context["environment_snapshot"] = snapshot_environment()
+
     try:
-        # Invoke MAG
-        output = invoke_mag(slug, data)
+        # Invoke MAG with context
+        output = invoke_mag(slug, data, context=context)
         # Output result as JSON
         typer.echo(json.dumps(output, ensure_ascii=False, indent=2))
     except FileNotFoundError as e:
