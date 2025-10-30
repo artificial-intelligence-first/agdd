@@ -7,6 +7,7 @@ to the Provider SPI protocol.
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
 if TYPE_CHECKING:
@@ -58,10 +59,16 @@ class AnthropicAdapter:
             - structured_output: JSON mode and structured outputs
             - vision: Image understanding (Claude 3+ models)
             - audio: Audio processing capabilities
+
+        Note:
+            Structured_output is set to False because direct JSON schema
+            enforcement is not exposed through the current provider interface.
+            Anthropic supports structured output via tool use patterns, but
+            that's a different mechanism than OpenAI's response_format.
         """
         return {
-            "tools": True,
-            "structured_output": True,  # Via tool use and response schemas
+            "tools": True,  # Full tool/function calling support
+            "structured_output": False,  # Direct JSON schema not wired through provider
             "vision": True,  # Available in Claude 3+ models
             "audio": False,  # Not yet supported
         }
@@ -97,7 +104,21 @@ class AnthropicAdapter:
             - model: Model used
             - usage: Token usage information
             - stop_reason: Completion stop reason
+
+        Note:
+            The schema parameter is currently not forwarded to AnthropicProvider
+            because direct JSON schema enforcement is not exposed. A warning will
+            be issued if schema is provided. Use tool use patterns for structured output.
         """
+        # Warn if unsupported schema parameter is provided
+        if schema is not None:
+            warnings.warn(
+                "AnthropicAdapter: schema parameter is not yet supported and will be ignored. "
+                "Use tool use patterns for structured output, or set capabilities['structured_output'] = False",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # Convert prompt to messages format
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
@@ -179,7 +200,7 @@ def _test_adapter_capabilities() -> None:
 
         assert isinstance(caps, dict), "Capabilities should be a dict"
         assert caps["tools"] is True, "Anthropic supports tools"
-        assert caps["structured_output"] is True, "Anthropic supports structured output"
+        assert caps["structured_output"] is False, "Direct JSON schema not wired through provider"
         assert caps["vision"] is True, "Anthropic Claude 3+ supports vision"
         assert caps["audio"] is False, "Anthropic does not support audio yet"
 
