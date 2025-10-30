@@ -227,3 +227,76 @@ class TestAgentRunnerDeterminism:
                 assert second_call_agent.raw["provider_config"]["temperature"] == 0.7
                 assert "seed" not in second_call_agent.raw["provider_config"]
                 assert second_call_agent.raw["provider_config"]["top_p"] == 0.9
+
+    def test_programmatic_deterministic_context_applies_settings(self) -> None:
+        """Test that context={"deterministic": True} works without global mode."""
+        from agdd.runners.agent_runner import AgentRunner
+        from agdd.registry import AgentDescriptor
+        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
+
+        # Ensure deterministic mode is OFF
+        set_deterministic_mode(False)
+        assert get_deterministic_mode() is False
+
+        original_config = {
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "model": "test-model",
+        }
+        mock_agent = MagicMock(spec=AgentDescriptor)
+        mock_agent.slug = "test-agent"
+        mock_agent.name = "TestAgent"
+        mock_agent.raw = {"provider_config": original_config.copy()}
+
+        runner = AgentRunner()
+
+        with patch.object(runner.registry, "load_agent", return_value=mock_agent):
+            mock_plan = MagicMock()
+            mock_plan.span_context = {}
+            mock_plan.enable_otel = False
+
+            with patch.object(runner.router, "get_plan", return_value=mock_plan) as mock_get_plan:
+                # Call with deterministic context (without setting global mode)
+                context = {"deterministic": True, "environment_snapshot": {"seed": 555}}
+                exec_ctx = runner._prepare_execution("test-agent", "run-999", context)
+
+                # Get the agent passed to get_plan
+                agent_passed = mock_get_plan.call_args[0][0]
+
+                # Verify deterministic settings were applied
+                assert agent_passed.raw["provider_config"]["temperature"] == 0.0
+                assert "seed" in agent_passed.raw["provider_config"]
+                assert agent_passed.raw["provider_config"]["top_p"] == 1.0
+
+                # Verify global mode was NOT left enabled
+                assert get_deterministic_mode() is False
+
+    def test_deterministic_context_restores_mode_on_exception(self) -> None:
+        """Test that deterministic mode is restored even if settings application fails."""
+        from agdd.runners.agent_runner import AgentRunner
+        from agdd.registry import AgentDescriptor
+        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
+
+        # Ensure deterministic mode is OFF
+        set_deterministic_mode(False)
+
+        mock_agent = MagicMock(spec=AgentDescriptor)
+        mock_agent.slug = "test-agent"
+        mock_agent.name = "TestAgent"
+        mock_agent.raw = {"provider_config": {"temperature": 0.5}}
+
+        runner = AgentRunner()
+
+        with patch.object(runner.registry, "load_agent", return_value=mock_agent):
+            # Make deepcopy fail to simulate error during settings application
+            with patch("copy.deepcopy") as mock_deepcopy:
+                mock_deepcopy.side_effect = RuntimeError("Test error")
+
+                context = {"deterministic": True}
+
+                # This should raise, but mode should still be restored
+                with pytest.raises(RuntimeError, match="Test error"):
+                    runner._prepare_execution("test-agent", "run-error", context)
+
+                # Verify global mode was restored (not left enabled)
+                assert get_deterministic_mode() is False

@@ -560,22 +560,40 @@ class AgentRunner:
         # Create a copy to avoid mutating the cached agent descriptor
         if effective_context.get("deterministic"):
             try:
-                from agdd.runner_determinism import apply_deterministic_settings
+                from agdd.runner_determinism import (
+                    apply_deterministic_settings,
+                    get_deterministic_mode,
+                    set_deterministic_mode,
+                )
 
-                # Create a shallow copy of the agent descriptor to avoid mutating the cache
-                agent = copy.copy(cached_agent)
-                # Deep copy the raw dict to avoid mutating nested structures
-                agent.raw = copy.deepcopy(cached_agent.raw)
+                # Save current deterministic mode state
+                previous_mode = get_deterministic_mode()
 
-                # Get the provider config from agent definition
-                provider_config = agent.raw.get("provider_config", {})
+                # Temporarily enable deterministic mode for settings application
+                # This ensures apply_deterministic_settings() actually applies settings
+                if not previous_mode:
+                    set_deterministic_mode(True)
 
-                # Apply deterministic settings (returns a copy)
-                deterministic_config = apply_deterministic_settings(provider_config)
+                try:
+                    # Create a shallow copy of the agent descriptor to avoid mutating the cache
+                    agent = copy.copy(cached_agent)
+                    # Deep copy the raw dict to avoid mutating nested structures
+                    agent.raw = copy.deepcopy(cached_agent.raw)
 
-                # Update the COPY's raw config with deterministic settings
-                # This affects the execution plan and LLM plan creation
-                agent.raw["provider_config"] = deterministic_config
+                    # Get the provider config from agent definition
+                    provider_config = agent.raw.get("provider_config", {})
+
+                    # Apply deterministic settings (returns a copy)
+                    deterministic_config = apply_deterministic_settings(provider_config)
+
+                    # Update the COPY's raw config with deterministic settings
+                    # This affects the execution plan and LLM plan creation
+                    agent.raw["provider_config"] = deterministic_config
+                finally:
+                    # Restore previous deterministic mode if we changed it
+                    # This prevents leaking deterministic state to other runs
+                    if not previous_mode:
+                        set_deterministic_mode(False)
             except ImportError:
                 # Gracefully handle if runner_determinism module isn't available
                 logger.warning("Could not import runner_determinism module; skipping deterministic settings")
