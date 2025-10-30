@@ -617,10 +617,11 @@ class TestIdempotencyMiddleware:
         assert initial_lock_count == 10, f"Expected 10 locks, got {initial_lock_count}"
 
         # Manually remove some entries from the store to simulate expiration
+        # Keys are now scoped by method and path: POST:/test-cleanup:cleanup-key-{i}
         for i in range(5):
-            key = f"cleanup-key-{i}"
-            if key in test_store._store:
-                del test_store._store[key]
+            scoped_key = f"POST:/test-cleanup:cleanup-key-{i}"
+            if scoped_key in test_store._store:
+                del test_store._store[scoped_key]
 
         # Manually trigger cleanup
         await middleware_instance._cleanup_locks()
@@ -684,6 +685,80 @@ class TestIdempotencyMiddleware:
 
         # Verify both responses have the same cookies
         assert set(set_cookie_headers_1) == set(set_cookie_headers_2), "Cached response has different cookies than original"
+
+    def test_idempotency_scoped_per_endpoint(self):
+        """Test that idempotency keys are scoped per endpoint to prevent cross-endpoint collisions."""
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from agdd.api.middleware import IdempotencyMiddleware
+
+        # Create test app with idempotency middleware
+        test_app = FastAPI()
+        test_app.add_middleware(IdempotencyMiddleware)
+
+        # Create two different endpoints
+        @test_app.post("/endpoint-a")
+        async def endpoint_a():
+            return {"endpoint": "a", "data": "response-a"}
+
+        @test_app.post("/endpoint-b")
+        async def endpoint_b():
+            return {"endpoint": "b", "data": "response-b"}
+
+        test_client = TestClient(test_app)
+
+        # Use the same idempotency key for both endpoints
+        shared_key = "shared-idempotency-key"
+
+        # First request to endpoint A
+        response_a1 = test_client.post(
+            "/endpoint-a",
+            json={},
+            headers={"Idempotency-Key": shared_key},
+        )
+
+        assert response_a1.status_code == 200
+        data_a1 = response_a1.json()
+        assert data_a1["endpoint"] == "a"
+        assert data_a1["data"] == "response-a"
+
+        # Second request to endpoint B with same key - should NOT conflict
+        response_b1 = test_client.post(
+            "/endpoint-b",
+            json={},
+            headers={"Idempotency-Key": shared_key},
+        )
+
+        assert response_b1.status_code == 200
+        data_b1 = response_b1.json()
+        assert data_b1["endpoint"] == "b"
+        assert data_b1["data"] == "response-b"
+        # Should NOT have replay header since it's a different endpoint
+        assert response_b1.headers.get("X-Idempotency-Replay") != "true"
+
+        # Third request to endpoint A with same key - should be cached
+        response_a2 = test_client.post(
+            "/endpoint-a",
+            json={},
+            headers={"Idempotency-Key": shared_key},
+        )
+
+        assert response_a2.status_code == 200
+        data_a2 = response_a2.json()
+        assert data_a2 == data_a1  # Should be identical to first request to A
+        assert response_a2.headers.get("X-Idempotency-Replay") == "true"
+
+        # Fourth request to endpoint B with same key - should be cached
+        response_b2 = test_client.post(
+            "/endpoint-b",
+            json={},
+            headers={"Idempotency-Key": shared_key},
+        )
+
+        assert response_b2.status_code == 200
+        data_b2 = response_b2.json()
+        assert data_b2 == data_b1  # Should be identical to first request to B
+        assert response_b2.headers.get("X-Idempotency-Replay") == "true"
 
 
 class TestAuthenticationAndRateLimit:

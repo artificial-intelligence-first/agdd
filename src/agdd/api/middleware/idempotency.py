@@ -155,17 +155,22 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             # No idempotency key in header or body, process normally
             return await call_next(request)
 
-        # Get or create a lock for this idempotency key to prevent concurrent execution
+        # Scope the idempotency key to the endpoint (method + path) to prevent collisions
+        # across different endpoints. Without this, POST /runs and POST /github could
+        # conflict if they use the same idempotency key.
+        scoped_key = f"{request.method}:{request.url.path}:{idempotency_key}"
+
+        # Get or create a lock for this scoped idempotency key to prevent concurrent execution
         async with self._locks_lock:
-            if idempotency_key not in self._locks:
-                self._locks[idempotency_key] = asyncio.Lock()
-            key_lock = self._locks[idempotency_key]
+            if scoped_key not in self._locks:
+                self._locks[scoped_key] = asyncio.Lock()
+            key_lock = self._locks[scoped_key]
 
         # Acquire the key-specific lock to ensure only one request with this key executes
         async with key_lock:
             # Double-check if the response is now in the store
             # (another request may have completed while we waited for the lock)
-            stored = self._store.get(idempotency_key)
+            stored = self._store.get(scoped_key)
             if stored:
                 stored_hash, stored_body, stored_status, raw_headers = stored
 
@@ -245,8 +250,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 # Store in idempotency cache with raw headers to preserve multi-value headers
                 # response.raw_headers is a list of (bytes, bytes) tuples that correctly
                 # preserves headers like Set-Cookie which can appear multiple times
+                # Use scoped_key to prevent collisions across different endpoints
                 self._store.set(
-                    idempotency_key,
+                    scoped_key,
                     request_hash,
                     response_body,
                     response.status_code,
