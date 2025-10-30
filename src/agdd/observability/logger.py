@@ -30,6 +30,9 @@ class ObservabilityLogger:
         agent_plan: Optional[dict[str, Any]] = None,
         llm_plan: Optional[LLMPlan] = None,
         enable_otel: bool = False,
+        deterministic: Optional[bool] = None,
+        replay_mode: Optional[bool] = None,
+        environment_snapshot: Optional[dict[str, Any]] = None,
     ):
         self.run_id = run_id
         self.slug = slug
@@ -46,6 +49,9 @@ class ObservabilityLogger:
         self._agent_plan_snapshot = copy.deepcopy(agent_plan) if agent_plan else None
         self._llm_plan_snapshot = self._serialize_llm_plan(llm_plan)
         self.enable_otel = enable_otel
+        self._deterministic = deterministic
+        self._replay_mode = replay_mode
+        self._environment_snapshot = copy.deepcopy(environment_snapshot) if environment_snapshot else None
 
         if enable_otel:
             try:
@@ -191,6 +197,12 @@ class ObservabilityLogger:
             summary["agent_plan"] = self._agent_plan_snapshot
         if self._llm_plan_snapshot:
             summary["llm_plan"] = self._llm_plan_snapshot
+        if self._deterministic is not None:
+            summary["deterministic"] = self._deterministic
+        if self._replay_mode is not None:
+            summary["replay_mode"] = self._replay_mode
+        if self._environment_snapshot:
+            summary["environment_snapshot"] = self._environment_snapshot
         self._write_json(summary_file, summary)
 
 

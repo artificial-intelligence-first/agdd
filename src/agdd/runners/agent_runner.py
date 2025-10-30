@@ -560,6 +560,11 @@ class AgentRunner:
             "parent_span_id"
         )
 
+        # Extract determinism information from context
+        deterministic = effective_context.get("deterministic")
+        replay_mode = effective_context.get("replay_mode")
+        environment_snapshot = effective_context.get("environment_snapshot")
+
         observer = ObservabilityLogger(
             run_id,
             slug=slug,
@@ -568,6 +573,9 @@ class AgentRunner:
             llm_plan=llm_plan,
             enable_otel=execution_plan.enable_otel,
             parent_span_id=parent_span_id,
+            deterministic=deterministic,
+            replay_mode=replay_mode,
+            environment_snapshot=environment_snapshot,
         )
 
         return _ExecutionContext(
