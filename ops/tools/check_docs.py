@@ -1,4 +1,5 @@
 """Lightweight documentation and changelog policy checks."""
+
 from __future__ import annotations
 
 import re
@@ -26,7 +27,9 @@ def validate_front_matter(path: Path) -> list[str]:
 
     # Check for front-matter presence
     if not text.startswith("---\n"):
-        errors.append(f"{path.relative_to(ROOT)}: Missing YAML front-matter (must start with '---')")
+        errors.append(
+            f"{path.relative_to(ROOT)}: Missing YAML front-matter (must start with '---')"
+        )
         return errors
 
     # Extract front-matter
@@ -96,9 +99,7 @@ def validate_changelog(path: Path) -> list[str]:
         section = text[start:end]
         for heading in ("### Added", "### Changed", "### Fixed"):
             if heading not in section:
-                errors.append(
-                    f"CHANGELOG release '{match.group(0)}' is missing heading: {heading}"
-                )
+                errors.append(f"CHANGELOG release '{match.group(0)}' is missing heading: {heading}")
     return errors
 
 

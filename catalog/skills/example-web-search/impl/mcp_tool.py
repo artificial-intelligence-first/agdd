@@ -36,6 +36,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def _find_repo_root(start_path: Path) -> Path:
     """
     Find repository root by looking for pyproject.toml or .git directory.
@@ -159,9 +160,7 @@ async def _fetch_url_via_mcp(
 
             # Call the fetch MCP server's fetch_url tool
             result = await mcp.execute_tool(
-                server_id="fetch",
-                tool_name="fetch",
-                arguments={"url": url}
+                server_id="fetch", tool_name="fetch", arguments={"url": url}
             )
 
             # Check if MCP call succeeded
@@ -194,15 +193,13 @@ async def _fetch_url_via_mcp(
             else:
                 # MCP call failed, log and fall through to mock
                 logger.warning(
-                    f"MCP fetch failed for {url}: {result.error}. "
-                    "Falling back to mock data."
+                    f"MCP fetch failed for {url}: {result.error}. Falling back to mock data."
                 )
         except Exception as exc:
             # MCP call raised an exception, log and fall through to mock
             logger.warning(
-                f"Exception during MCP fetch for {url}: {exc}. "
-                "Falling back to mock data.",
-                exc_info=True
+                f"Exception during MCP fetch for {url}: {exc}. Falling back to mock data.",
+                exc_info=True,
             )
     else:
         logger.info(f"No MCP runtime provided, using mock data for {url}")

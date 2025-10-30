@@ -28,9 +28,7 @@ from agdd.providers.openai import (
 )
 
 # Skip all tests if OPENAI_API_KEY is not set
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
-)
+pytestmark = pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set")
 
 
 @pytest.fixture
@@ -266,6 +264,7 @@ class TestErrorHandling:
         with pytest.raises(Exception):  # OpenAI API will raise error
             provider.complete(request)
 
+    @staticmethod
     def test_missing_api_key() -> None:
         """Test handling of missing API key"""
         config = ProviderConfig(api_key=None)

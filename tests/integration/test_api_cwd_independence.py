@@ -1,4 +1,5 @@
 """Test agent listing works from different working directories."""
+
 from __future__ import annotations
 
 import os
@@ -10,7 +11,9 @@ from agdd.api.server import app
 
 
 import pytest
+
 pytestmark = pytest.mark.slow
+
 
 def test_list_agents_from_different_cwd(tmp_path: Path) -> None:
     """Test that agent listing works when API is run from outside repository root."""

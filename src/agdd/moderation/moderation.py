@@ -170,9 +170,7 @@ class ModerationService:
                 category_scores={
                     cat: score for cat, score in result.category_scores.model_dump().items()
                 },
-                category_applied_input_types=getattr(
-                    result, "category_applied_input_types", {}
-                ),
+                category_applied_input_types=getattr(result, "category_applied_input_types", {}),
                 model=self.config.model,
                 metadata={
                     "content_length": len(content),
@@ -296,8 +294,7 @@ class ModerationService:
                             cat: val for cat, val in result.categories.model_dump().items()
                         },
                         category_scores={
-                            cat: score
-                            for cat, score in result.category_scores.model_dump().items()
+                            cat: score for cat, score in result.category_scores.model_dump().items()
                         },
                         category_applied_input_types=getattr(
                             result, "category_applied_input_types", {}

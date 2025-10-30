@@ -1,4 +1,5 @@
 """Tests for governance gate pattern matching."""
+
 from __future__ import annotations
 
 from agdd.governance.gate import _match_pattern

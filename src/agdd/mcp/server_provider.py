@@ -9,28 +9,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, ContextManager
+
+if TYPE_CHECKING:
+    pass
 
 from agdd.registry import Registry
 from agdd.runners.agent_runner import AgentRunner
 
 logger = logging.getLogger(__name__)
 
-try:
-    import sys
-    from contextlib import contextmanager
-except ImportError:  # pragma: no cover - standard library always available
-    sys = None  # type: ignore[assignment]
-    contextmanager = None  # type: ignore[assignment]
-
-# Check if mcp package is available
-try:
-    from mcp.server.fastmcp import Context as _FastMCPContext
-    from mcp.server.fastmcp import FastMCP as _FastMCPServer
-except ImportError:
-    _FastMCPServer = None  # type: ignore[assignment]
-    _FastMCPContext = None  # type: ignore[assignment]
+# Note: FastMCP is loaded dynamically via _load_fastmcp() below to avoid
+# import-path conflicts with tests/mcp during pytest collection.
 
 
 def _tests_dir() -> Path:
@@ -39,7 +33,7 @@ def _tests_dir() -> Path:
     return (Path(__file__).resolve().parents[3] / "tests").resolve()
 
 
-def _without_tests_path() -> "contextmanager[None]":
+def _without_tests_path() -> ContextManager[None]:
     """Temporarily remove the local tests directory from sys.path.
 
     Pytest adds the repository's tests directory to the front of sys.path.
@@ -50,22 +44,20 @@ def _without_tests_path() -> "contextmanager[None]":
     can be imported, then restores the original order.
     """
 
-    if sys is None or contextmanager is None:
-        raise RuntimeError("contextlib or sys unavailable")
-
     tests_dir = _tests_dir()
 
     @contextmanager
-    def _manager() -> "Generator[None, None, None]":
+    def _manager() -> Iterator[None]:
         removed: list[tuple[int, str]] = []
 
         for idx, entry in enumerate(list(sys.path)):
             try:
                 resolved = Path(entry).resolve()
-            except Exception:  # pragma: no cover - defensive
-                continue
-            if resolved == tests_dir:
-                removed.append((idx, entry))
+            except (OSError, RuntimeError, ValueError) as exc:  # pragma: no cover - defensive
+                logger.debug("Skipped non-resolvable sys.path entry %s", entry, exc_info=exc)
+            else:
+                if resolved == tests_dir:
+                    removed.append((idx, entry))
 
         for idx, _ in reversed(removed):
             sys.path.pop(idx)
@@ -82,16 +74,18 @@ def _without_tests_path() -> "contextmanager[None]":
 def _load_fastmcp() -> tuple[bool, Any | None, Any | None]:
     """Attempt to load FastMCP, handling path conflicts with tests/mcp."""
     try:
-        from mcp.server.fastmcp import Context, FastMCP  # type: ignore[no-redef]
+        from mcp.server.fastmcp import Context, FastMCP
+
         return True, FastMCP, Context
     except ImportError:
         try:
             with _without_tests_path():
-                if sys is not None:
-                    existing = sys.modules.get("mcp")
-                    if existing and getattr(existing, "__file__", ""):
+                existing = sys.modules.get("mcp")
+                if existing:
+                    existing_file = getattr(existing, "__file__", None)
+                    if existing_file:
                         try:
-                            module_path = Path(existing.__file__).resolve()
+                            module_path = Path(str(existing_file)).resolve()
                             tests_dir = _tests_dir()
                             try:
                                 is_tests_pkg = module_path.is_relative_to(tests_dir)
@@ -100,8 +94,9 @@ def _load_fastmcp() -> tuple[bool, Any | None, Any | None]:
                         except Exception:  # pragma: no cover - defensive
                             is_tests_pkg = False
                         if is_tests_pkg:
-                            sys.modules["mcp"] = None
-                from mcp.server.fastmcp import Context, FastMCP  # type: ignore[no-redef]
+                            sys.modules.pop("mcp", None)
+                from mcp.server.fastmcp import Context, FastMCP
+
                 return True, FastMCP, Context
         except ImportError:
             return False, None, None
@@ -139,9 +134,7 @@ class AGDDMCPServer:
             ImportError: If mcp package is not installed
         """
         if not HAS_MCP_SDK:
-            raise ImportError(
-                "MCP SDK not installed. Install with: pip install mcp"
-            )
+            raise ImportError("MCP SDK not installed. Install with: pip install mcp")
 
         self.base_path = base_path
         self.expose_agents = expose_agents
@@ -157,6 +150,8 @@ class AGDDMCPServer:
         self.runner = AgentRunner(registry=self.registry)
 
         # Initialize FastMCP server
+        if FastMCP is None:
+            raise ImportError("FastMCP not available")
         self.mcp = FastMCP(name="agdd")
 
         # Register tools
@@ -173,7 +168,7 @@ class AGDDMCPServer:
     def _register_agent_tools(self) -> None:
         """Register all AGDD agents as MCP tools."""
         # Discover agents from catalog
-        agents_dir = (self.registry.base_path / "catalog" / "agents")
+        agents_dir = self.registry.base_path / "catalog" / "agents"
 
         for role_dir in ["main", "sub"]:
             role_path = agents_dir / role_dir
@@ -227,7 +222,7 @@ class AGDDMCPServer:
         # Store runner reference to avoid binding issues in closure
         runner = self.runner
 
-        async def agent_runner(payload: dict[str, Any], ctx: Context) -> dict[str, Any]:
+        async def agent_runner(payload: dict[str, Any], ctx: Any) -> dict[str, Any]:
             """Execute AGDD agent.
 
             Args:
@@ -245,12 +240,7 @@ class AGDDMCPServer:
                 loop = asyncio.get_event_loop()
                 context: dict[str, Any] = {}
                 output = await loop.run_in_executor(
-                    None,
-                    lambda: runner.invoke_mag(
-                        slug=slug,
-                        payload=payload,
-                        context=context
-                    )
+                    None, lambda: runner.invoke_mag(slug=slug, payload=payload, context=context)
                 )
 
                 await ctx.info(f"Agent {slug} completed successfully")
@@ -313,10 +303,7 @@ class AGDDMCPServer:
         description = f"AGDD skill: {skill_id}"
 
         # Register tool
-        async def skill_runner(
-            payload: dict[str, Any],
-            ctx: Context
-        ) -> dict[str, Any]:
+        async def skill_runner(payload: dict[str, Any], ctx: Any) -> dict[str, Any]:
             """Execute AGDD skill.
 
             Args:
@@ -354,9 +341,7 @@ class AGDDMCPServer:
             transport: Transport type ("stdio" for standard I/O)
         """
         if not HAS_MCP_SDK:
-            raise ImportError(
-                "MCP SDK not installed. Install with: pip install mcp"
-            )
+            raise ImportError("MCP SDK not installed. Install with: pip install mcp")
 
         logger.info("Starting AGDD MCP server")
         logger.info(f"Exposing agents: {self.expose_agents}")

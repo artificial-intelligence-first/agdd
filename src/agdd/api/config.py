@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # API configuration
     API_DEBUG: bool = Field(default=False, description="Enable debug mode")
     API_PREFIX: str = Field(default="/api/v1", description="API route prefix")
-    API_HOST: str = Field(default="0.0.0.0", description="API server host")
+    API_HOST: str = Field(default="127.0.0.1", description="API server host")
     API_PORT: int = Field(default=8000, description="API server port")
     API_MAX_REQUEST_BYTES: int = Field(
         default=10 * 1024 * 1024,

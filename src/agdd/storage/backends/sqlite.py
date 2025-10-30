@@ -72,16 +72,10 @@ class SQLiteStorageBackend(StorageBackend):
 
         # Run blocking sqlite3.connect in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        self._conn = await loop.run_in_executor(
-            None,
-            self._connect_db
-        )
+        self._conn = await loop.run_in_executor(None, self._connect_db)
 
         # Enable pragmas (run in executor to be safe)
-        await loop.run_in_executor(
-            None,
-            self._configure_db
-        )
+        await loop.run_in_executor(None, self._configure_db)
 
         # Create schema
         await self._create_schema()
@@ -98,13 +92,16 @@ class SQLiteStorageBackend(StorageBackend):
 
     def _configure_db(self) -> None:
         """Configure database pragmas (blocking operation for executor)"""
-        assert self._conn is not None
-        self._conn.execute("PRAGMA foreign_keys = ON")
-        self._conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA journal_mode = WAL")  # Write-Ahead Logging
 
     async def _create_schema(self) -> None:
         """Create database tables and indexes (async to avoid blocking event loop)"""
-        assert self._conn is not None
+        if self._conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         # Run schema creation in executor to avoid blocking event loop
         loop = asyncio.get_event_loop()
@@ -112,10 +109,12 @@ class SQLiteStorageBackend(StorageBackend):
 
     def _create_schema_blocking(self) -> None:
         """Create database schema (blocking operation for executor)"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         # Runs table
-        self._conn.execute(
+        conn.execute(
             """
             CREATE TABLE IF NOT EXISTS runs (
                 run_id TEXT PRIMARY KEY,
@@ -132,18 +131,14 @@ class SQLiteStorageBackend(StorageBackend):
         )
 
         # Indexes on runs
-        self._conn.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_agent_started ON runs(agent_slug, started_at DESC)"
         )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status, started_at DESC)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status, started_at DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_parent ON runs(parent_run_id)")
 
         # Events table
-        self._conn.execute(
+        conn.execute(
             """
             CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,27 +160,19 @@ class SQLiteStorageBackend(StorageBackend):
         )
 
         # Indexes on events
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_events_run_ts ON events(run_id, ts)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_events_type ON events(type, ts DESC)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_events_agent ON events(agent_slug, ts DESC)"
-        )
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_events_span ON events(span_id)"
-        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_events_run_ts ON events(run_id, ts)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON events(type, ts DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_events_agent ON events(agent_slug, ts DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_events_span ON events(span_id)")
 
         # FTS5 virtual table for full-text search
         if self.enable_fts:
             # Check if FTS5 is available
             try:
-                self._conn.execute("SELECT fts5_version()")
+                conn.execute("SELECT fts5_version()")
 
                 # Create FTS5 virtual table
-                self._conn.execute(
+                conn.execute(
                     """
                     CREATE VIRTUAL TABLE IF NOT EXISTS events_fts
                     USING fts5(msg, content='events', content_rowid='id')
@@ -193,7 +180,7 @@ class SQLiteStorageBackend(StorageBackend):
                 )
 
                 # Triggers to keep FTS5 in sync
-                self._conn.execute(
+                conn.execute(
                     """
                     CREATE TRIGGER IF NOT EXISTS events_ai AFTER INSERT ON events BEGIN
                         INSERT INTO events_fts(rowid, msg)
@@ -202,7 +189,7 @@ class SQLiteStorageBackend(StorageBackend):
                     """
                 )
 
-                self._conn.execute(
+                conn.execute(
                     """
                     CREATE TRIGGER IF NOT EXISTS events_ad AFTER DELETE ON events BEGIN
                         DELETE FROM events_fts WHERE rowid = old.id;
@@ -210,7 +197,7 @@ class SQLiteStorageBackend(StorageBackend):
                     """
                 )
 
-                self._conn.execute(
+                conn.execute(
                     """
                     CREATE TRIGGER IF NOT EXISTS events_au AFTER UPDATE ON events BEGIN
                         DELETE FROM events_fts WHERE rowid = old.id;
@@ -223,7 +210,7 @@ class SQLiteStorageBackend(StorageBackend):
                 # FTS5 not available, disable it
                 self.enable_fts = False
 
-        self._conn.commit()
+        conn.commit()
 
     async def close(self) -> None:
         """Close database connection"""
@@ -246,9 +233,11 @@ class SQLiteStorageBackend(StorageBackend):
         contract_version: Optional[str] = None,
     ) -> None:
         """Append an event to storage"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
-        self._conn.execute(
+        conn.execute(
             """
             INSERT INTO events (
                 ts, run_id, agent_slug, type, level, msg, payload,
@@ -280,12 +269,14 @@ class SQLiteStorageBackend(StorageBackend):
         tags: Optional[List[str]] = None,
     ) -> None:
         """Create a new run record"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         if started_at is None:
             started_at = datetime.now(timezone.utc)
 
-        self._conn.execute(
+        conn.execute(
             """
             INSERT INTO runs (run_id, agent_slug, parent_run_id, started_at, status, tags)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -308,10 +299,12 @@ class SQLiteStorageBackend(StorageBackend):
         metrics: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Update run metadata"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
-        updates = []
-        params = []
+        updates: List[str] = []
+        params: List[Any] = []
 
         if status is not None:
             updates.append("status = ?")
@@ -329,14 +322,22 @@ class SQLiteStorageBackend(StorageBackend):
             return
 
         params.append(run_id)
-        query = f"UPDATE runs SET {', '.join(updates)} WHERE run_id = ?"
-        self._conn.execute(query, params)
+        allowed_fields = {"status", "ended_at", "metrics"}
+        for assignment in updates:
+            field = assignment.split("=", 1)[0].strip()
+            if field not in allowed_fields:
+                raise ValueError(f"Unexpected field in update: {field}")
+
+        update_sql = "UPDATE runs SET " + ", ".join(updates) + " WHERE run_id = ?"  # nosec B608 - assignments use vetted column names
+        conn.execute(update_sql, params)
 
     async def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
         """Get run metadata"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
-        cursor = self._conn.execute(
+        cursor = conn.execute(
             """
             SELECT run_id, agent_slug, parent_run_id, started_at, ended_at,
                    status, metrics, tags
@@ -371,7 +372,9 @@ class SQLiteStorageBackend(StorageBackend):
         offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """List runs with optional filters"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         query = "SELECT * FROM runs WHERE 1=1"
         params: List[Any] = []
@@ -395,7 +398,7 @@ class SQLiteStorageBackend(StorageBackend):
         query += " ORDER BY started_at DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
-        cursor = self._conn.execute(query, params)
+        cursor = conn.execute(query, params)
         rows = cursor.fetchall()
 
         return [
@@ -420,7 +423,9 @@ class SQLiteStorageBackend(StorageBackend):
         limit: Optional[int] = None,
     ) -> AsyncIterator[Dict[str, Any]]:
         """Stream events for a run"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         query = "SELECT * FROM events WHERE run_id = ?"
         params: List[Any] = [run_id]
@@ -439,7 +444,7 @@ class SQLiteStorageBackend(StorageBackend):
             query += " LIMIT ?"
             params.append(limit)
 
-        cursor = self._conn.execute(query, params)
+        cursor = conn.execute(query, params)
 
         for row in cursor:
             yield {
@@ -465,7 +470,9 @@ class SQLiteStorageBackend(StorageBackend):
         limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """Full-text search across event messages using FTS5"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
         if not self.enable_fts:
             raise NotImplementedError("Full-text search not available (FTS5 disabled)")
@@ -490,7 +497,7 @@ class SQLiteStorageBackend(StorageBackend):
         sql += " ORDER BY e.ts DESC LIMIT ?"
         params.append(limit)
 
-        cursor = self._conn.execute(sql, params)
+        cursor = conn.execute(sql, params)
         rows = cursor.fetchall()
 
         return [
@@ -518,23 +525,23 @@ class SQLiteStorageBackend(StorageBackend):
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """Clean up old data based on retention policy"""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
-        cutoff = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        cutoff = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
         cutoff = cutoff - timedelta(days=hot_days)
         cutoff_iso = cutoff.isoformat()
 
         # Count runs to be deleted
-        cursor = self._conn.execute(
+        cursor = conn.execute(
             "SELECT COUNT(*) as count FROM runs WHERE started_at < ?",
             (cutoff_iso,),
         )
         runs_to_delete = cursor.fetchone()["count"]
 
         # Count events to be deleted
-        cursor = self._conn.execute(
+        cursor = conn.execute(
             "SELECT COUNT(*) as count FROM events WHERE ts < ?",
             (cutoff_iso,),
         )
@@ -549,13 +556,13 @@ class SQLiteStorageBackend(StorageBackend):
             }
 
         # Delete old runs (cascade will delete events)
-        self._conn.execute(
+        conn.execute(
             "DELETE FROM runs WHERE started_at < ?",
             (cutoff_iso,),
         )
 
         # VACUUM to reclaim space
-        self._conn.execute("VACUUM")
+        conn.execute("VACUUM")
 
         return {
             "dry_run": False,

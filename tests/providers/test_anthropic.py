@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
 
@@ -106,8 +107,8 @@ def test_convert_messages_assistant_with_tool_calls() -> None:
 
 def test_convert_messages_tool_response() -> None:
     """Test conversion of tool response messages."""
-    messages: list[OpenAIMessage] = [
-        {"role": "user", "content": "What's the weather?"},
+    assistant_call = cast(
+        OpenAIMessage,
         {
             "role": "assistant",
             "content": None,
@@ -119,6 +120,10 @@ def test_convert_messages_tool_response() -> None:
                 }
             ],
         },
+    )
+    messages: list[OpenAIMessage] = [
+        {"role": "user", "content": "What's the weather?"},
+        assistant_call,
         {
             "role": "tool",
             "tool_call_id": "call_123",
@@ -468,12 +473,16 @@ def test_provider_stream_tool_use(mock_client_class: Mock) -> None:
 
     # Tool use start
     assert deltas[1]["type"] == "tool_use"
-    assert deltas[1]["tool_use"]["id"] == "toolu_999"
-    assert deltas[1]["tool_use"]["name"] == "get_weather"
+    tool_use_start = deltas[1]["tool_use"]
+    assert tool_use_start is not None
+    assert tool_use_start["id"] == "toolu_999"
+    assert tool_use_start["name"] == "get_weather"
 
     # Tool input deltas (fine-grained streaming)
     assert deltas[2]["type"] == "tool_call_delta"
-    assert '"location":' in deltas[2]["text"]
+    tool_delta_text = deltas[2]["text"]
+    assert tool_delta_text is not None
+    assert '"location":' in tool_delta_text
 
 
 @patch("agdd.providers.anthropic.httpx.Client")
@@ -521,10 +530,12 @@ def test_provider_stream_tool_use_without_fine_grained(mock_client_class: Mock) 
     # Verify tool_use event includes full input
     assert len(deltas) == 1
     assert deltas[0]["type"] == "tool_use"
-    assert deltas[0]["tool_use"]["id"] == "toolu_abc"
-    assert deltas[0]["tool_use"]["name"] == "get_weather"
+    tool_use_event = deltas[0]["tool_use"]
+    assert tool_use_event is not None
+    assert tool_use_event["id"] == "toolu_abc"
+    assert tool_use_event["name"] == "get_weather"
     # This is the critical assertion - input must be included
-    assert deltas[0]["tool_use"]["input"] == {"location": "Tokyo", "unit": "celsius"}
+    assert tool_use_event["input"] == {"location": "Tokyo", "unit": "celsius"}
 
 
 @patch("agdd.providers.anthropic.httpx.Client")

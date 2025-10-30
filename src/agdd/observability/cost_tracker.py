@@ -144,9 +144,11 @@ class CostTracker:
 
     def _create_schema(self) -> None:
         """Create SQLite database schema."""
-        assert self._conn is not None
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
 
-        self._conn.execute(
+        conn.execute(
             """
             CREATE TABLE IF NOT EXISTS cost_records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,12 +168,10 @@ class CostTracker:
         )
 
         # Indexes for efficient querying
-        self._conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_timestamp ON cost_records(timestamp)"
-        )
-        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_model ON cost_records(model)")
-        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_agent ON cost_records(agent)")
-        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_run_id ON cost_records(run_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON cost_records(timestamp)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_model ON cost_records(model)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agent ON cost_records(agent)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_run_id ON cost_records(run_id)")
 
     def record_cost(self, record: CostRecord) -> None:
         """
@@ -258,22 +258,25 @@ class CostTracker:
                 conditions.append("run_id = ?")
                 params.append(run_id)
 
-            where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            conn = self._conn
+            if conn is None:
+                raise RuntimeError("SQLite connection has not been initialized")
 
-            # Overall summary
-            row = self._conn.execute(
-                f"""
-                SELECT
-                    COALESCE(SUM(cost_usd), 0) as total_cost,
-                    COALESCE(SUM(total_tokens), 0) as total_tokens,
-                    COALESCE(SUM(input_tokens), 0) as total_input,
-                    COALESCE(SUM(output_tokens), 0) as total_output,
-                    COUNT(*) as total_calls
-                FROM cost_records
-                {where_clause}
-                """,
-                params,
-            ).fetchone()
+            where_clause = " AND ".join(conditions)
+            summary_query = [
+                "SELECT",
+                "    COALESCE(SUM(cost_usd), 0) as total_cost,",
+                "    COALESCE(SUM(total_tokens), 0) as total_tokens,",
+                "    COALESCE(SUM(input_tokens), 0) as total_input,",
+                "    COALESCE(SUM(output_tokens), 0) as total_output,",
+                "    COUNT(*) as total_calls",
+                "FROM cost_records",
+            ]
+            if where_clause:
+                summary_query.append("WHERE " + where_clause)
+            summary_sql = "\n".join(summary_query)
+
+            row = conn.execute(summary_sql, params).fetchone()
 
             summary = CostSummary(
                 total_cost_usd=float(row["total_cost"]),
@@ -286,22 +289,27 @@ class CostTracker:
             )
 
             # By model
-            rows = self._conn.execute(
-                f"""
-                SELECT
-                    model,
-                    SUM(cost_usd) as cost,
-                    SUM(total_tokens) as tokens,
-                    SUM(input_tokens) as input_tokens,
-                    SUM(output_tokens) as output_tokens,
-                    COUNT(*) as calls
-                FROM cost_records
-                {where_clause}
-                GROUP BY model
-                ORDER BY cost DESC
-                """,
-                params,
-            ).fetchall()
+            model_query = [
+                "SELECT",
+                "    model,",
+                "    SUM(cost_usd) as cost,",
+                "    SUM(total_tokens) as tokens,",
+                "    SUM(input_tokens) as input_tokens,",
+                "    SUM(output_tokens) as output_tokens,",
+                "    COUNT(*) as calls",
+                "FROM cost_records",
+            ]
+            if where_clause:
+                model_query.append("WHERE " + where_clause)
+            model_query.extend(
+                [
+                    "GROUP BY model",
+                    "ORDER BY cost DESC",
+                ]
+            )
+            model_sql = "\n".join(model_query)
+
+            rows = conn.execute(model_sql, params).fetchall()
 
             for row in rows:
                 summary.by_model[row["model"]] = {
@@ -313,22 +321,27 @@ class CostTracker:
                 }
 
             # By agent
-            rows = self._conn.execute(
-                f"""
-                SELECT
-                    agent,
-                    SUM(cost_usd) as cost,
-                    SUM(total_tokens) as tokens,
-                    SUM(input_tokens) as input_tokens,
-                    SUM(output_tokens) as output_tokens,
-                    COUNT(*) as calls
-                FROM cost_records
-                {where_clause}
-                GROUP BY agent
-                ORDER BY cost DESC
-                """,
-                params,
-            ).fetchall()
+            agent_query = [
+                "SELECT",
+                "    agent,",
+                "    SUM(cost_usd) as cost,",
+                "    SUM(total_tokens) as tokens,",
+                "    SUM(input_tokens) as input_tokens,",
+                "    SUM(output_tokens) as output_tokens,",
+                "    COUNT(*) as calls",
+                "FROM cost_records",
+            ]
+            if where_clause:
+                agent_query.append("WHERE " + where_clause)
+            agent_query.extend(
+                [
+                    "GROUP BY agent",
+                    "ORDER BY cost DESC",
+                ]
+            )
+            agent_sql = "\n".join(agent_query)
+
+            rows = conn.execute(agent_sql, params).fetchall()
 
             for row in rows:
                 if row["agent"]:  # Skip NULL agents

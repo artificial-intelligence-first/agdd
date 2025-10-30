@@ -174,9 +174,7 @@ def test_discovery_find_by_capability() -> None:
         .add_capability("process")
         .build()
     )
-    card2 = (
-        AgentCardBuilder("agent-002", "Agent2", "1.0.0").add_capability("echo").build()
-    )
+    card2 = AgentCardBuilder("agent-002", "Agent2", "1.0.0").add_capability("echo").build()
     card3 = AgentCardBuilder("agent-003", "Agent3", "1.0.0").build()
 
     discovery.register(card1)
@@ -213,11 +211,7 @@ def test_discovery_find_by_tags() -> None:
         .with_metadata(tags=["data", "storage"])
         .build()
     )
-    card3 = (
-        AgentCardBuilder("agent-003", "Agent3", "1.0.0")
-        .with_metadata(tags=["ui"])
-        .build()
-    )
+    card3 = AgentCardBuilder("agent-003", "Agent3", "1.0.0").with_metadata(tags=["ui"]).build()
 
     discovery.register(card1)
     discovery.register(card2)
@@ -290,7 +284,7 @@ def test_discovery_query_multiple_criteria() -> None:
 
 def test_jsonrpc_request_creation() -> None:
     """Test creating JSON-RPC requests."""
-    request = JsonRpcRequest(method="echo", params={"message": "hello"}, id="req-001")
+    request = JsonRpcRequest(method="echo", params={"message": "hello"}, id="req-001", meta=None)
 
     assert request.jsonrpc == "2.0"
     assert request.method == "echo"
@@ -300,7 +294,7 @@ def test_jsonrpc_request_creation() -> None:
 
 def test_jsonrpc_notification() -> None:
     """Test creating JSON-RPC notifications (id=None)."""
-    notification = JsonRpcRequest(method="notify", params={"event": "started"}, id=None)
+    notification = JsonRpcRequest(method="notify", params={"event": "started"}, id=None, meta=None)
 
     assert notification.id is None  # Notification has no ID
 
@@ -336,8 +330,9 @@ def test_a2a_server_method_registration() -> None:
 
     server.register_method("echo", echo_handler)
 
-    request = JsonRpcRequest(method="echo", params={"message": "hello"}, id="req-001")
+    request = JsonRpcRequest(method="echo", params={"message": "hello"}, id="req-001", meta=None)
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.id == "req-001"
     assert response.result == {"echo": "hello"}
@@ -348,8 +343,9 @@ def test_a2a_server_method_not_found() -> None:
     """Test calling non-existent method returns error."""
     server = A2AServer()
 
-    request = JsonRpcRequest(method="unknown", params={}, id="req-001")
+    request = JsonRpcRequest(method="unknown", params={}, id="req-001", meta=None)
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.error is not None
     assert response.error.code == METHOD_NOT_FOUND
@@ -366,8 +362,9 @@ def test_a2a_server_invalid_params() -> None:
     server.register_method("add", add_handler)
 
     # Missing parameter
-    request = JsonRpcRequest(method="add", params={"a": 5}, id="req-001")
+    request = JsonRpcRequest(method="add", params={"a": 5}, id="req-001", meta=None)
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.error is not None
     assert response.error.code == INVALID_PARAMS
@@ -382,8 +379,9 @@ def test_a2a_server_internal_error() -> None:
 
     server.register_method("fail", failing_handler)
 
-    request = JsonRpcRequest(method="fail", params=None, id="req-001")
+    request = JsonRpcRequest(method="fail", params=None, id="req-001", meta=None)
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.error is not None
     assert response.error.code == INTERNAL_ERROR
@@ -400,9 +398,10 @@ def test_a2a_server_with_dict_params() -> None:
     server.register_method("greet", greet_handler)
 
     request = JsonRpcRequest(
-        method="greet", params={"name": "Smith", "title": "Dr."}, id="req-001"
+        method="greet", params={"name": "Smith", "title": "Dr."}, id="req-001", meta=None
     )
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.result == "Hello, Dr. Smith"
 
@@ -416,8 +415,9 @@ def test_a2a_server_with_list_params() -> None:
 
     server.register_method("add", add_handler)
 
-    request = JsonRpcRequest(method="add", params=[5, 3], id="req-001")
+    request = JsonRpcRequest(method="add", params=[5, 3], id="req-001", meta=None)
     response = server.handle_request(request)
+    assert response is not None
 
     assert response.result == 8
 
@@ -431,7 +431,7 @@ def test_a2a_server_no_params() -> None:
 
     server.register_method("status", status_handler)
 
-    request = JsonRpcRequest(method="status", params=None, id="req-001")
+    request = JsonRpcRequest(method="status", params=None, id="req-001", meta=None)
     response = server.handle_request(request)
 
     assert response is not None
@@ -451,7 +451,7 @@ def test_a2a_server_notification_success() -> None:
     server.register_method("notify", notification_handler)
 
     # Create notification (id=None)
-    notification = JsonRpcRequest(method="notify", params={"message": "test"}, id=None)
+    notification = JsonRpcRequest(method="notify", params={"message": "test"}, id=None, meta=None)
     response = server.handle_request(notification)
 
     # Notifications must not generate a response
@@ -463,7 +463,7 @@ def test_a2a_server_notification_method_not_found() -> None:
     """Test that notifications for non-existent methods return None."""
     server = A2AServer()
 
-    notification = JsonRpcRequest(method="unknown", params={}, id=None)
+    notification = JsonRpcRequest(method="unknown", params={}, id=None, meta=None)
     response = server.handle_request(notification)
 
     # Notifications must not generate a response, even for errors
@@ -479,7 +479,7 @@ def test_a2a_server_notification_with_error() -> None:
 
     server.register_method("fail", failing_handler)
 
-    notification = JsonRpcRequest(method="fail", params=None, id=None)
+    notification = JsonRpcRequest(method="fail", params=None, id=None, meta=None)
     response = server.handle_request(notification)
 
     # Notifications must not generate a response, even when handler fails
@@ -496,7 +496,7 @@ def test_a2a_server_notification_invalid_params() -> None:
     server.register_method("test", handler)
 
     # Missing required parameter
-    notification = JsonRpcRequest(method="test", params={}, id=None)
+    notification = JsonRpcRequest(method="test", params={}, id=None, meta=None)
     response = server.handle_request(notification)
 
     # Notifications must not generate a response, even for parameter errors
@@ -580,6 +580,7 @@ def test_full_a2a_workflow() -> None:
     response = server.handle_request(request)
 
     # Verify response
+    assert response is not None
     assert response.error is None
     assert response.result == {"sum": 15, "count": 5}
 
@@ -594,8 +595,9 @@ def test_jsonrpc_compliance() -> None:
     server.register_method("add", calculator_add)
 
     # Test 1: Standard request with dict params
-    request1 = JsonRpcRequest(method="add", params={"a": 10, "b": 20}, id=1)
+    request1 = JsonRpcRequest(method="add", params={"a": 10, "b": 20}, id=1, meta=None)
     response1 = server.handle_request(request1)
+    assert response1 is not None
 
     assert response1.jsonrpc == "2.0"
     assert response1.id == 1
@@ -603,16 +605,18 @@ def test_jsonrpc_compliance() -> None:
     assert response1.error is None
 
     # Test 2: Request with list params
-    request2 = JsonRpcRequest(method="add", params=[15, 25], id=2)
+    request2 = JsonRpcRequest(method="add", params=[15, 25], id=2, meta=None)
     response2 = server.handle_request(request2)
+    assert response2 is not None
 
     assert response2.jsonrpc == "2.0"
     assert response2.id == 2
     assert response2.result == 40
 
     # Test 3: Error response for method not found
-    request3 = JsonRpcRequest(method="subtract", params=[10, 5], id=3)
+    request3 = JsonRpcRequest(method="subtract", params=[10, 5], id=3, meta=None)
     response3 = server.handle_request(request3)
+    assert response3 is not None
 
     assert response3.jsonrpc == "2.0"
     assert response3.id == 3

@@ -11,6 +11,7 @@ from __future__ import annotations
 from agdd.providers.base import BaseLLMProvider, LLMResponse
 from agdd.providers.google import GoogleProvider
 from agdd.providers.local import LocalLLMProvider, LocalProviderConfig
+from agdd.providers.mock import MockLLMProvider
 
 # Import submodules to make them available via package namespace
 from . import anthropic, openai
@@ -33,6 +34,8 @@ __all__ = [
     # Local provider
     "LocalLLMProvider",
     "LocalProviderConfig",
+    # Mock provider (for testing)
+    "MockLLMProvider",
     # Provider modules
     "anthropic",
     "openai",

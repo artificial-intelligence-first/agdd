@@ -1,4 +1,5 @@
 """Integration test for custom RUNS_BASE_DIR setting."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +11,9 @@ from agdd.api.server import app
 
 
 import pytest
+
 pytestmark = pytest.mark.slow
+
 
 def test_custom_runs_base_dir(tmp_path: Path) -> None:
     """Test that custom RUNS_BASE_DIR is honored for both execution and tracking."""

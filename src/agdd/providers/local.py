@@ -26,7 +26,7 @@ class LocalProviderConfig:
 
     base_url: str = "http://localhost:8000/v1/"
     api_key: Optional[str] = None
-    timeout: float = 60.0
+    timeout: float = 3.0  # Reduced from 60.0 to fail fast when server is unavailable
     prefer_responses: bool = True
     fallback_on_error: bool = True
     pricing: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -46,13 +46,26 @@ class LocalLLMProvider:
         config: Optional[LocalProviderConfig] = None,
         *,
         compat_provider: Optional[OpenAICompatProvider] = None,
+        skip_health_check: bool = False,
     ):
         self.config = config or LocalProviderConfig()
+        # Use fine-grained timeout: fail fast on connection, allow time for generation
+        timeout = httpx.Timeout(
+            connect=1.0,  # Fast failure if server is unavailable
+            read=self.config.timeout,
+            write=5.0,
+            pool=5.0,
+        )
         self._client = httpx.Client(
             base_url=self.config.base_url,
-            timeout=self.config.timeout,
+            timeout=timeout,
             headers=self._build_headers(),
         )
+        self._server_available: Optional[bool] = None
+
+        # Early health check to fail fast if server is unavailable
+        if not skip_health_check:
+            self._check_server_health()
         if compat_provider is not None:
             self._compat_provider = compat_provider
         else:
@@ -71,6 +84,39 @@ class LocalLLMProvider:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
         return headers
 
+    def _check_server_health(self) -> None:
+        """
+        Check if local LLM server is reachable.
+
+        Raises:
+            RuntimeError: If server is not reachable with clear error message
+        """
+        try:
+            # Try to connect to models endpoint (common health check)
+            response = self._client.get("models", timeout=1.0)
+            response.raise_for_status()
+            self._server_available = True
+            logger.info(f"Local LLM server at {self.config.base_url} is available")
+        except httpx.ConnectError as exc:
+            self._server_available = False
+            raise RuntimeError(
+                f"Local LLM server at {self.config.base_url} is not reachable. "
+                f"Please start your local LLM server (e.g., Ollama, vLLM) or use a different provider. "
+                f"Error: {exc}"
+            ) from exc
+        except httpx.TimeoutException as exc:
+            self._server_available = False
+            raise RuntimeError(
+                f"Local LLM server at {self.config.base_url} timed out during health check. "
+                f"Server may be overloaded or not responding. Error: {exc}"
+            ) from exc
+        except Exception as exc:
+            # Log but don't fail on other errors (e.g., 404 on /models)
+            logger.warning(
+                f"Could not verify local LLM server health at {self.config.base_url}: {exc}"
+            )
+            self._server_available = None  # Unknown state
+
     def close(self) -> None:
         """Release network resources."""
         self._client.close()
@@ -78,6 +124,7 @@ class LocalLLMProvider:
         if compat_close is None:
             return
         if inspect.iscoroutinefunction(compat_close):
+
             async def _close_async() -> None:
                 await compat_close()
 
@@ -97,8 +144,8 @@ class LocalLLMProvider:
     def __del__(self) -> None:  # pragma: no cover - best-effort cleanup
         try:
             self.close()
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("LocalLLMProvider cleanup failed", exc_info=exc)
 
     def generate(
         self,
@@ -214,7 +261,9 @@ class LocalLLMProvider:
             return 0.0
         prompt_rate = pricing.get("prompt", 0.0)
         completion_rate = pricing.get("completion", 0.0)
-        return (input_tokens / 1_000_000) * prompt_rate + (output_tokens / 1_000_000) * completion_rate
+        return (input_tokens / 1_000_000) * prompt_rate + (
+            output_tokens / 1_000_000
+        ) * completion_rate
 
     def _invoke_responses(
         self,

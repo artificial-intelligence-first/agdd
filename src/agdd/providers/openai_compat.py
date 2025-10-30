@@ -73,7 +73,9 @@ class OpenAICompatProviderConfig(BaseModel):
         default="http://localhost:8000/v1/",
         description="Base URL for OpenAI-compatible API endpoint (must end with /)",
     )
-    timeout: float = Field(default=60.0, description="Request timeout in seconds")
+    timeout: float = Field(
+        default=3.0, description="Request timeout in seconds (reduced for fast failure)"
+    )
     api_key: str | None = Field(
         default=None, description="API key (optional, some local servers require it)"
     )
@@ -104,9 +106,16 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
             config: Provider configuration. If None, uses default configuration.
         """
         self.config = config or OpenAICompatProviderConfig()
+        # Use fine-grained timeout: fail fast on connection, allow time for generation
+        timeout = httpx.Timeout(
+            connect=1.0,  # Fast failure if server is unavailable
+            read=self.config.timeout,
+            write=5.0,
+            pool=5.0,
+        )
         self._client = httpx.AsyncClient(
             base_url=self.config.base_url,
-            timeout=self.config.timeout,
+            timeout=timeout,
             headers=self._build_headers(),
         )
 
@@ -295,7 +304,9 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
                 "Reasoning configuration is not supported by this provider and will be ignored."
             )
         if mcp_tools:
-            warnings.append("MCP tool definitions are not supported by OpenAI-compatible providers.")
+            warnings.append(
+                "MCP tool definitions are not supported by OpenAI-compatible providers."
+            )
 
         for warning in warnings:
             logger.warning(warning)
@@ -370,4 +381,6 @@ class OpenAICompatProvider(BaseOpenAICompatProvider):
 
         prompt_rate = pricing.get("prompt", 0.0)
         completion_rate = pricing.get("completion", 0.0)
-        return (input_tokens / 1_000_000) * prompt_rate + (output_tokens / 1_000_000) * completion_rate
+        return (input_tokens / 1_000_000) * prompt_rate + (
+            output_tokens / 1_000_000
+        ) * completion_rate

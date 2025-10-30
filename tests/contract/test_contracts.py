@@ -1,4 +1,5 @@
 """Validate all contract JSON Schemas are well-formed"""
+
 import json
 import pathlib
 from typing import Any

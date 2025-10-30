@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ from ..models import AgentInfo, AgentRunRequest, AgentRunResponse
 from ..rate_limit import rate_limit_dependency
 from ..run_tracker import find_new_run_id, snapshot_runs
 from ..security import require_api_key
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["agents"])
 
@@ -59,7 +62,16 @@ async def list_agents(
                 continue
 
             try:
-                agent_data = yaml.safe_load(agent_yaml_path.read_text(encoding="utf-8")) or {}
+                agent_payload = agent_yaml_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                logger.warning("Failed to read agent metadata at %s", agent_yaml_path, exc_info=exc)
+                continue
+
+            try:
+                agent_data = yaml.safe_load(agent_payload) or {}
+            except yaml.YAMLError as exc:
+                logger.warning("Invalid YAML in %s", agent_yaml_path, exc_info=exc)
+            else:
                 items.append(
                     AgentInfo(
                         slug=agent_data.get("slug", agent_dir.name),
@@ -67,9 +79,6 @@ async def list_agents(
                         description=agent_data.get("description"),
                     )
                 )
-            except Exception:
-                # Skip agents with invalid YAML
-                continue
 
     return items
 

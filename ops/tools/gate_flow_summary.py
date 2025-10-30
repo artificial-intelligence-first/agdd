@@ -1,4 +1,5 @@
 """Governance gate for Flow Runner summaries (CLI wrapper)."""
+
 from __future__ import annotations
 
 import sys

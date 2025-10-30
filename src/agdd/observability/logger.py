@@ -9,7 +9,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional
 
 from agdd.observability.cost_tracker import record_llm_cost
 from agdd.observability.tracing import initialize_observability
@@ -82,7 +82,9 @@ class ObservabilityLogger:
 
     def _atomic_write(self, path: Path, payload: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile("w", delete=False, dir=path.parent, encoding="utf-8") as tmp:
+        with tempfile.NamedTemporaryFile(
+            "w", delete=False, dir=path.parent, encoding="utf-8"
+        ) as tmp:
             tmp.write(payload)
             tmp_path = Path(tmp.name)
         os.replace(tmp_path, path)

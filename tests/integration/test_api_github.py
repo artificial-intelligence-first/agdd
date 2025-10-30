@@ -1,4 +1,5 @@
 """Integration tests for GitHub webhook API."""
+
 from __future__ import annotations
 
 import hashlib
@@ -17,6 +18,7 @@ from agdd.api.server import app
 
 
 pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def test_settings(tmp_path: Path) -> Settings:
@@ -122,7 +124,7 @@ def test_webhook_issue_comment_with_command(
         "action": "created",
         "repository": {"full_name": "owner/repo"},
         "issue": {"number": 123},
-        "comment": {"body": "@test-agent {\"input\": \"data\"}"},
+        "comment": {"body": '@test-agent {"input": "data"}'},
     }
     payload_bytes = json.dumps(payload).encode()
     signature = compute_signature("test-secret", payload_bytes)
@@ -174,7 +176,7 @@ def test_webhook_agent_execution_failure(
         "action": "created",
         "repository": {"full_name": "owner/repo"},
         "issue": {"number": 456},
-        "comment": {"body": "@failing-agent {\"input\": \"bad\"}"},
+        "comment": {"body": '@failing-agent {"input": "bad"}'},
     }
     payload_bytes = json.dumps(payload).encode()
     signature = compute_signature("test-secret", payload_bytes)

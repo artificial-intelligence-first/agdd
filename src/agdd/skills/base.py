@@ -237,7 +237,6 @@ class SkillBase:
 
 __all__ = [
     # Protocols
-    "Skill",
     "MCPSkill",
     # Helper class
     "SkillBase",

@@ -148,9 +148,7 @@ class MCPServer:
                 stderr=PIPE,
             )
         except Exception as exc:  # noqa: BLE001
-            raise MCPServerError(
-                f"Failed to start MCP server '{self.server_id}': {exc}"
-            ) from exc
+            raise MCPServerError(f"Failed to start MCP server '{self.server_id}': {exc}") from exc
 
         self._process = process
         self._stdin = process.stdin
@@ -171,9 +169,7 @@ class MCPServer:
                 },
             )
             if "error" in initialize_response:
-                raise MCPServerError(
-                    f"Initialize failed: {initialize_response['error']}"
-                )
+                raise MCPServerError(f"Initialize failed: {initialize_response['error']}")
 
             # Notify server that initialization completed
             await self._send_notification("notifications/initialized", {})
@@ -468,9 +464,9 @@ class MCPServer:
                     self.server_id,
                     line.decode(errors="ignore").rstrip(),
                 )
-        except Exception:  # noqa: BLE001
-            # Best-effort logging only
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # Best-effort logging only; surface trace for debugging without failing pipeline
+            logger.debug("Failed to drain MCP stderr for %s", self.server_id, exc_info=exc)
 
     async def _execute_mcp_tool(
         self,

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from typing import Any, Optional
+
+from agdd.mcp import MCPRuntime
+
 """
 Task Decomposition Skill
 
 Decomposes high-level requests into sub-agent tasks.
 """
-
-from typing import Any, Optional
-
-from agdd.mcp import MCPRuntime
 
 
 async def run(

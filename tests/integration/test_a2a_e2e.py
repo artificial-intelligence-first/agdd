@@ -51,8 +51,7 @@ class TestA2ADiscoveryInvoke:
 
         agents = response.json()
         mag_agent = next(
-            (agent for agent in agents if agent["slug"] == "offer-orchestrator-mag"),
-            None
+            (agent for agent in agents if agent["slug"] == "offer-orchestrator-mag"), None
         )
 
         assert mag_agent is not None
@@ -71,8 +70,7 @@ class TestA2ADiscoveryInvoke:
         }
 
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         assert response.status_code == 200
@@ -111,10 +109,7 @@ class TestA2ADiscoveryInvoke:
         assert discovery_response.status_code == 200
 
         agents = discovery_response.json()
-        mag_slugs = [
-            agent["slug"] for agent in agents
-            if agent["slug"].endswith("-mag")
-        ]
+        mag_slugs = [agent["slug"] for agent in agents if agent["slug"].endswith("-mag")]
         assert len(mag_slugs) > 0
 
         # Step 2: Select a MAG (offer-orchestrator-mag)
@@ -130,8 +125,7 @@ class TestA2ADiscoveryInvoke:
         }
 
         invoke_response = client.post(
-            f"/api/v1/agents/{target_slug}/run",
-            json={"payload": payload}
+            f"/api/v1/agents/{target_slug}/run", json={"payload": payload}
         )
 
         assert invoke_response.status_code == 200
@@ -159,12 +153,11 @@ class TestA2ADiscoveryInvoke:
                 "correlation_id": "test-correlation-123",
                 "source_agent": "test-client",
                 "call_chain": ["external-system", "test-client"],
-            }
+            },
         }
 
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         assert response.status_code == 200
@@ -191,7 +184,7 @@ class TestA2ADiscoveryInvoke:
             json={
                 "payload": payload,
                 "request_id": request_id,
-            }
+            },
         )
 
         assert response.status_code == 200
@@ -203,10 +196,7 @@ class TestA2ADiscoveryInvoke:
         """Test that invoking non-existent agent returns proper error"""
         payload = {"test": "data"}
 
-        response = client.post(
-            "/api/v1/agents/nonexistent-agent/run",
-            json={"payload": payload}
-        )
+        response = client.post("/api/v1/agents/nonexistent-agent/run", json={"payload": payload})
 
         assert response.status_code == 404
         error = response.json()
@@ -217,8 +207,7 @@ class TestA2ADiscoveryInvoke:
         """Test that invalid payload structure is handled gracefully"""
         # Missing required 'payload' field
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"invalid": "structure"}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"invalid": "structure"}
         )
 
         # Should return 400 with ApiError schema for validation error
@@ -240,8 +229,7 @@ class TestA2ADiscoveryInvoke:
         results = []
         for payload in payloads:
             response = client.post(
-                "/api/v1/agents/offer-orchestrator-mag/run",
-                json={"payload": payload}
+                "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
             )
             assert response.status_code == 200
             results.append(response.json())
@@ -263,8 +251,7 @@ class TestA2ADiscoveryInvoke:
         payload = {"role": "Engineer", "level": "Mid", "experience_years": 5}
 
         invoke_response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         assert invoke_response.status_code == 200
@@ -297,8 +284,7 @@ class TestA2ADelegation:
         }
 
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         assert response.status_code == 200
@@ -321,8 +307,7 @@ class TestA2ADelegation:
         payload = {"role": "Engineer"}
 
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         # Should succeed with partial data (fallback behavior)
@@ -347,8 +332,7 @@ class TestA2ACompatibility:
         }
 
         response = client.post(
-            "/api/v1/agents/offer-orchestrator-mag/run",
-            json={"payload": payload}
+            "/api/v1/agents/offer-orchestrator-mag/run", json={"payload": payload}
         )
 
         assert response.status_code == 200

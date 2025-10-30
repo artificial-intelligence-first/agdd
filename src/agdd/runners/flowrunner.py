@@ -1,9 +1,10 @@
 """Flow Runner adapter that conforms to the AGDD runner protocol."""
+
 from __future__ import annotations
 
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - subprocess required for external flowctl CLI
 from importlib import metadata
 from pathlib import Path
 from typing import Mapping, Optional
@@ -60,12 +61,19 @@ class FlowRunner(Runner):
                 f"{custom_path}{os.pathsep}{existing}" if existing else custom_path
             )
         try:
-            return subprocess.run(
-                args, capture_output=True, text=True, env=merged_env, timeout=FLOWRUNNER_TIMEOUT_SECONDS
+            return subprocess.run(  # nosec B603 - arguments derived from trusted executable path and flags
+                args,
+                capture_output=True,
+                text=True,
+                env=merged_env,
+                timeout=FLOWRUNNER_TIMEOUT_SECONDS,
             )
         except subprocess.TimeoutExpired as exc:
             return subprocess.CompletedProcess(
-                args=args, returncode=1, stdout="", stderr=f"Process timeout after {FLOWRUNNER_TIMEOUT_SECONDS}s: {exc}"
+                args=args,
+                returncode=1,
+                stdout="",
+                stderr=f"Process timeout after {FLOWRUNNER_TIMEOUT_SECONDS}s: {exc}",
             )
         except FileNotFoundError as exc:
             return subprocess.CompletedProcess(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any, Callable, Iterator, TypeVar, cast
 
 import pytest
 
@@ -18,7 +19,7 @@ from agdd.observability.tracing import (
 
 
 @pytest.fixture(autouse=True)
-def reset_observability() -> None:
+def reset_observability() -> Iterator[None]:
     """Reset observability manager singleton between tests."""
     # Reset singleton instance
     ObservabilityManager._instance = None
@@ -239,7 +240,9 @@ def test_observe_decorator_available() -> None:
     assert observe is not None
 
     # Test stub decorator when Langfuse is not available
-    @observe
+    typed_observe = cast(Callable[[TCallable], TCallable], observe)
+
+    @typed_observe
     def test_function() -> str:
         return "test"
 
@@ -272,3 +275,6 @@ def test_config_from_env_with_langfuse(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.langfuse_public_key == "pk_env_test"
     assert config.langfuse_secret_key == "sk_env_test"
     assert config.langfuse_host == "https://env.langfuse.host"
+
+
+TCallable = TypeVar("TCallable", bound=Callable[..., Any])

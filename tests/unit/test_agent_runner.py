@@ -178,9 +178,7 @@ class TestAgentRunner:
                 cost_tracker._tracker.close()
                 cost_tracker._tracker = None
 
-    def test_runner_records_costs(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_runner_records_costs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Runner should write cost tracking artifacts under .runs/costs."""
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(cost_tracker, "_tracker", None)

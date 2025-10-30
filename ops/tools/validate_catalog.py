@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 
+
 def validate_catalog():
     """Validate all catalog files."""
     errors = []
@@ -37,6 +38,7 @@ def validate_catalog():
 
     print("✓ Catalog validation passed")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(validate_catalog())

@@ -21,7 +21,6 @@ pytestmark = pytest.mark.slow
 try:
     import asyncpg  # noqa: F401
 
-
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False
@@ -39,20 +38,20 @@ async def test_mcp_stdio_server_tool_execution(
         "",
         "TOOLS = [",
         "    {",
-        "        \"name\": \"echo\",",
-        "        \"description\": \"Echo arguments back to the caller\",",
-        "        \"inputSchema\": {",
-        "            \"type\": \"object\",",
-        "            \"properties\": {",
-        "                \"value\": {\"type\": \"string\", \"description\": \"Value to echo\"}",
+        '        "name": "echo",',
+        '        "description": "Echo arguments back to the caller",',
+        '        "inputSchema": {',
+        '            "type": "object",',
+        '            "properties": {',
+        '                "value": {"type": "string", "description": "Value to echo"}',
         "            },",
-        "            \"required\": [\"value\"],",
+        '            "required": ["value"],',
         "        },",
         "    }",
         "]",
         "",
         "def send(payload):",
-        "    sys.stdout.write(json.dumps(payload) + \"\\n\")",
+        '    sys.stdout.write(json.dumps(payload) + "\\n")',
         "    sys.stdout.flush()",
         "",
         "def main() -> None:",
@@ -61,53 +60,53 @@ async def test_mcp_stdio_server_tool_execution(
         "            if not line.strip():",
         "                continue",
         "            message = json.loads(line)",
-        "            method = message.get(\"method\")",
-        "            if method == \"initialize\":",
+        '            method = message.get("method")',
+        '            if method == "initialize":',
         "                send({",
-        "                    \"jsonrpc\": \"2.0\",",
-        "                    \"id\": message[\"id\"],",
-        "                    \"result\": {",
-        "                        \"capabilities\": {},",
-        "                        \"serverInfo\": {\"name\": \"fake-mcp\", \"version\": \"0.1\"},",
+        '                    "jsonrpc": "2.0",',
+        '                    "id": message["id"],',
+        '                    "result": {',
+        '                        "capabilities": {},',
+        '                        "serverInfo": {"name": "fake-mcp", "version": "0.1"},',
         "                    },",
         "                })",
-        "            elif method == \"notifications/initialized\":",
+        '            elif method == "notifications/initialized":',
         "                continue",
-        "            elif method == \"tools/list\":",
+        '            elif method == "tools/list":',
         "                send({",
-        "                    \"jsonrpc\": \"2.0\",",
-        "                    \"id\": message[\"id\"],",
-        "                    \"result\": {\"tools\": TOOLS},",
+        '                    "jsonrpc": "2.0",',
+        '                    "id": message["id"],',
+        '                    "result": {"tools": TOOLS},',
         "                })",
-        "            elif method == \"tools/call\":",
-        "                params = message.get(\"params\", {})",
-        "                name = params.get(\"name\")",
-        "                args = params.get(\"arguments\", {})",
-        "                if name == \"echo\":",
+        '            elif method == "tools/call":',
+        '                params = message.get("params", {})',
+        '                name = params.get("name")',
+        '                args = params.get("arguments", {})',
+        '                if name == "echo":',
         "                    send({",
-        "                        \"jsonrpc\": \"2.0\",",
-        "                        \"id\": message[\"id\"],",
-        "                        \"result\": {\"success\": True, \"output\": {\"echo\": args}},",
+        '                        "jsonrpc": "2.0",',
+        '                        "id": message["id"],',
+        '                        "result": {"success": True, "output": {"echo": args}},',
         "                    })",
         "                else:",
         "                    send({",
-        "                        \"jsonrpc\": \"2.0\",",
-        "                        \"id\": message[\"id\"],",
-        "                        \"result\": {\"success\": False, \"error\": f\"unknown tool {name}\"},",
+        '                        "jsonrpc": "2.0",',
+        '                        "id": message["id"],',
+        '                        "result": {"success": False, "error": f"unknown tool {name}"},',
         "                    })",
         "            else:",
-        "                if message.get(\"id\") is not None:",
+        '                if message.get("id") is not None:',
         "                    send({",
-        "                        \"jsonrpc\": \"2.0\",",
-        "                        \"id\": message[\"id\"],",
-        "                        \"error\": {\"message\": \"unknown method\"},",
+        '                        "jsonrpc": "2.0",',
+        '                        "id": message["id"],',
+        '                        "error": {"message": "unknown method"},',
         "                    })",
         "    except Exception as exc:",
-        "        sys.stderr.write(f\"ERROR: {exc}\\n\")",
+        '        sys.stderr.write(f"ERROR: {exc}\\n")',
         "        sys.stderr.flush()",
         "        raise",
         "",
-        "if __name__ == \"__main__\":",
+        'if __name__ == "__main__":',
         "    main()",
         "",
     ]
@@ -208,17 +207,11 @@ class TestMCPToolExecution:
         with patch("agdd.mcp.server.asyncpg.create_pool") as mock_pool:
             # Create mock pool and connection
             mock_conn = AsyncMock()
-            mock_conn.fetch = AsyncMock(
-                return_value=[{"result": 1}]
-            )
+            mock_conn.fetch = AsyncMock(return_value=[{"result": 1}])
 
             mock_pool_instance = AsyncMock()
-            mock_pool_instance.acquire = MagicMock(
-                return_value=mock_conn.__aenter__.return_value
-            )
-            mock_pool_instance.__aenter__ = AsyncMock(
-                return_value=mock_pool_instance
-            )
+            mock_pool_instance.acquire = MagicMock(return_value=mock_conn.__aenter__.return_value)
+            mock_pool_instance.__aenter__ = AsyncMock(return_value=mock_pool_instance)
             mock_pool.return_value = mock_pool_instance
 
             # Set environment variable for connection

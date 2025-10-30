@@ -26,7 +26,10 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
     from opentelemetry.sdk.metrics import MeterProvider
-    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter
+    from opentelemetry.sdk.metrics.export import (
+        PeriodicExportingMetricReader,
+        ConsoleMetricExporter,
+    )
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
@@ -43,6 +46,7 @@ try:
     LANGFUSE_AVAILABLE = True
 except ImportError:
     LANGFUSE_AVAILABLE = False
+
     # Stub decorator when Langfuse is not available
     def observe(*args: Any, **kwargs: Any) -> Any:
         def decorator(func: Any) -> Any:
@@ -145,9 +149,7 @@ class ObservabilityManager:
             if self._initialized:
                 return
 
-            if not OTEL_AVAILABLE and (
-                self.config.enable_tracing or self.config.enable_metrics
-            ):
+            if not OTEL_AVAILABLE and (self.config.enable_tracing or self.config.enable_metrics):
                 logger.warning(
                     "OpenTelemetry packages not installed. "
                     "Install with: pip install agdd[observability]"
@@ -155,8 +157,7 @@ class ObservabilityManager:
 
             if not LANGFUSE_AVAILABLE and self.config.enable_langfuse:
                 logger.warning(
-                    "Langfuse package not installed. "
-                    "Install with: pip install agdd[observability]"
+                    "Langfuse package not installed. Install with: pip install agdd[observability]"
                 )
 
             # Initialize OpenTelemetry tracing

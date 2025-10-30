@@ -215,7 +215,9 @@ def completeness_check(payload: Dict[str, Any], context: Dict[str, Any]) -> Dict
             missing_recommended.append(field)
 
     # Calculate score
-    required_score = 1.0 - (len(missing_required) / len(required_fields)) if required_fields else 1.0
+    required_score = (
+        1.0 - (len(missing_required) / len(required_fields)) if required_fields else 1.0
+    )
     recommended_score = (
         1.0 - (len(missing_recommended) / len(recommended_fields)) if recommended_fields else 1.0
     )

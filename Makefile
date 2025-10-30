@@ -13,7 +13,9 @@ help:
 	@echo "  make build            - Build distribution packages"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test             - Run all tests"
+	@echo "  make test             - Run fast suite (default, excludes slow)"
+	@echo "  make test-all         - Run all tests (fast + slow)"
+	@echo "  make test-slow        - Run slow tests only"
 	@echo "  make test-unit        - Run unit tests only"
 	@echo "  make test-agents      - Run agent tests only"
 	@echo "  make test-integration - Run integration tests only"
@@ -47,28 +49,38 @@ install:
 install-dev:
 	uv sync --extra dev
 
+# One-time developer environment setup
+dev-setup:
+	uv sync --extra dev
+
 build:
 	uv build
 
 # Testing
 test:
-	uv run -m pytest -q
+	uv run --no-sync -m pytest -q
+
+test-all:
+	PYTEST_ADDOPTS="-k 'slow or not slow'" uv run --no-sync -m pytest -q
+
+test-slow:
+	uv run --no-sync -m pytest -q -m slow
 
 test-unit:
-	uv run -m pytest tests/unit/ -v
+	uv run --no-sync -m pytest tests/unit/ -v -n auto
 
 test-agents:
-	uv run -m pytest tests/agents/ -v
+	uv run --no-sync -m pytest tests/agents/ -v -n auto
 
 test-integration:
-	uv run -m pytest tests/integration/ -v
+	uv run --no-sync -m pytest tests/integration/ -v -n auto
 
 test-coverage:
 	uv run -m pytest --cov=agdd --cov-report=term-missing --cov-report=html
 
 test-mcp:
 	@echo "Running MCP tests (sequential mode with proper cleanup)..."
-	PYTEST_ADDOPTS='-n 0 --import-mode=importlib -m "slow or not slow"' uv run -m pytest tests/mcp -q --tb=short
+	PYTEST_ADDOPTS='-n 0 --import-mode=importlib -m "slow or not slow"' uv run -m pytest tests/mcp -q --tb=short -k 'slow or not slow'
 
 # Quality Checks
 docs-check:

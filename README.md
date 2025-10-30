@@ -231,8 +231,9 @@ uv sync
 # Development installation (recommended - includes testing, linting, type checking)
 uv sync --extra dev
 
-# Verify installation
-uv run -m pytest -q
+# Verify installation (fast suite by default)
+uv sync --extra dev
+uv run --no-sync -m pytest -q
 ```
 
 #### Optional Features
@@ -611,11 +612,47 @@ uv run agdd flow gate flow_summary.json \
 5. Update `docs/development/changelog.md`
 6. Submit pull request
 
+### Testing Strategy
+
+The test suite is designed to prevent long waits and hangs:
+
+#### Fast Tests (Default)
+- **Runtime**: ~2 seconds
+- **Scope**: Unit tests, integration tests without LLM calls
+- **Command**: `make test` or `pytest`
+- **Use**: Daily development, pre-commit checks
+
+#### Slow Tests
+- **Runtime**: Several minutes (requires LLM API calls)
+- **Scope**: End-to-end agent execution, actual API integration
+- **Marked with**: `@pytest.mark.slow`
+- **Command**: `make test-slow` or `AGDD_PROVIDER=google make test-slow`
+- **Use**: CI/CD, pre-merge validation
+
+#### Timeout Protection
+- All tests have a **30-second timeout** (configurable via `--timeout=N`)
+- Local provider health checks **fail fast** (1 second connection timeout)
+- No test will hang indefinitely waiting for external services
+
+#### Mock Provider for Testing
+For tests that don't require actual LLM calls, use the built-in mock provider:
+
+```python
+from agdd.providers.mock import MockLLMProvider
+
+provider = MockLLMProvider()
+response = provider.generate("test prompt", model="test-model")
+# Returns deterministic mock responses without API calls
+```
+
 ### Validation
 
 ```bash
-# Run tests
-uv run -m pytest -q
+# Run tests (fast suite default, excludes slow)
+uv run --no-sync -m pytest -q
+
+# Run all tests (including slow)
+uv run --no-sync -m pytest -q -k 'slow or not slow'
 
 # Check documentation
 uv run python ops/tools/check_docs.py

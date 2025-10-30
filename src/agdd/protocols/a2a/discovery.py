@@ -291,16 +291,13 @@ class DiscoveryClient:
         # Apply capability filter
         if capability is not None:
             capability_ids = {
-                card.identity.agent_id
-                for card in self._registry.find_by_capability(capability)
+                card.identity.agent_id for card in self._registry.find_by_capability(capability)
             }
             results = [card for card in results if card.identity.agent_id in capability_ids]
 
         # Apply tags filter
         if tags:
-            tag_ids = {
-                card.identity.agent_id for card in self._registry.find_by_tags(tags)
-            }
+            tag_ids = {card.identity.agent_id for card in self._registry.find_by_tags(tags)}
             results = [card for card in results if card.identity.agent_id in tag_ids]
 
         return results

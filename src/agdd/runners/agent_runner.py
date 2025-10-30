@@ -11,12 +11,13 @@ import asyncio
 import functools
 import inspect
 import logging
+import os
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional, cast
+from typing import Any, Callable, Coroutine, Dict, Mapping, Optional
 
 import yaml
 
@@ -31,6 +32,22 @@ logger = logging.getLogger(__name__)
 
 # Milliseconds per second for duration calculations
 MS_PER_SECOND = 1000
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    """Read a boolean feature flag from environment variables."""
+
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return default
+
 
 AgentCallable = Callable[..., Dict[str, Any]]
 SkillCallable = Callable[[Dict[str, Any]], Dict[str, Any]]
@@ -106,9 +123,11 @@ class SkillRuntime:
     def __init__(
         self,
         registry: Optional[Registry] = None,
-        enable_mcp: bool = True,
+        enable_mcp: Optional[bool] = None,
     ):
         self.registry = registry or get_registry()
+        if enable_mcp is None:
+            enable_mcp = _env_flag("AGDD_ENABLE_MCP", True)
         self.enable_mcp = enable_mcp
         self.mcp_registry: Optional[MCPRegistry] = None
         self._mcp_started = False
@@ -188,16 +207,16 @@ class SkillRuntime:
 
         try:
             skill_desc = self.registry.load_skill(skill_id)
-            mcp_permissions = [
-                perm for perm in skill_desc.permissions if perm.startswith("mcp:")
-            ]
+            mcp_permissions = [perm for perm in skill_desc.permissions if perm.startswith("mcp:")]
 
             if not mcp_permissions:
                 return None
 
             runtime = MCPRuntime(self.mcp_registry)
             runtime.grant_permissions(mcp_permissions)
-            logger.debug(f"Created MCP runtime for skill '{skill_id}' with permissions: {mcp_permissions}")
+            logger.debug(
+                f"Created MCP runtime for skill '{skill_id}' with permissions: {mcp_permissions}"
+            )
             return runtime
 
         except Exception as e:
@@ -242,7 +261,9 @@ class SkillRuntime:
 
         try:
             if not is_async:
-                raise ValueError(f"Skill '{skill_id}' must be async. Synchronous skills are not supported.")
+                raise ValueError(
+                    f"Skill '{skill_id}' must be async. Synchronous skills are not supported."
+                )
 
             # Async skill
             if has_mcp_param:
@@ -252,7 +273,7 @@ class SkillRuntime:
                 logger.debug(f"Invoking async skill '{skill_id}' without MCP")
                 result = await callable_fn(payload)
 
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f"Skill '{skill_id}' execution failed: {e}", exc_info=True)
@@ -300,14 +321,25 @@ class SkillRuntime:
             # We can't use await here, so we need to create a task
             # However, this is tricky. Let's just run it in the current loop.
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run, self.invoke_async(skill_id, payload, _auto_cleanup=True)
                 )
-                return future.result()
+                try:
+                    result = future.result()
+                    return result
+                finally:
+                    # Give MCP subprocess cleanup time to complete
+                    time.sleep(0.5)
         else:
             # No event loop, create one and run with auto cleanup
-            return asyncio.run(self.invoke_async(skill_id, payload, _auto_cleanup=True))
+            try:
+                result = asyncio.run(self.invoke_async(skill_id, payload, _auto_cleanup=True))
+                return result
+            finally:
+                # Give MCP subprocess cleanup time to complete
+                time.sleep(0.5)
 
 
 class AgentRunner:
@@ -318,12 +350,14 @@ class AgentRunner:
         registry: Optional[Registry] = None,
         base_dir: Optional[Path] = None,
         router: Optional[Router] = None,
-        enable_mcp: bool = True,
+        enable_mcp: Optional[bool] = None,
     ):
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
+        if enable_mcp is None:
+            enable_mcp = _env_flag("AGDD_ENABLE_MCP", True)
         self.enable_mcp = enable_mcp
-        self.skills = SkillRuntime(registry=self.registry, enable_mcp=enable_mcp)
+        self.skills = SkillRuntime(registry=self.registry, enable_mcp=self.enable_mcp)
         self.evals = EvalRuntime(registry=self.registry)
         self.router: Router = router or get_router()
         self._task_index: dict[str, list[str]] | None = None
@@ -380,7 +414,6 @@ class AgentRunner:
                 await self.skills._cleanup_mcp()
             except Exception as e:
                 logger.warning(f"MCP cleanup failed: {e}")
-
 
     def _serialize_execution_plan(self, plan: ExecutionPlan) -> dict[str, Any]:
         return {
@@ -613,10 +646,12 @@ class AgentRunner:
 
         # Check if agent is async (handles async def, async __call__, and partials)
         if not _is_async_callable(run_fn):
-            raise ValueError(f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported.")
+            raise ValueError(
+                f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported."
+            )
 
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-        return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))
+        return self._run_async_safely(self._execute_mag_async(exec_ctx, payload))  # type: ignore[no-any-return]
 
     def _finalize_mag_success(
         self,
@@ -633,13 +668,16 @@ class AgentRunner:
         obs = exec_ctx.observer
         obs.metric("duration_ms", duration_ms)
         self._record_placeholder_cost(exec_ctx, step="mag", metadata={"stage": "mag"})
-        obs.log("end", {
-            "status": "success",
-            "duration_ms": duration_ms,
-            "cost_usd": obs.cost_usd,
-            "tokens": obs.token_count,
-            "llm_plan": obs.llm_plan_snapshot,
-        })
+        obs.log(
+            "end",
+            {
+                "status": "success",
+                "duration_ms": duration_ms,
+                "cost_usd": obs.cost_usd,
+                "tokens": obs.token_count,
+                "llm_plan": obs.llm_plan_snapshot,
+            },
+        )
         obs.finalize()
 
     def _handle_mag_error(
@@ -693,12 +731,15 @@ class AgentRunner:
             exec_ctx = self._prepare_execution(slug, run_id, context)
             obs = exec_ctx.observer
 
-            obs.log("start", {
-                "agent": exec_ctx.agent.name,
-                "slug": slug,
-                "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
-                "llm_plan": obs.llm_plan_snapshot,
-            })
+            obs.log(
+                "start",
+                {
+                    "agent": exec_ctx.agent.name,
+                    "slug": slug,
+                    "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
+                    "llm_plan": obs.llm_plan_snapshot,
+                },
+            )
 
             # Execute MAG
             output, duration_ms = self._execute_mag(exec_ctx, payload)
@@ -742,12 +783,14 @@ class AgentRunner:
         run_fn = self.registry.resolve_entrypoint(agent.entrypoint)
 
         if not _is_async_callable(run_fn):
-            raise ValueError(f"Agent '{agent.slug}' must be async. Synchronous agents are not supported.")
+            raise ValueError(
+                f"Agent '{agent.slug}' must be async. Synchronous agents are not supported."
+            )
 
-        async def _run():
-            return await run_fn(payload, skills=self.skills, obs=observer)
+        async def _run() -> Dict[str, Any]:
+            return await run_fn(payload, skills=self.skills, obs=observer)  # type: ignore[no-any-return]
 
-        return self._run_async_safely(_run())
+        return self._run_async_safely(_run())  # type: ignore[no-any-return]
 
     def _run_pre_evaluations(
         self,
@@ -773,25 +816,28 @@ class AgentRunner:
         if not pre_eval_results:
             return
 
-        obs.log("pre_eval", {"results": [
+        obs.log(
+            "pre_eval",
             {
-                "eval_slug": r.eval_slug,
-                "passed": r.passed,
-                "score": r.overall_score,
-                "metrics": [
-                    {"id": m.metric_id, "score": m.score, "passed": m.passed}
-                    for m in r.metrics
+                "results": [
+                    {
+                        "eval_slug": r.eval_slug,
+                        "passed": r.passed,
+                        "score": r.overall_score,
+                        "metrics": [
+                            {"id": m.metric_id, "score": m.score, "passed": m.passed}
+                            for m in r.metrics
+                        ],
+                    }
+                    for r in pre_eval_results
                 ]
-            }
-            for r in pre_eval_results
-        ]})
+            },
+        )
 
         # Check if any critical pre-eval failed
         critical_failures = [r for r in pre_eval_results if not r.passed]
         if critical_failures:
-            obs.log("pre_eval_failure", {
-                "failed_evals": [r.eval_slug for r in critical_failures]
-            })
+            obs.log("pre_eval_failure", {"failed_evals": [r.eval_slug for r in critical_failures]})
             # Check fail_open/fail_closed behavior
             fail_closed_evals = [r for r in critical_failures if not r.fail_open]
             if fail_closed_evals:
@@ -821,39 +867,40 @@ class AgentRunner:
             RuntimeError: If fail-closed post-evaluation fails
         """
         obs = exec_ctx.observer
-        post_eval_results = self.evals.evaluate_all(
-            delegation.sag_id, "post_eval", output, context
-        )
+        post_eval_results = self.evals.evaluate_all(delegation.sag_id, "post_eval", output, context)
         if not post_eval_results:
             return
 
-        obs.log("post_eval", {"results": [
+        obs.log(
+            "post_eval",
             {
-                "eval_slug": r.eval_slug,
-                "passed": r.passed,
-                "score": r.overall_score,
-                "duration_ms": r.duration_ms,
-                "metrics": [
+                "results": [
                     {
-                        "id": m.metric_id,
-                        "name": m.metric_name,
-                        "score": m.score,
-                        "passed": m.passed,
-                        "threshold": m.threshold,
-                        "details": m.details
+                        "eval_slug": r.eval_slug,
+                        "passed": r.passed,
+                        "score": r.overall_score,
+                        "duration_ms": r.duration_ms,
+                        "metrics": [
+                            {
+                                "id": m.metric_id,
+                                "name": m.metric_name,
+                                "score": m.score,
+                                "passed": m.passed,
+                                "threshold": m.threshold,
+                                "details": m.details,
+                            }
+                            for m in r.metrics
+                        ],
                     }
-                    for m in r.metrics
+                    for r in post_eval_results
                 ]
-            }
-            for r in post_eval_results
-        ]})
+            },
+        )
 
         # Check if any critical post-eval failed
         critical_failures = [r for r in post_eval_results if not r.passed]
         if critical_failures:
-            obs.log("post_eval_failure", {
-                "failed_evals": [r.eval_slug for r in critical_failures]
-            })
+            obs.log("post_eval_failure", {"failed_evals": [r.eval_slug for r in critical_failures]})
             # Check fail_open/fail_closed behavior
             fail_closed_evals = [r for r in critical_failures if not r.fail_open]
             if fail_closed_evals:
@@ -889,7 +936,7 @@ class AgentRunner:
         finally:
             await self._cleanup_mcp_async()
 
-    def _run_async_safely(self, coro):
+    def _run_async_safely(self, coro: Coroutine[Any, Any, Any]) -> Any:
         """
         Run an async coroutine safely, handling both sync and async contexts.
 
@@ -914,23 +961,32 @@ class AgentRunner:
             result_container = {}
             exception_container = {}
 
-            def run_in_new_loop():
+            def run_in_new_loop() -> None:
                 try:
-                    result_container['value'] = asyncio.run(coro)
+                    result_container["value"] = asyncio.run(coro)
                 except Exception as e:
-                    exception_container['error'] = e
+                    exception_container["error"] = e
+                finally:
+                    # Give MCP subprocess cleanup time to complete before thread exits
+                    # This prevents "Event loop is closed" errors in BaseSubprocessTransport.__del__
+                    time.sleep(0.5)
 
             thread = threading.Thread(target=run_in_new_loop)
             thread.start()
             thread.join()
 
-            if 'error' in exception_container:
-                raise exception_container['error']
-            return result_container['value']
+            if "error" in exception_container:
+                raise exception_container["error"]
+            return result_container["value"]
 
         except RuntimeError:
             # No event loop running - safe to use asyncio.run() directly
-            return asyncio.run(coro)
+            try:
+                result = asyncio.run(coro)
+                return result
+            finally:
+                # Give MCP subprocess cleanup time to complete
+                time.sleep(0.5)
 
     def _execute_agent(
         self,
@@ -953,10 +1009,12 @@ class AgentRunner:
 
         # Check if agent is async (handles async def, async __call__, and partials)
         if not _is_async_callable(run_fn):
-            raise ValueError(f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported.")
+            raise ValueError(
+                f"Agent '{exec_ctx.agent.slug}' must be async. Synchronous agents are not supported."
+            )
 
         logger.debug(f"Agent '{exec_ctx.agent.slug}' is async, using async execution")
-        return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))
+        return self._run_async_safely(self._execute_agent_async(exec_ctx, delegation))  # type: ignore[no-any-return]
 
     def _build_success_metrics(
         self,
@@ -984,22 +1042,24 @@ class AgentRunner:
             "tokens": obs.token_count,
         }
         if plan_snapshot:
-            metrics.update({
-                "provider": plan_snapshot.get("provider"),
-                "model": plan_snapshot.get("model"),
-                "use_batch": plan_snapshot.get("use_batch"),
-                "use_cache": plan_snapshot.get("use_cache"),
-                "structured_output": plan_snapshot.get("structured_output"),
-                "moderation": plan_snapshot.get("moderation"),
-                "llm_plan": plan_snapshot,
-            })
+            metrics.update(
+                {
+                    "provider": plan_snapshot.get("provider"),
+                    "model": plan_snapshot.get("model"),
+                    "use_batch": plan_snapshot.get("use_batch"),
+                    "use_cache": plan_snapshot.get("use_cache"),
+                    "structured_output": plan_snapshot.get("structured_output"),
+                    "moderation": plan_snapshot.get("moderation"),
+                    "llm_plan": plan_snapshot,
+                }
+            )
         return metrics
 
     def _build_failure_result(
         self,
         exec_ctx: _ExecutionContext,
         delegation: Delegation,
-        last_error: Exception,
+        last_error: Optional[Exception],
         max_attempts: int,
     ) -> Result:
         """
@@ -1027,21 +1087,26 @@ class AgentRunner:
             "tokens": obs.token_count,
         }
         if plan_snapshot:
-            failure_metrics.update({
-                "provider": plan_snapshot.get("provider"),
-                "model": plan_snapshot.get("model"),
-                "use_batch": plan_snapshot.get("use_batch"),
-                "use_cache": plan_snapshot.get("use_cache"),
-                "structured_output": plan_snapshot.get("structured_output"),
-                "moderation": plan_snapshot.get("moderation"),
-                "llm_plan": plan_snapshot,
-            })
+            failure_metrics.update(
+                {
+                    "provider": plan_snapshot.get("provider"),
+                    "model": plan_snapshot.get("model"),
+                    "use_batch": plan_snapshot.get("use_batch"),
+                    "use_cache": plan_snapshot.get("use_cache"),
+                    "structured_output": plan_snapshot.get("structured_output"),
+                    "moderation": plan_snapshot.get("moderation"),
+                    "llm_plan": plan_snapshot,
+                }
+            )
 
-        obs.log("error", {
-            "error": str(last_error),
-            "attempts": max_attempts,
-            "llm_plan": plan_snapshot,
-        })
+        obs.log(
+            "error",
+            {
+                "error": str(last_error),
+                "attempts": max_attempts,
+                "llm_plan": plan_snapshot,
+            },
+        )
         obs.finalize()
 
         return Result(
@@ -1052,9 +1117,13 @@ class AgentRunner:
             error=str(last_error),
         )
 
-    def invoke_sag(self, delegation: Delegation) -> Result:
+    async def invoke_sag_async(self, delegation: Delegation) -> Result:
         """
-        Invoke a Sub-Agent (SAG) with execution planning and cost tracking.
+        Invoke a Sub-Agent (SAG) asynchronously with execution planning and cost tracking.
+
+        This is the preferred method when calling from async context (e.g., async MAG).
+        It avoids thread creation and nested event loops, allowing all execution to happen
+        in the same event loop.
 
         Args:
             delegation: Delegation request with task_id, sag_id, input, context
@@ -1073,14 +1142,122 @@ class AgentRunner:
             exec_ctx = self._prepare_execution(delegation.sag_id, run_id, context)
             obs = exec_ctx.observer
 
-            obs.log("start", {
-                "agent": exec_ctx.agent.name,
-                "slug": delegation.sag_id,
-                "task_id": delegation.task_id,
-                "parent_run_id": context.get("parent_run_id"),
-                "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
-                "llm_plan": obs.llm_plan_snapshot,
-            })
+            obs.log(
+                "start",
+                {
+                    "agent": exec_ctx.agent.name,
+                    "slug": delegation.sag_id,
+                    "task_id": delegation.task_id,
+                    "parent_run_id": context.get("parent_run_id"),
+                    "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
+                    "llm_plan": obs.llm_plan_snapshot,
+                },
+            )
+
+            # Retry policy
+            retry_policy = exec_ctx.agent.evaluation.get("retry_policy", {})
+            max_attempts = retry_policy.get("max_attempts", 1)
+            backoff_ms = retry_policy.get("backoff_ms", 0)
+
+            last_error = None
+            for attempt in range(max_attempts):
+                try:
+                    # Run pre-evaluation checks
+                    self._run_pre_evaluations(exec_ctx, delegation, context)
+
+                    # Execute agent asynchronously in same event loop
+                    output, duration_ms = await self._execute_agent_async(exec_ctx, delegation)
+
+                    # Run post-evaluation checks
+                    self._run_post_evaluations(exec_ctx, delegation, output, context)
+
+                    # Record metrics and cost
+                    obs.metric("duration_ms", duration_ms)
+                    self._record_placeholder_cost(
+                        exec_ctx,
+                        step=delegation.task_id,
+                        metadata={"stage": "sag", "attempt": attempt + 1},
+                    )
+
+                    # Build success metrics and log
+                    metrics = self._build_success_metrics(exec_ctx, duration_ms, attempt)
+                    obs.log(
+                        "end",
+                        {
+                            "status": "success",
+                            "attempt": attempt + 1,
+                            "duration_ms": duration_ms,
+                            "cost_usd": obs.cost_usd,
+                            "tokens": obs.token_count,
+                            "llm_plan": obs.llm_plan_snapshot,
+                        },
+                    )
+                    obs.finalize()
+
+                    return Result(
+                        task_id=delegation.task_id,
+                        status="success",
+                        output=output,
+                        metrics=metrics,
+                    )
+
+                except Exception as e:
+                    last_error = e
+                    obs.log(
+                        "retry", {"attempt": attempt + 1, "error": str(e), "type": type(e).__name__}
+                    )
+                    if attempt < max_attempts - 1 and backoff_ms > 0:
+                        await asyncio.sleep(backoff_ms / MS_PER_SECOND)
+
+            # All attempts failed
+            return self._build_failure_result(exec_ctx, delegation, last_error, max_attempts)
+
+        except Exception as e:
+            if exec_ctx is not None:
+                self._record_placeholder_cost(
+                    exec_ctx,
+                    step=delegation.task_id,
+                    metadata={"stage": "sag", "status": "exception"},
+                )
+                exec_ctx.observer.log("error", {"error": str(e), "type": type(e).__name__})
+                exec_ctx.observer.finalize()
+            raise
+
+    def invoke_sag(self, delegation: Delegation) -> Result:
+        """
+        Invoke a Sub-Agent (SAG) with execution planning and cost tracking.
+
+        This is a synchronous wrapper around invoke_sag_async() for backward compatibility.
+        When called from async context (e.g., async MAG), prefer using invoke_sag_async() directly.
+
+        Args:
+            delegation: Delegation request with task_id, sag_id, input, context
+
+        Returns:
+            Result with status, output, metrics
+
+        Raises:
+            Exception: If execution fails (with retry logic applied)
+        """
+        run_id = f"sag-{uuid.uuid4().hex[:8]}"
+        exec_ctx: Optional[_ExecutionContext] = None
+        context = delegation.context or {}
+
+        try:
+            exec_ctx = self._prepare_execution(delegation.sag_id, run_id, context)
+            obs = exec_ctx.observer
+
+            obs.log(
+                "start",
+                {
+                    "agent": exec_ctx.agent.name,
+                    "slug": delegation.sag_id,
+                    "task_id": delegation.task_id,
+                    "parent_run_id": context.get("parent_run_id"),
+                    "plan": self._plan_summary(exec_ctx.execution_plan, exec_ctx.llm_plan),
+                    "llm_plan": obs.llm_plan_snapshot,
+                },
+            )
 
             # Retry policy
             retry_policy = exec_ctx.agent.evaluation.get("retry_policy", {})
@@ -1109,14 +1286,17 @@ class AgentRunner:
 
                     # Build success metrics and log
                     metrics = self._build_success_metrics(exec_ctx, duration_ms, attempt)
-                    obs.log("end", {
-                        "status": "success",
-                        "attempt": attempt + 1,
-                        "duration_ms": duration_ms,
-                        "cost_usd": obs.cost_usd,
-                        "tokens": obs.token_count,
-                        "llm_plan": obs.llm_plan_snapshot,
-                    })
+                    obs.log(
+                        "end",
+                        {
+                            "status": "success",
+                            "attempt": attempt + 1,
+                            "duration_ms": duration_ms,
+                            "cost_usd": obs.cost_usd,
+                            "tokens": obs.token_count,
+                            "llm_plan": obs.llm_plan_snapshot,
+                        },
+                    )
                     obs.finalize()
 
                     return Result(
@@ -1128,11 +1308,9 @@ class AgentRunner:
 
                 except Exception as e:
                     last_error = e
-                    obs.log("retry", {
-                        "attempt": attempt + 1,
-                        "error": str(e),
-                        "type": type(e).__name__
-                    })
+                    obs.log(
+                        "retry", {"attempt": attempt + 1, "error": str(e), "type": type(e).__name__}
+                    )
                     if attempt < max_attempts - 1 and backoff_ms > 0:
                         time.sleep(backoff_ms / MS_PER_SECOND)
 

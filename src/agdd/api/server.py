@@ -1,4 +1,5 @@
 """FastAPI server for AGDD HTTP API."""
+
 from __future__ import annotations
 
 from typing import Awaitable, Callable

@@ -48,7 +48,9 @@ async def run(payload: Dict[str, Any], mcp: Optional[MCPRuntime] = None) -> Dict
     # Try MCP database query first if available
     if mcp is not None:
         try:
-            logger.info(f"Querying database for salary band: role={role}, level={level}, location={location}")
+            logger.info(
+                f"Querying database for salary band: role={role}, level={level}, location={location}"
+            )
 
             result = await mcp.query_postgres(
                 server_id="pg-readonly",

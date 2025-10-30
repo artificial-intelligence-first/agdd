@@ -1,4 +1,5 @@
 """Governance gate evaluation for Flow Runner summaries."""
+
 from __future__ import annotations
 
 import fnmatch
@@ -19,9 +20,7 @@ _FLOW_SUMMARY_SCHEMA = json.loads(
     .read_text(encoding="utf-8")
 )
 _DEFAULT_POLICY_TEXT = (
-    resources.files(POLICIES_PACKAGE)
-    .joinpath("flow_governance.yaml")
-    .read_text(encoding="utf-8")
+    resources.files(POLICIES_PACKAGE).joinpath("flow_governance.yaml").read_text(encoding="utf-8")
 )
 
 
@@ -84,9 +83,7 @@ def evaluate(summary_path: Path, policy_path: Path | None = None) -> list[str]:
     if max_latency is not None:
         avg_latency = summary.get("avg_latency_ms")
         if isinstance(avg_latency, (int, float)) and avg_latency > float(max_latency):
-            errors.append(
-                f"avg_latency_ms {float(avg_latency):.1f} > max {float(max_latency):.1f}"
-            )
+            errors.append(f"avg_latency_ms {float(avg_latency):.1f} > max {float(max_latency):.1f}")
 
     per_step = policy.get("per_step", {})
     default_step_policy = per_step.get("default", {})
@@ -95,9 +92,7 @@ def evaluate(summary_path: Path, policy_path: Path | None = None) -> list[str]:
     required_steps = [str(step) for step in policy.get("required_steps", [])]
     if required_steps:
         present_steps = {
-            str(step.get("name"))
-            for step in steps
-            if isinstance(step, dict) and "name" in step
+            str(step.get("name")) for step in steps if isinstance(step, dict) and "name" in step
         }
         missing = [step for step in required_steps if step not in present_steps]
         if missing:

@@ -1,4 +1,5 @@
 """Tests for GitHub comment parser."""
+
 from __future__ import annotations
 
 from agdd.integrations.github.comment_parser import (
@@ -9,7 +10,7 @@ from agdd.integrations.github.comment_parser import (
 
 def test_parse_simple_command() -> None:
     """Test parsing a simple inline command."""
-    text = "@my-agent {\"foo\": \"bar\"}"
+    text = '@my-agent {"foo": "bar"}'
     commands = parse_comment(text)
 
     assert len(commands) == 1
@@ -19,10 +20,10 @@ def test_parse_simple_command() -> None:
 
 def test_parse_multiline_command() -> None:
     """Test parsing a multiline JSON payload."""
-    text = '''@test-agent {
+    text = """@test-agent {
         "key1": "value1",
         "key2": "value2"
-    }'''
+    }"""
     commands = parse_comment(text)
 
     assert len(commands) == 1
@@ -32,13 +33,13 @@ def test_parse_multiline_command() -> None:
 
 def test_parse_multiple_commands() -> None:
     """Test parsing multiple commands in one comment."""
-    text = '''
+    text = """
     Please run these agents:
     @agent-one {"input": "data1"}
 
     And also:
     @agent-two {"input": "data2"}
-    '''
+    """
     commands = parse_comment(text)
 
     assert len(commands) == 2
@@ -50,7 +51,7 @@ def test_parse_multiple_commands() -> None:
 
 def test_parse_command_with_hyphens() -> None:
     """Test parsing agent slug with hyphens."""
-    text = "@offer-orchestrator-mag {\"foo\": 123}"
+    text = '@offer-orchestrator-mag {"foo": 123}'
     commands = parse_comment(text)
 
     assert len(commands) == 1
@@ -85,13 +86,13 @@ def test_parse_non_dict_json() -> None:
 
 def test_extract_from_code_blocks() -> None:
     """Test extracting commands from markdown code blocks."""
-    text = '''
+    text = """
     Here's a command in a code block:
 
     ```json
     @test-agent {"value": 42}
     ```
-    '''
+    """
     commands = extract_from_code_blocks(text)
 
     assert len(commands) == 1
@@ -101,14 +102,14 @@ def test_extract_from_code_blocks() -> None:
 
 def test_extract_inline_and_code_blocks() -> None:
     """Test extracting commands from both inline and code blocks."""
-    text = '''
+    text = """
     Inline command: @inline-agent {"type": "inline"}
 
     And in a code block:
     ```
     @block-agent {"type": "block"}
     ```
-    '''
+    """
     commands = extract_from_code_blocks(text)
 
     # Should find both
@@ -120,14 +121,14 @@ def test_extract_inline_and_code_blocks() -> None:
 
 def test_parse_complex_nested_json() -> None:
     """Test parsing nested JSON structures."""
-    text = '''@complex-agent {
+    text = """@complex-agent {
         "nested": {
             "key": "value",
             "array": [1, 2, 3]
         },
         "number": 123,
         "boolean": true
-    }'''
+    }"""
     commands = parse_comment(text)
 
     assert len(commands) == 1

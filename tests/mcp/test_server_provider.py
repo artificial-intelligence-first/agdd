@@ -195,7 +195,7 @@ evaluation: {}
                 agent_yaml.write_text(
                     f"""
 slug: {agent_name}
-name: {agent_name.replace('-', ' ').title()}
+name: {agent_name.replace("-", " ").title()}
 role: main
 version: 0.1.0
 entrypoint: code/orchestrator.py:run

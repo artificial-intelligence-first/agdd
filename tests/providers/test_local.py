@@ -108,8 +108,12 @@ def test_responses_not_supported_error_triggers_fallback(
 
     with patch("agdd.providers.local.httpx.Client"):
         provider = LocalLLMProvider(config=local_config, compat_provider=compat_provider)
-        provider._invoke_responses = Mock(side_effect=ResponsesNotSupportedError("unsupported"))  # type: ignore[attr-defined]
-        result = provider.generate("Hi", model="llama-local", tools=[{"name": "noop"}])
+        with patch.object(
+            provider,
+            "_invoke_responses",
+            Mock(side_effect=ResponsesNotSupportedError("unsupported")),
+        ):
+            result = provider.generate("Hi", model="llama-local", tools=[{"name": "noop"}])
         provider.close()
 
     compat_provider.generate.assert_called_once()

@@ -293,10 +293,16 @@ class PostgresStorageBackend(StorageBackend):
         if not assignments:
             return
 
+        allowed_assignments = {"status", "ended_at", "metrics"}
+        for assignment in assignments:
+            field = assignment.split("=", 1)[0].strip()
+            if field not in allowed_assignments:
+                raise ValueError(f"Unexpected column in update: {field}")
+
         params.append(run_id)
         async with self._acquire() as conn:
             await conn.execute(
-                f"UPDATE runs SET {', '.join(assignments)} WHERE run_id = ${len(params)}",
+                f"UPDATE runs SET {', '.join(assignments)} WHERE run_id = ${len(params)}",  # nosec B608 - update assignments restricted to allowlist
                 *params,
             )
 
@@ -332,21 +338,17 @@ class PostgresStorageBackend(StorageBackend):
             conditions.append(f"started_at < ${len(params) + 1}")
             params.append(until)
 
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         params.extend([limit, offset])
+        query_parts = ["SELECT *", "FROM runs"]
+        if conditions:
+            query_parts.append("WHERE " + " AND ".join(conditions))
+        query_parts.append(
+            f"ORDER BY started_at DESC LIMIT ${len(params) - 1} OFFSET ${len(params)}"
+        )
+        query = "\n".join(query_parts)
 
         async with self._acquire() as conn:
-            rows = await conn.fetch(
-                f"""
-                SELECT *
-                FROM runs
-                {where_clause}
-                ORDER BY started_at DESC
-                LIMIT ${len(params) - 1}
-                OFFSET ${len(params)}
-                """,
-                *params,
-            )
+            rows = await conn.fetch(query, *params)  # nosec B608 - WHERE clause assembled from fixed column comparisons
         return [self._format_run(row) for row in rows]
 
     def _format_run(self, row: RunRow) -> Dict[str, Any]:
@@ -381,22 +383,20 @@ class PostgresStorageBackend(StorageBackend):
                 conditions.append(f"level = ${len(params) + 1}")
                 params.append(level)
 
-            where_clause = " AND ".join(conditions)
             limit_clause = f" LIMIT ${len(params) + 1}" if limit is not None else ""
             if limit is not None:
                 params.append(limit)
 
+            query_parts = [
+                "SELECT *",
+                "FROM events",
+                "WHERE " + " AND ".join(conditions),
+                "ORDER BY ts ASC" + limit_clause,
+            ]
+            query = "\n".join(query_parts)
+
             async with self._acquire() as conn:
-                rows = await conn.fetch(
-                    f"""
-                    SELECT *
-                    FROM events
-                    WHERE {where_clause}
-                    ORDER BY ts ASC
-                    {limit_clause}
-                    """,
-                    *params,
-                )
+                rows = await conn.fetch(query, *params)  # nosec B608 - query built from fixed predicates and positional parameters
 
             for row in rows:
                 payload = row["payload"] if isinstance(row["payload"], dict) else {}
@@ -438,17 +438,16 @@ class PostgresStorageBackend(StorageBackend):
 
         params.append(limit)
 
+        query_parts = [
+            "SELECT *",
+            "FROM events",
+            "WHERE " + " AND ".join(conditions),
+            f"ORDER BY ts DESC LIMIT ${len(params)}",
+        ]
+        query_sql = "\n".join(query_parts)
+
         async with self._acquire() as conn:
-            rows = await conn.fetch(
-                f"""
-                SELECT *
-                FROM events
-                WHERE {' AND '.join(conditions)}
-                ORDER BY ts DESC
-                LIMIT ${len(params)}
-                """,
-                *params,
-            )
+            rows = await conn.fetch(query_sql, *params)  # nosec B608 - query components use fixed column names and parameter placeholders
 
         return [
             {

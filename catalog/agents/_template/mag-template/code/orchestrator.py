@@ -40,7 +40,9 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs=None) -> Dict[str, Any]:
+async def run(
+    payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs=None
+) -> Dict[str, Any]:
     """
     Main orchestration logic.
 
@@ -68,7 +70,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         if skills and skills.exists("skill.task-decomposition"):
             try:
                 # Adjust the task decomposition payload to match your input contract.
-                tasks = skills.invoke("skill.task-decomposition", {"input": payload})
+                tasks = await skills.invoke_async("skill.task-decomposition", {"input": payload})
                 if obs:
                     obs.log("decomposition", {"task_count": len(tasks), "tasks": tasks})
             except Exception as e:
@@ -103,7 +105,8 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 )
 
             try:
-                result = runner.invoke_sag(delegation)
+                # Invoke SAG via runner (async to avoid thread/event loop nesting)
+                result = await runner.invoke_sag_async(delegation)
                 results.append(result)
 
                 if obs:
@@ -144,11 +147,14 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         if successful_count == 0:
             duration_ms = _now_ms() - t0
             if obs:
-                obs.log("all_delegations_failed", {
-                    "total_tasks": len(tasks),
-                    "failed_tasks": len(results),
-                    "duration_ms": duration_ms
-                })
+                obs.log(
+                    "all_delegations_failed",
+                    {
+                        "total_tasks": len(tasks),
+                        "failed_tasks": len(results),
+                        "duration_ms": duration_ms,
+                    },
+                )
                 obs.metric("latency_ms", duration_ms)
             raise RuntimeError(
                 f"All {len(tasks)} SAG delegation(s) failed. Cannot generate valid output."
@@ -214,6 +220,8 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         # Top-level error handling
         duration_ms = _now_ms() - t0
         if obs:
-            obs.log("error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms})
+            obs.log(
+                "error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms}
+            )
             obs.metric("latency_ms", duration_ms)
         raise

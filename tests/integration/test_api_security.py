@@ -1,4 +1,5 @@
 """Security tests for API endpoints."""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +15,7 @@ from agdd.api.server import app
 
 pytestmark = pytest.mark.slow
 
+
 @pytest.fixture
 def test_runs_dir(tmp_path: Path) -> Path:
     """Create a temporary runs directory with test data."""
@@ -23,7 +25,9 @@ def test_runs_dir(tmp_path: Path) -> Path:
     # Create a valid test run
     valid_run = runs_dir / "mag-test-run-123"
     valid_run.mkdir()
-    (valid_run / "summary.json").write_text(json.dumps({"slug": "test-agent", "status": "completed"}))
+    (valid_run / "summary.json").write_text(
+        json.dumps({"slug": "test-agent", "status": "completed"})
+    )
     (valid_run / "metrics.json").write_text(json.dumps({"duration": 1.5}))
     (valid_run / "logs.jsonl").write_text('{"level": "info", "message": "test log"}\n')
 
@@ -33,6 +37,7 @@ def test_runs_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def client_with_runs_dir(test_runs_dir: Path) -> Iterator[TestClient]:
     """Create test client with custom runs directory."""
+
     def override_settings() -> Settings:
         s = Settings()
         s.RUNS_BASE_DIR = str(test_runs_dir)
@@ -47,7 +52,9 @@ def client_with_runs_dir(test_runs_dir: Path) -> Iterator[TestClient]:
 class TestDirectoryTraversalProtection:
     """Test that directory traversal attacks are blocked."""
 
-    def test_get_run_blocks_parent_directory_traversal(self, client_with_runs_dir: TestClient) -> None:
+    def test_get_run_blocks_parent_directory_traversal(
+        self, client_with_runs_dir: TestClient
+    ) -> None:
         """Test that ../../../../etc is blocked in get_run."""
         # FastAPI normalizes paths, so this may return 404 instead of reaching handler
         # Both 400 and 404 are acceptable security responses
@@ -63,7 +70,9 @@ class TestDirectoryTraversalProtection:
         response = client_with_runs_dir.get("/api/v1/runs//etc/passwd")
         assert response.status_code in [400, 404]
 
-    def test_get_run_blocks_relative_path_components(self, client_with_runs_dir: TestClient) -> None:
+    def test_get_run_blocks_relative_path_components(
+        self, client_with_runs_dir: TestClient
+    ) -> None:
         """Test that relative path components are blocked."""
         # FastAPI normalizes paths, resulting in 404
         response = client_with_runs_dir.get("/api/v1/runs/../../../etc")
@@ -73,6 +82,7 @@ class TestDirectoryTraversalProtection:
         """Test that Windows-style path separators in run_id are blocked."""
         # URL-encode backslashes to test handler validation
         import urllib.parse
+
         run_id = urllib.parse.quote("..\\..\\..\\etc", safe="")
         response = client_with_runs_dir.get(f"/api/v1/runs/{run_id}")
         assert response.status_code == 400
@@ -86,10 +96,13 @@ class TestDirectoryTraversalProtection:
         # This will be caught by routing layer (404), not our handler
         assert response.status_code == 404
 
-    def test_get_run_blocks_url_encoded_path_separator(self, client_with_runs_dir: TestClient) -> None:
+    def test_get_run_blocks_url_encoded_path_separator(
+        self, client_with_runs_dir: TestClient
+    ) -> None:
         """Test that URL-encoded forward slashes in run_id are blocked."""
         # URL-encode forward slash - FastAPI still normalizes these
         import urllib.parse
+
         run_id = urllib.parse.quote("subdir/run123", safe="")
         response = client_with_runs_dir.get(f"/api/v1/runs/{run_id}")
         # Both 400 and 404 are secure responses
@@ -113,6 +126,7 @@ class TestDirectoryTraversalProtection:
     def test_get_logs_blocks_url_encoded_traversal(self, client_with_runs_dir: TestClient) -> None:
         """Test that URL-encoded directory traversal is blocked in get_logs."""
         import urllib.parse
+
         run_id = urllib.parse.quote("../../etc", safe="")
         response = client_with_runs_dir.get(f"/api/v1/runs/{run_id}/logs")
         # Both 400 and 404 are secure responses
@@ -151,7 +165,9 @@ class TestValidRunIdFormats:
         content = response.text
         assert "test log" in content
 
-    def test_run_id_max_length_accepted(self, client_with_runs_dir: TestClient, test_runs_dir: Path) -> None:
+    def test_run_id_max_length_accepted(
+        self, client_with_runs_dir: TestClient, test_runs_dir: Path
+    ) -> None:
         """Test that run_id with 128 characters is accepted."""
         # Create run with 128-character name
         long_name = "a" * 128

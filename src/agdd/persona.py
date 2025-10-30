@@ -7,7 +7,10 @@ during execution, particularly for LLM-based agents.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from agdd.registry import Registry
 
 
 def build_system_prompt_with_persona(
@@ -49,7 +52,7 @@ def build_system_prompt_with_persona(
     return f"{persona_content.strip()}{separator}{base_prompt.strip()}"
 
 
-def get_agent_persona(agent_slug: str, registry=None) -> Optional[str]:
+def get_agent_persona(agent_slug: str, registry: Optional[Registry] = None) -> Optional[str]:
     """
     Retrieve persona content for an agent by slug.
 
@@ -80,6 +83,7 @@ def get_agent_persona(agent_slug: str, registry=None) -> Optional[str]:
     """
     if registry is None:
         from agdd.registry import get_registry
+
         registry = get_registry()
 
     agent = registry.load_agent(agent_slug)

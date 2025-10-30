@@ -24,7 +24,6 @@ pytestmark = pytest.mark.slow
 try:
     import asyncpg  # noqa: F401
 
-
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False
@@ -100,6 +99,7 @@ class TestSkillWithMCPParameter:
 
         Verifies backward compatibility for async skills that don't need MCP.
         """
+
         async def simple_skill(payload: Dict[str, Any]) -> Dict[str, Any]:
             """Simple async skill without MCP."""
             return {"result": payload["value"] * 2}
@@ -108,13 +108,12 @@ class TestSkillWithMCPParameter:
         assert result["result"] == 84
 
     @pytest.mark.asyncio
-    async def test_skill_with_optional_mcp_parameter(
-        self, mcp_registry: MCPRegistry
-    ) -> None:
+    async def test_skill_with_optional_mcp_parameter(self, mcp_registry: MCPRegistry) -> None:
         """Test skill with optional MCP parameter.
 
         Verifies that skills can declare MCP as optional and handle both cases.
         """
+
         async def flexible_skill(
             payload: Dict[str, Any], mcp: MCPRuntime | None = None
         ) -> Dict[str, Any]:
@@ -147,7 +146,10 @@ class TestSkillRuntimeInvokeAsync:
     @pytest.fixture
     def temp_dirs(self) -> Generator[tuple[Path, Path], None, None]:
         """Create temporary directories for skills and MCP servers."""
-        with tempfile.TemporaryDirectory() as skills_dir, tempfile.TemporaryDirectory() as servers_dir:
+        with (
+            tempfile.TemporaryDirectory() as skills_dir,
+            tempfile.TemporaryDirectory() as servers_dir,
+        ):
             yield Path(skills_dir), Path(servers_dir)
 
     @pytest.mark.asyncio
@@ -156,7 +158,9 @@ class TestSkillRuntimeInvokeAsync:
     ) -> None:
         """invoke_async should pass an initialized MCP runtime to async skills."""
 
-        async def async_skill(payload: Dict[str, Any], mcp: MCPRuntime | None = None) -> Dict[str, Any]:
+        async def async_skill(
+            payload: Dict[str, Any], mcp: MCPRuntime | None = None
+        ) -> Dict[str, Any]:
             return {
                 "status": "success",
                 "has_mcp": mcp is not None,
@@ -202,7 +206,9 @@ class TestSkillRuntimeInvokeAsync:
     async def test_skill_runtime_restarts_mcp_after_cleanup(self) -> None:
         """Second invocation should re-start MCP servers after cleanup."""
 
-        async def async_skill(payload: Dict[str, Any], mcp: MCPRuntime | None = None) -> Dict[str, Any]:
+        async def async_skill(
+            payload: Dict[str, Any], mcp: MCPRuntime | None = None
+        ) -> Dict[str, Any]:
             return {
                 "status": "success",
                 "has_mcp": mcp is not None,
@@ -246,22 +252,22 @@ class TestSkillRuntimeInvokeAsync:
     async def test_skill_runtime_invoke_async_without_mcp(
         self, temp_dirs: tuple[Path, Path]
     ) -> None:
-        """Test SkillRuntime.invoke_async() with legacy sync skills.
+        """Test SkillRuntime.invoke() with async skills without MCP.
 
-        Verifies backward compatibility:
-        - Sync skills can still be invoked
+        Verifies:
+        - Async skills can be invoked
         - Skills without MCP permissions work correctly
         """
         skills_dir, _ = temp_dirs
 
-        # Create a sync skill file
-        skill_file = skills_dir / "sync_skill.py"
+        # Create an async skill file
+        skill_file = skills_dir / "async_skill.py"
         skill_file.write_text(
             """
 from typing import Any, Dict
 
-def run(payload: Dict[str, Any]) -> Dict[str, Any]:
-    return {"result": payload["value"] * 2, "type": "sync"}
+async def run(payload: Dict[str, Any]) -> Dict[str, Any]:
+    return {"result": payload["value"] * 2, "type": "async"}
 """,
             encoding="utf-8",
         )
@@ -282,7 +288,8 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
         # Load actual function with proper cleanup
         import importlib.util
         import sys
-        module_name = f"sync_skill_{id(skill_file)}"
+
+        module_name = f"async_skill_{id(skill_file)}"
         spec = importlib.util.spec_from_file_location(module_name, skill_file)
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
@@ -292,12 +299,12 @@ def run(payload: Dict[str, Any]) -> Dict[str, Any]:
             spec.loader.exec_module(module)
             mock_registry.resolve_entrypoint.return_value = module.run
 
-            # Use regular invoke (not invoke_async) for sync skills
+            # Use invoke for async skills
             skill_runtime = SkillRuntime(registry=mock_registry)
             result = skill_runtime.invoke("skill.sync-test", {"value": 21})
 
             assert result["result"] == 42
-            assert result["type"] == "sync"
+            assert result["type"] == "async"
         finally:
             # Cleanup module
             if module_name in sys.modules:
@@ -343,6 +350,7 @@ class TestSalaryBandLookupWithMCP:
         - Fallback to mock data works when database unavailable
         - Results conform to expected schema
         """
+
         # Create enhanced version of salary band lookup with MCP
         async def salary_band_lookup_mcp(
             payload: Dict[str, Any], mcp: MCPRuntime | None = None
@@ -363,7 +371,9 @@ class TestSalaryBandLookupWithMCP:
 
                     if result.success and result.output:
                         # Use database result
-                        band = result.output[0] if isinstance(result.output, list) else result.output
+                        band = (
+                            result.output[0] if isinstance(result.output, list) else result.output
+                        )
                         return {
                             "currency": band.get("currency", "USD"),
                             "min": band.get("min_salary"),
@@ -408,6 +418,7 @@ class TestSalaryBandLookupWithMCP:
 
         Verifies that the skill works without MCP runtime.
         """
+
         async def salary_band_lookup_mcp(
             payload: Dict[str, Any], mcp: MCPRuntime | None = None
         ) -> Dict[str, Any]:
@@ -504,9 +515,7 @@ class TestMCPRuntimePermissionIsolation:
         assert perms2 == {"mcp:server2"}
         assert perms3 == {"mcp:server1", "mcp:server3"}
 
-    def test_mcp_runtime_permission_changes_isolated(
-        self, mcp_registry: MCPRegistry
-    ) -> None:
+    def test_mcp_runtime_permission_changes_isolated(self, mcp_registry: MCPRegistry) -> None:
         """Test that permission changes in one runtime don't affect others.
 
         Verifies that granting/revoking permissions is properly isolated.
@@ -538,6 +547,7 @@ class TestSkillSignatureDetection:
 
         Verifies that inspect can distinguish async from sync functions.
         """
+
         async def async_skill(payload: Dict[str, Any]) -> Dict[str, Any]:
             return payload
 
@@ -552,6 +562,7 @@ class TestSkillSignatureDetection:
 
         Verifies that inspect can determine if a skill accepts MCP runtime.
         """
+
         async def skill_with_mcp(payload: Dict[str, Any], mcp: MCPRuntime) -> Dict[str, Any]:
             return payload
 
@@ -581,6 +592,7 @@ class TestSkillSignatureDetection:
 
         Verifies the logic for determining how to invoke a skill.
         """
+
         def should_use_async(func: Any) -> bool:
             """Determine if function should be called with await."""
             return inspect.iscoroutinefunction(func)
@@ -615,6 +627,7 @@ class TestSkillSignatureDetection:
 
         Verifies all combinations of async/sync and mcp/no-mcp.
         """
+
         def get_invocation_strategy(func: Any) -> str:
             """Determine how to invoke a skill."""
             is_async = inspect.iscoroutinefunction(func)
@@ -671,7 +684,9 @@ class TestSkillMCPIntegrationEdgeCases:
         mcp_runtime.grant_permissions(["mcp:nonexistent-server"])
 
         # Permission check should return False (not error)
-        assert not mcp_registry.validate_permissions(["mcp:nonexistent-server"])["mcp:nonexistent-server"]
+        assert not mcp_registry.validate_permissions(["mcp:nonexistent-server"])[
+            "mcp:nonexistent-server"
+        ]
 
         # Runtime should still track the permission
         assert "mcp:nonexistent-server" in mcp_runtime.get_granted_permissions()
@@ -680,9 +695,7 @@ class TestSkillMCPIntegrationEdgeCases:
         assert mcp_runtime.check_permission("nonexistent-server")
 
     @pytest.mark.asyncio
-    async def test_skill_mixed_valid_invalid_permissions(
-        self, mcp_registry: MCPRegistry
-    ) -> None:
+    async def test_skill_mixed_valid_invalid_permissions(self, mcp_registry: MCPRegistry) -> None:
         """Test skill with mix of valid and invalid permissions.
 
         Verifies that valid permissions work even when some are invalid.
@@ -706,10 +719,12 @@ class TestSkillMCPIntegrationEdgeCases:
             registry.discover_servers()
 
             runtime = MCPRuntime(registry)
-            runtime.grant_permissions([
-                "mcp:valid-server",
-                "mcp:invalid-server",
-            ])
+            runtime.grant_permissions(
+                [
+                    "mcp:valid-server",
+                    "mcp:invalid-server",
+                ]
+            )
 
             # Valid permission should work
             assert runtime.check_permission("valid-server")
@@ -723,9 +738,8 @@ class TestSkillMCPIntegrationEdgeCases:
 
         Verifies that exceptions in MCP operations are handled gracefully.
         """
-        async def error_prone_skill(
-            payload: Dict[str, Any], mcp: MCPRuntime
-        ) -> Dict[str, Any]:
+
+        async def error_prone_skill(payload: Dict[str, Any], mcp: MCPRuntime) -> Dict[str, Any]:
             """Skill that might encounter MCP errors."""
             try:
                 # This will fail if server isn't running

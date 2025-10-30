@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import AsyncIterator
 
 import pytest
 import pytest_asyncio
@@ -15,7 +16,7 @@ pytestmark = pytest.mark.slow
 
 
 @pytest_asyncio.fixture
-async def storage():
+async def storage() -> AsyncIterator[SQLiteStorageBackend]:
     """Create a temporary SQLite storage backend for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test.db"
@@ -26,7 +27,7 @@ async def storage():
 
 
 @pytest.mark.asyncio
-async def test_create_and_get_run(storage):
+async def test_create_and_get_run(storage: SQLiteStorageBackend) -> None:
     """Test creating and retrieving a run."""
     run_id = "test-run-001"
     agent_slug = "test-agent"
@@ -47,7 +48,7 @@ async def test_create_and_get_run(storage):
 
 
 @pytest.mark.asyncio
-async def test_append_and_get_events(storage):
+async def test_append_and_get_events(storage: SQLiteStorageBackend) -> None:
     """Test appending and retrieving events."""
     run_id = "test-run-002"
     agent_slug = "test-agent"
@@ -89,7 +90,7 @@ async def test_append_and_get_events(storage):
 
 
 @pytest.mark.asyncio
-async def test_list_runs(storage):
+async def test_list_runs(storage: SQLiteStorageBackend) -> None:
     """Test listing runs with filters."""
     # Create multiple runs
     for i in range(5):
@@ -113,7 +114,7 @@ async def test_list_runs(storage):
 
 
 @pytest.mark.asyncio
-async def test_search_text(storage):
+async def test_search_text(storage: SQLiteStorageBackend) -> None:
     """Test full-text search."""
     run_id = "test-run-003"
     agent_slug = "test-agent"
@@ -154,7 +155,7 @@ async def test_search_text(storage):
 
 
 @pytest.mark.asyncio
-async def test_update_run(storage):
+async def test_update_run(storage: SQLiteStorageBackend) -> None:
     """Test updating run metadata."""
     run_id = "test-run-004"
     agent_slug = "test-agent"
@@ -173,13 +174,14 @@ async def test_update_run(storage):
 
     # Verify update
     run = await storage.get_run(run_id)
+    assert run is not None
     assert run["status"] == "succeeded"
     assert run["ended_at"] is not None
     assert run["metrics"]["duration_ms"] == 1500
 
 
 @pytest.mark.asyncio
-async def test_vacuum(storage):
+async def test_vacuum(storage: SQLiteStorageBackend) -> None:
     """Test vacuum functionality."""
     # Create some runs
     for i in range(3):
@@ -200,7 +202,7 @@ async def test_vacuum(storage):
 
 
 @pytest.mark.asyncio
-async def test_vacuum_month_boundary(storage):
+async def test_vacuum_month_boundary(storage: SQLiteStorageBackend) -> None:
     """Test vacuum with hot_days that crosses month boundary."""
     # Create a test run
     await storage.create_run(

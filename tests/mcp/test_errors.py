@@ -24,7 +24,6 @@ pytestmark = pytest.mark.slow
 try:
     import asyncpg  # noqa: F401
 
-
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False

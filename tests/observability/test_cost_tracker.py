@@ -7,6 +7,7 @@ import tempfile
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Iterator
 
 import pytest
 
@@ -23,14 +24,14 @@ from agdd.observability.cost_tracker import (
 
 
 @pytest.fixture
-def temp_dir() -> Path:
+def temp_dir() -> Iterator[Path]:
     """Create temporary directory for test files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
 
 
 @pytest.fixture
-def tracker(temp_dir: Path) -> CostTracker:
+def tracker(temp_dir: Path) -> Iterator[CostTracker]:
     """Create cost tracker with temporary paths."""
     tracker = CostTracker(
         jsonl_path=temp_dir / "costs.jsonl",
@@ -277,7 +278,9 @@ def test_fallback_to_jsonl_when_sqlite_disabled(temp_dir: Path) -> None:
     tracker.close()
 
 
-def test_record_llm_cost_convenience_function(temp_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_record_llm_cost_convenience_function(
+    temp_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test convenience function for recording LLM costs."""
     # Override global tracker path
     tracker = CostTracker(
@@ -424,9 +427,7 @@ def test_concurrent_summary_reads_with_writes_jsonl_mode(temp_dir: Path) -> None
     tracker.close()
 
 
-def test_get_tracker_uses_runs_costs_paths(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_get_tracker_uses_runs_costs_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Global tracker should initialize under .runs/costs by default."""
     monkeypatch.chdir(tmp_path)
     import agdd.observability.cost_tracker as ct_module

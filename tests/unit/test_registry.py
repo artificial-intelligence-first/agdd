@@ -54,16 +54,13 @@ class TestRegistry:
     def test_resolve_entrypoint(self) -> None:
         """Test resolving entrypoint to callable"""
         import inspect
+
         registry = Registry()
 
         # doc-gen migrated to async signature (Phase 2 baseline)
-        doc_gen_fn = registry.resolve_entrypoint(
-            "catalog/skills/doc-gen/impl/doc_gen.py:run"
-        )
+        doc_gen_fn = registry.resolve_entrypoint("catalog/skills/doc-gen/impl/doc_gen.py:run")
         assert callable(doc_gen_fn)
-        assert inspect.iscoroutinefunction(
-            doc_gen_fn
-        ), "doc-gen should expose an async signature"
+        assert inspect.iscoroutinefunction(doc_gen_fn), "doc-gen should expose an async signature"
 
         # salary-band-lookup remains async
         async_fn = registry.resolve_entrypoint(

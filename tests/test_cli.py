@@ -16,7 +16,9 @@ def test_agent_run_command_succeeds() -> None:
     This test performs actual agent execution with LLM calls, which can take
     30+ seconds. Marked as 'slow' to allow quick CI runs with `-m "not slow"`.
     """
-    payload = json.dumps({"role": "Engineer", "level": "Mid", "location": "Remote", "experience_years": 5})
+    payload = json.dumps(
+        {"role": "Engineer", "level": "Mid", "location": "Remote", "experience_years": 5}
+    )
     result = runner.invoke(app, ["agent", "run", "offer-orchestrator-mag"], input=payload)
     assert result.exit_code == 0
     output = json.loads(result.stdout)

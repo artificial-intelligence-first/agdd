@@ -11,7 +11,7 @@ import time
 from typing import Any, Dict
 
 
-def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
+async def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
     """
     Generate compensation offer for a candidate.
 
@@ -39,7 +39,7 @@ def run(payload: Dict[str, Any], *, skills=None, obs=None) -> Dict[str, Any]:
     band = {}
     if skills and skills.exists("skill.salary-band-lookup"):
         try:
-            band = skills.invoke(
+            band = await skills.invoke_async(
                 "skill.salary-band-lookup",
                 {"role": role, "level": level, "location": location},
             )

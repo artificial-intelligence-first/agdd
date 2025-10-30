@@ -4,20 +4,21 @@ from __future__ import annotations
 
 import pytest
 from pathlib import Path
+from typing import Any
 
 from agdd.evaluation.runtime import EvalRuntime
 from agdd.registry import Registry
 
 
 @pytest.fixture
-def eval_runtime():
+def eval_runtime() -> EvalRuntime:
     """Create EvalRuntime with test registry"""
     base_path = Path(__file__).parents[2]  # tests/ -> agdd/
     registry = Registry(base_path=base_path)
     return EvalRuntime(registry=registry)
 
 
-def test_load_evaluator(eval_runtime):
+def test_load_evaluator(eval_runtime: EvalRuntime) -> None:
     """Test loading evaluator descriptor"""
     eval_desc = eval_runtime.registry.load_eval("compensation-validator")
 
@@ -34,7 +35,7 @@ def test_load_evaluator(eval_runtime):
     assert "completeness_check" in metric_ids
 
 
-def test_list_evaluators(eval_runtime):
+def test_list_evaluators(eval_runtime: EvalRuntime) -> None:
     """Test listing all available evaluators"""
     eval_slugs = eval_runtime.registry.list_evals()
 
@@ -42,7 +43,7 @@ def test_list_evaluators(eval_runtime):
     assert "compensation-validator" in eval_slugs
 
 
-def test_get_evaluators_for_agent(eval_runtime):
+def test_get_evaluators_for_agent(eval_runtime: EvalRuntime) -> None:
     """Test getting evaluators for specific agent"""
     evals = eval_runtime.get_evaluators_for_agent("compensation-advisor-sag", "post_eval")
 
@@ -50,9 +51,9 @@ def test_get_evaluators_for_agent(eval_runtime):
     assert any(e.slug == "compensation-validator" for e in evals)
 
 
-def test_evaluate_valid_offer(eval_runtime):
+def test_evaluate_valid_offer(eval_runtime: EvalRuntime) -> None:
     """Test evaluation with valid compensation offer"""
-    payload = {
+    payload: dict[str, Any] = {
         "offer": {
             "role": "Senior Engineer",
             "base_salary": {"currency": "USD", "amount": 150000},
@@ -62,7 +63,7 @@ def test_evaluate_valid_offer(eval_runtime):
             "notes": "Competitive offer with strong equity component",
         }
     }
-    context = {"agent_slug": "compensation-advisor-sag", "run_id": "test-123"}
+    context: dict[str, Any] = {"agent_slug": "compensation-advisor-sag", "run_id": "test-123"}
 
     result = eval_runtime.evaluate("compensation-validator", payload, context)
 
@@ -73,9 +74,9 @@ def test_evaluate_valid_offer(eval_runtime):
     assert len(result.metrics) == 3
 
 
-def test_evaluate_invalid_salary_range(eval_runtime):
+def test_evaluate_invalid_salary_range(eval_runtime: EvalRuntime) -> None:
     """Test evaluation with out-of-range salary"""
-    payload = {
+    payload: dict[str, Any] = {
         "offer": {
             "role": "Engineer",
             "base_salary": {"currency": "USD", "amount": 10000},  # Too low
@@ -84,7 +85,7 @@ def test_evaluate_invalid_salary_range(eval_runtime):
             "equity": {"amount": 0},
         }
     }
-    context = {"agent_slug": "compensation-advisor-sag"}
+    context: dict[str, Any] = {"agent_slug": "compensation-advisor-sag"}
 
     result = eval_runtime.evaluate("compensation-validator", payload, context)
 
@@ -94,15 +95,15 @@ def test_evaluate_invalid_salary_range(eval_runtime):
     assert salary_check.passed is False
 
 
-def test_evaluate_missing_required_fields(eval_runtime):
+def test_evaluate_missing_required_fields(eval_runtime: EvalRuntime) -> None:
     """Test evaluation with missing required fields"""
-    payload = {
+    payload: dict[str, Any] = {
         "offer": {
             "base_salary": {"currency": "USD", "amount": 150000},
             # Missing: role, band (required fields)
         }
     }
-    context = {"agent_slug": "compensation-advisor-sag"}
+    context: dict[str, Any] = {"agent_slug": "compensation-advisor-sag"}
 
     result = eval_runtime.evaluate("compensation-validator", payload, context)
 
@@ -118,9 +119,9 @@ def test_evaluate_missing_required_fields(eval_runtime):
     assert result.fail_open is False
 
 
-def test_evaluate_all_for_agent(eval_runtime):
+def test_evaluate_all_for_agent(eval_runtime: EvalRuntime) -> None:
     """Test running all evaluators for an agent"""
-    payload = {
+    payload: dict[str, Any] = {
         "offer": {
             "role": "Engineer",
             "base_salary": {"currency": "USD", "amount": 150000},
@@ -130,11 +131,9 @@ def test_evaluate_all_for_agent(eval_runtime):
             "notes": "Standard offer",
         }
     }
-    context = {"agent_slug": "compensation-advisor-sag"}
+    context: dict[str, Any] = {"agent_slug": "compensation-advisor-sag"}
 
-    results = eval_runtime.evaluate_all(
-        "compensation-advisor-sag", "post_eval", payload, context
-    )
+    results = eval_runtime.evaluate_all("compensation-advisor-sag", "post_eval", payload, context)
 
     assert isinstance(results, list)
     assert len(results) > 0

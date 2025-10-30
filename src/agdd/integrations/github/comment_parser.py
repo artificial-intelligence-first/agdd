@@ -2,6 +2,7 @@
 
 Extracts @agent-slug {json} commands from GitHub comments.
 """
+
 from __future__ import annotations
 
 import json

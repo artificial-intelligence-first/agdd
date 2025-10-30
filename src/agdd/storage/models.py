@@ -27,12 +27,8 @@ class Event(BaseModel):
     agent_slug: str = Field(description="Agent slug (MAG/SAG identifier)")
 
     # Event classification
-    type: str = Field(
-        description="Event type: log, mcp.call, metric, artifact, delegation, etc."
-    )
-    level: Optional[str] = Field(
-        default=None, description="Log level: debug, info, warn, error"
-    )
+    type: str = Field(description="Event type: log, mcp.call, metric, artifact, delegation, etc.")
+    level: Optional[str] = Field(default=None, description="Log level: debug, info, warn, error")
 
     # Message & payload
     msg: Optional[str] = Field(default=None, description="Human-readable message")
@@ -45,12 +41,8 @@ class Event(BaseModel):
     parent_span_id: Optional[str] = Field(default=None, description="Parent span ID")
 
     # Contract versioning
-    contract_id: Optional[str] = Field(
-        default=None, description="JSON Schema contract identifier"
-    )
-    contract_version: Optional[str] = Field(
-        default=None, description="Contract version"
-    )
+    contract_id: Optional[str] = Field(default=None, description="JSON Schema contract identifier")
+    contract_version: Optional[str] = Field(default=None, description="Contract version")
 
     # Artifacts
     artifact_uri: Optional[str] = Field(
@@ -117,12 +109,8 @@ class DelegationEvent(BaseModel):
 
     task_id: str = Field(description="Task identifier")
     target_agent: str = Field(description="Target SAG slug")
-    target_run_id: Optional[str] = Field(
-        default=None, description="Run ID of delegated execution"
-    )
-    status: str = Field(
-        description="Delegation status: pending, running, succeeded, failed"
-    )
+    target_run_id: Optional[str] = Field(default=None, description="Run ID of delegated execution")
+    status: str = Field(description="Delegation status: pending, running, succeeded, failed")
 
 
 class MetricEvent(BaseModel):
@@ -136,9 +124,7 @@ class MetricEvent(BaseModel):
     name: str = Field(description="Metric name (e.g., duration_ms, token_count)")
     value: float = Field(description="Metric value")
     unit: Optional[str] = Field(default=None, description="Unit of measurement")
-    tags: Dict[str, str] = Field(
-        default_factory=dict, description="Additional metric tags"
-    )
+    tags: Dict[str, str] = Field(default_factory=dict, description="Additional metric tags")
 
 
 class ArtifactEvent(BaseModel):
@@ -154,6 +140,4 @@ class ArtifactEvent(BaseModel):
     size_bytes: Optional[int] = Field(default=None, description="Size in bytes")
     mime_type: Optional[str] = Field(default=None, description="MIME type")
     checksum: Optional[str] = Field(default=None, description="SHA-256 checksum")
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Additional metadata"
-    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")

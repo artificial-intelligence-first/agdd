@@ -1,4 +1,5 @@
 """Core package for the AG-Driven Development (AGDD) framework."""
+
 from __future__ import annotations
 
 from importlib import metadata

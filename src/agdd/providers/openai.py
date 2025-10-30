@@ -10,7 +10,6 @@ This provider supports:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Iterator, Optional, Union, cast
@@ -64,9 +63,9 @@ class ProviderConfig(BaseProviderConfig):
                 "gpt-3.5-turbo": {"prompt": 0.50, "completion": 1.50},
             }
 
-    def get_api_key(self) -> str:
+    def get_api_key(self, env_var: str = "OPENAI_API_KEY") -> str:
         """Get OpenAI API key from config or environment"""
-        return super().get_api_key("OPENAI_API_KEY")
+        return super().get_api_key(env_var)
 
 
 @dataclass
@@ -315,9 +314,7 @@ class OpenAIProvider:
                                     },
                                 }
                             # Accumulate arguments incrementally
-                            current_tool_calls[idx]["function"]["arguments"] += str(
-                                event_any.delta
-                            )
+                            current_tool_calls[idx]["function"]["arguments"] += str(event_any.delta)
 
                     # Handle function call arguments done
                     elif event_type == "response.function_call_arguments.done":
@@ -408,9 +405,7 @@ class OpenAIProvider:
             endpoint_used=APIEndpoint.CHAT_COMPLETIONS,
         )
 
-    def _chat_completions_stream(
-        self, request: CompletionRequest
-    ) -> Iterator[CompletionResponse]:
+    def _chat_completions_stream(self, request: CompletionRequest) -> Iterator[CompletionResponse]:
         """Execute streaming request using Chat Completions API"""
         params = self._build_chat_params(request, stream=True)
 

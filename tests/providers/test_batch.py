@@ -29,9 +29,7 @@ from agdd.optimization.batch import (
 )
 
 # Skip all tests if OPENAI_API_KEY is not set
-pytestmark = pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
-)
+pytestmark = pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set")
 
 
 @pytest.fixture
@@ -197,9 +195,7 @@ class TestBatchJobLifecycle:
         # Cleanup file
         file_path.unlink()
 
-    def test_submit_with_chat_completions(
-        self, batch_client: BatchAPIClient
-    ) -> None:
+    def test_submit_with_chat_completions(self, batch_client: BatchAPIClient) -> None:
         """Test submitting batch with chat completions endpoint"""
         requests = [
             BatchRequest(

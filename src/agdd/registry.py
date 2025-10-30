@@ -161,9 +161,7 @@ class Registry:
 
         # Search in catalog/agents/main/ and catalog/agents/sub/
         for role_dir in ["main", "sub"]:
-            agent_yaml_path = (
-                self.base_path / "catalog" / "agents" / role_dir / slug / "agent.yaml"
-            )
+            agent_yaml_path = self.base_path / "catalog" / "agents" / role_dir / slug / "agent.yaml"
             if agent_yaml_path.exists():
                 with open(agent_yaml_path, "r", encoding="utf-8") as f:
                     raw = yaml.safe_load(f)
@@ -371,7 +369,9 @@ class Registry:
             raise FileNotFoundError(f"Entrypoint module not found: {module_path}")
 
         # Dynamic module loading
-        spec = importlib.util.spec_from_file_location(f"_agdd_dynamic_{id(module_path)}", module_path)
+        spec = importlib.util.spec_from_file_location(
+            f"_agdd_dynamic_{id(module_path)}", module_path
+        )
         if spec is None or spec.loader is None:
             raise ImportError(f"Cannot create module spec for {module_path}")
 
@@ -452,7 +452,9 @@ class Registry:
 
         if pattern_matches:
             # Deterministic selection for overlapping patterns: choose longest pattern first
-            for pattern, slug in sorted(pattern_matches, key=lambda item: len(item[0]), reverse=True):
+            for pattern, slug in sorted(
+                pattern_matches, key=lambda item: len(item[0]), reverse=True
+            ):
                 if fnmatch(task_id, pattern):
                     return slug
 

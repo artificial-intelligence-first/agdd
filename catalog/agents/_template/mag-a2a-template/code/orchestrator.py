@@ -44,7 +44,14 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, runner: Any = None, obs: Any = None) -> Dict[str, Any]:
+async def run(
+    payload: Dict[str, Any],
+    *,
+    registry: Any = None,
+    skills: Any = None,
+    runner: Any = None,
+    obs: Any = None,
+) -> Dict[str, Any]:
     """
     A2A-enabled orchestration logic.
 
@@ -74,11 +81,14 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
         source_agent = a2a_context.get("source_agent", "unknown")
 
         if obs:
-            obs.log("a2a_request_received", {
-                "correlation_id": correlation_id,
-                "source_agent": source_agent,
-                "request_type": payload.get("request_type", "unknown")
-            })
+            obs.log(
+                "a2a_request_received",
+                {
+                    "correlation_id": correlation_id,
+                    "source_agent": source_agent,
+                    "request_type": payload.get("request_type", "unknown"),
+                },
+            )
 
         # Extract the actual data payload
         data = payload.get("data", payload)
@@ -88,7 +98,7 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
         if skills and skills.exists("skill.task-decomposition"):
             try:
                 # Adjust the task decomposition payload to match your input contract.
-                tasks = skills.invoke("skill.task-decomposition", {"input": data})
+                tasks = await skills.invoke_async("skill.task-decomposition", {"input": data})
                 if obs:
                     obs.log("decomposition", {"task_count": len(tasks), "tasks": tasks})
             except Exception as e:
@@ -140,7 +150,8 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
             delegation_start = _now_ms()
 
             try:
-                result = runner.invoke_sag(delegation)
+                # Invoke SAG via runner (async to avoid thread/event loop nesting)
+                result = await runner.invoke_sag_async(delegation)
                 results.append(result)
                 a2a_call_count += 1
 
@@ -159,12 +170,14 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
                     )
 
                 # Record delegation trace
-                delegation_traces.append({
-                    "agent": sag_id,
-                    "task_id": task_id,
-                    "status": result.status,
-                    "duration_ms": delegation_duration,
-                })
+                delegation_traces.append(
+                    {
+                        "agent": sag_id,
+                        "task_id": task_id,
+                        "status": result.status,
+                        "duration_ms": delegation_duration,
+                    }
+                )
 
                 if result.status != "success":
                     if obs:
@@ -176,21 +189,26 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
             except Exception as e:
                 delegation_duration = _now_ms() - delegation_start
                 if obs:
-                    obs.log("a2a_invoke_error", {
-                        "task_id": task_id,
-                        "target": sag_id,
-                        "error": str(e),
-                        "duration_ms": delegation_duration,
-                    })
+                    obs.log(
+                        "a2a_invoke_error",
+                        {
+                            "task_id": task_id,
+                            "target": sag_id,
+                            "error": str(e),
+                            "duration_ms": delegation_duration,
+                        },
+                    )
 
                 # Record failed delegation
-                delegation_traces.append({
-                    "agent": sag_id,
-                    "task_id": task_id,
-                    "status": "error",
-                    "duration_ms": delegation_duration,
-                    "error": str(e),
-                })
+                delegation_traces.append(
+                    {
+                        "agent": sag_id,
+                        "task_id": task_id,
+                        "status": "error",
+                        "duration_ms": delegation_duration,
+                        "error": str(e),
+                    }
+                )
 
                 results.append(
                     Result(
@@ -210,12 +228,15 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
         if successful_count == 0:
             duration_ms = _now_ms() - t0
             if obs:
-                obs.log("all_a2a_delegations_failed", {
-                    "total_tasks": len(tasks),
-                    "failed_tasks": len(results),
-                    "duration_ms": duration_ms,
-                    "correlation_id": correlation_id,
-                })
+                obs.log(
+                    "all_a2a_delegations_failed",
+                    {
+                        "total_tasks": len(tasks),
+                        "failed_tasks": len(results),
+                        "duration_ms": duration_ms,
+                        "correlation_id": correlation_id,
+                    },
+                )
                 obs.metric("latency_ms", duration_ms)
                 obs.metric("a2a_calls", a2a_call_count)
             raise RuntimeError(
@@ -225,7 +246,7 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
         if skills and skills.exists("skill.result-aggregation"):
             try:
                 successful_outputs = [r.output for r in results if r.status == "success"]
-                aggregated = skills.invoke(
+                aggregated = await skills.invoke_async(
                     "skill.result-aggregation", {"results": successful_outputs}
                 )
                 output = aggregated
@@ -297,12 +318,15 @@ def run(payload: Dict[str, Any], *, registry: Any = None, skills: Any = None, ru
         # Top-level error handling
         duration_ms = _now_ms() - t0
         if obs:
-            obs.log("error", {
-                "error": str(e),
-                "type": type(e).__name__,
-                "duration_ms": duration_ms,
-                "correlation_id": payload.get("context", {}).get("correlation_id"),
-            })
+            obs.log(
+                "error",
+                {
+                    "error": str(e),
+                    "type": type(e).__name__,
+                    "duration_ms": duration_ms,
+                    "correlation_id": payload.get("context", {}).get("correlation_id"),
+                },
+            )
             obs.metric("latency_ms", duration_ms)
             obs.metric("a2a_calls", a2a_call_count)
         raise

@@ -1,6 +1,5 @@
 """Unit tests for persona utilities"""
 
-import pytest
 from agdd.persona import (
     build_system_prompt_with_persona,
     get_agent_persona,
@@ -206,19 +205,13 @@ class TestPersonaIntegration:
         agent = registry.load_agent("offer-orchestrator-mag")
 
         # Extract specific section
-        guidelines = extract_persona_section(
-            agent.persona_content or "",
-            "Behavioral Guidelines"
-        )
+        guidelines = extract_persona_section(agent.persona_content or "", "Behavioral Guidelines")
 
         assert guidelines is not None
         assert "Behavioral Guidelines" in guidelines
 
         # Use in prompt
-        prompt = build_system_prompt_with_persona(
-            "Complete this task.",
-            guidelines
-        )
+        prompt = build_system_prompt_with_persona("Complete this task.", guidelines)
 
         assert "Behavioral Guidelines" in prompt
         assert "Complete this task" in prompt

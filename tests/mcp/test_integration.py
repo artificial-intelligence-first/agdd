@@ -22,7 +22,6 @@ pytestmark = pytest.mark.slow
 try:
     import asyncpg  # noqa: F401
 
-
     HAS_ASYNCPG = True
 except ImportError:
     HAS_ASYNCPG = False
@@ -35,7 +34,10 @@ class TestSkillsMCPIntegration:
     @pytest.fixture
     def temp_dirs(self) -> Generator[tuple[Path, Path], None, None]:
         """Create temporary directories for servers and skills."""
-        with tempfile.TemporaryDirectory() as servers_dir, tempfile.TemporaryDirectory() as skills_dir:
+        with (
+            tempfile.TemporaryDirectory() as servers_dir,
+            tempfile.TemporaryDirectory() as skills_dir,
+        ):
             yield Path(servers_dir), Path(skills_dir)
 
     @pytest.fixture
@@ -145,15 +147,11 @@ class TestSkillsMCPIntegration:
         with patch("agdd.mcp.server.asyncpg.create_pool") as mock_pool:
             mock_conn = AsyncMock()
             mock_conn.fetch = AsyncMock(
-                return_value=[
-                    {"band": "L4", "min_salary": 100000, "max_salary": 150000}
-                ]
+                return_value=[{"band": "L4", "min_salary": 100000, "max_salary": 150000}]
             )
 
             mock_pool_instance = AsyncMock()
-            mock_pool_instance.acquire = AsyncMock(
-                return_value=mock_conn.__aenter__.return_value
-            )
+            mock_pool_instance.acquire = AsyncMock(return_value=mock_conn.__aenter__.return_value)
             mock_pool.return_value = mock_pool_instance
 
             os.environ["PG_RO_URL"] = "postgresql://test:test@localhost/test"
@@ -374,18 +372,18 @@ class TestMCPRuntimeLifecycle:
             assert "files:write" not in result.error.lower()
 
     @pytest.mark.asyncio
-    async def test_multiple_mcp_permissions_with_invalid(
-        self, registry: MCPRegistry
-    ) -> None:
+    async def test_multiple_mcp_permissions_with_invalid(self, registry: MCPRegistry) -> None:
         """Test that one invalid MCP permission doesn't block access to valid servers."""
         runtime = MCPRuntime(registry)
 
         # Grant multiple MCP permissions, including one with a typo/invalid server
-        runtime.grant_permissions([
-            "mcp:test-server",
-            "mcp:invalid-typo-server",  # This doesn't exist
-            "mcp:another-nonexistent",  # This also doesn't exist
-        ])
+        runtime.grant_permissions(
+            [
+                "mcp:test-server",
+                "mcp:invalid-typo-server",  # This doesn't exist
+                "mcp:another-nonexistent",  # This also doesn't exist
+            ]
+        )
 
         # Verify runtime has all permissions
         granted = runtime.get_granted_permissions()

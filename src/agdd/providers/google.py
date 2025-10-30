@@ -64,8 +64,7 @@ class GoogleProvider:
             from google.genai import types
         except ImportError as e:
             raise ImportError(
-                "google-genai package is required. "
-                "Install with: pip install google-genai"
+                "google-genai package is required. Install with: pip install google-genai"
             ) from e
 
         self._client = genai.Client(api_key=self._api_key)
@@ -113,7 +112,7 @@ class GoogleProvider:
         )
 
         # Extract text
-        text = str(response.output_text)
+        text = str(response.text)
 
         # Extract usage
         input_tokens = 0
@@ -124,9 +123,7 @@ class GoogleProvider:
             output_tokens = getattr(usage, "output_tokens", 0)
 
         # Calculate costs
-        model_costs = self.COST_PER_1M_TOKENS.get(
-            model_name, {"input": 0.0, "output": 0.0}
-        )
+        model_costs = self.COST_PER_1M_TOKENS.get(model_name, {"input": 0.0, "output": 0.0})
         cost_usd = (
             input_tokens * model_costs["input"] / 1_000_000
             + output_tokens * model_costs["output"] / 1_000_000
@@ -135,12 +132,16 @@ class GoogleProvider:
         return LLMResponse(
             content=text,
             model=model_name,
-            usage={
-                "prompt_tokens": input_tokens,
-                "completion_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            metadata={
+                "usage": {
+                    "prompt_tokens": input_tokens,
+                    "completion_tokens": output_tokens,
+                    "total_tokens": input_tokens + output_tokens,
+                },
+                "cost_usd": cost_usd,
             },
-            cost_usd=cost_usd,
         )
 
     async def agenerate(

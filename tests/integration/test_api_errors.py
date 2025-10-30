@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from agdd.api.server import app, http_exception_handler
 
 import pytest
+
 pytestmark = pytest.mark.slow
 
 client = TestClient(app)
@@ -57,7 +58,8 @@ def test_http_exception_handler_maps_forbidden() -> None:
             request, HTTPException(status_code=403, detail="Forbidden")
         )
         assert response.status_code == 403
-        data = json.loads(response.body.decode("utf-8"))
+        body_bytes = bytes(response.body)
+        data = json.loads(body_bytes.decode("utf-8"))
         assert data["code"] == "forbidden"
         assert data["message"] == "Forbidden"
 

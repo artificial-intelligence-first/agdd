@@ -29,18 +29,30 @@ sources:
 
 ## Testing Instructions
 
-- Run the fast suite before committing:
+- One-time setup for development tools (enables parallel tests):
   ```bash
-  uv run -m pytest -q
+  uv sync --extra dev
+  ```
+
+- Run the fast suite before committing (default excludes slow, parallel on):
+  ```bash
+  uv run --no-sync -m pytest -q
   ```
 - Execute slow or integration targets when touching runners, MCP, or catalog flows:
   ```bash
-  uv run -m pytest -m slow
-  uv run -m pytest tests/integration/test_e2e_offer_flow.py
+  uv run --no-sync -m pytest -m slow
+  uv run --no-sync -m pytest tests/integration/test_e2e_offer_flow.py
   ```
 - Run MCP-focused tests with the full suite enabled:
   ```bash
   make test-mcp
+  ```
+
+- Make shortcuts:
+  ```bash
+  make test        # fast suite (default, excludes slow)
+  make test-all    # fast + slow
+  make test-slow   # slow only
   ```
 - Type checking is mandatory:
   ```bash

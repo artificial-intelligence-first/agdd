@@ -55,7 +55,9 @@ def flow_validate(
 @flow_app.command("run")
 def flow_run(
     path: pathlib.Path,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview execution without side effects."),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Preview execution without side effects."
+    ),
     only: Optional[str] = typer.Option(None, "--only", help="Run only the specified flow step."),
     continue_from: Optional[str] = typer.Option(
         None, "--continue-from", help="Resume execution from the given step."
@@ -158,7 +160,9 @@ def agent_run(
 @data_app.command("init")
 def data_init(
     backend: str = typer.Option("sqlite", "--backend", help="Storage backend: sqlite, postgres"),
-    db_path: str = typer.Option(".agdd/storage.db", "--db-path", help="Database path (sqlite only)"),
+    db_path: str = typer.Option(
+        ".agdd/storage.db", "--db-path", help="Database path (sqlite only)"
+    ),
     enable_fts: bool = typer.Option(True, "--fts/--no-fts", help="Enable FTS5 full-text search"),
 ) -> None:
     """Initialize storage backend"""
@@ -206,7 +210,9 @@ def data_vacuum(
 
 @data_app.command("archive")
 def data_archive(
-    destination: str = typer.Argument(..., help="Archive destination URI (e.g., s3://bucket/prefix)"),
+    destination: str = typer.Argument(
+        ..., help="Archive destination URI (e.g., s3://bucket/prefix)"
+    ),
     since_days: int = typer.Option(7, "--since", help="Archive data older than this many days"),
     format: str = typer.Option("parquet", "--format", help="Archive format: parquet, ndjson"),
 ) -> None:
@@ -270,9 +276,7 @@ def data_search(
         storage = await get_storage_backend()
         try:
             if not storage.capabilities.search_text:
-                typer.echo(
-                    "Error: Full-text search not supported by this backend", err=True
-                )
+                typer.echo("Error: Full-text search not supported by this backend", err=True)
                 raise typer.Exit(1)
 
             results = await storage.search_text(query=query, agent_slug=agent, limit=limit)

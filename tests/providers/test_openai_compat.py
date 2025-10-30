@@ -259,7 +259,7 @@ async def test_provider_default_config() -> None:
     provider = OpenAICompatProvider()
 
     assert provider.config.base_url == "http://localhost:8000/v1/"
-    assert provider.config.timeout == 60.0
+    assert provider.config.timeout == 3.0  # Reduced for fast failure when server unavailable
     assert provider.config.api_key is None
 
     await provider.close()

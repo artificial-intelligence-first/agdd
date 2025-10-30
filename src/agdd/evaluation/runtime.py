@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, cast
 
-from agdd.registry import EvalDescriptor, MetricConfig, Registry, get_registry
+from agdd.registry import EvalDescriptor, Registry, get_registry
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +66,9 @@ class EvalRuntime:
         )
 
         if not metric_module_path.exists():
-            logger.warning(f"Metric module not found for evaluator '{eval_slug}': {metric_module_path}")
+            logger.warning(
+                f"Metric module not found for evaluator '{eval_slug}': {metric_module_path}"
+            )
             return {}
 
         try:
@@ -78,9 +79,7 @@ class EvalRuntime:
             # Use dotted package path to preserve package context
             module_name = f"catalog.evals.{eval_slug}.metric.validator"
 
-            spec = importlib.util.spec_from_file_location(
-                module_name, metric_module_path
-            )
+            spec = importlib.util.spec_from_file_location(module_name, metric_module_path)
             if spec is None or spec.loader is None:
                 logger.error(f"Cannot create module spec for {metric_module_path}")
                 return {}
@@ -113,8 +112,7 @@ class EvalRuntime:
             # Catch import errors, syntax errors, missing dependencies, etc.
             # Log the error but allow evaluation to continue (fail gracefully)
             logger.error(
-                f"Failed to load metric module for evaluator '{eval_slug}': {e}",
-                exc_info=True
+                f"Failed to load metric module for evaluator '{eval_slug}': {e}", exc_info=True
             )
             # Don't cache the error - allow retry on next call
             return {}
@@ -185,9 +183,7 @@ class EvalRuntime:
             metric_t0 = time.time()
 
             if metric_config.id not in metrics_callable:
-                logger.warning(
-                    f"Metric '{metric_config.id}' not found in evaluator '{eval_slug}'"
-                )
+                logger.warning(f"Metric '{metric_config.id}' not found in evaluator '{eval_slug}'")
                 metric_results.append(
                     MetricResult(
                         metric_id=metric_config.id,
@@ -300,6 +296,7 @@ class EvalRuntime:
                 return False
 
             import yaml
+
             with open(eval_yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
@@ -311,7 +308,9 @@ class EvalRuntime:
 
         except Exception as e:
             # If we can't parse the YAML at all, assume it might apply (fail-closed for safety)
-            logger.warning(f"Cannot determine if evaluator '{eval_slug}' applies to '{agent_slug}': {e}")
+            logger.warning(
+                f"Cannot determine if evaluator '{eval_slug}' applies to '{agent_slug}': {e}"
+            )
             return True
 
     def evaluate_all(
@@ -342,9 +341,7 @@ class EvalRuntime:
                     continue
 
                 # Evaluator is applicable, run evaluation
-                result = self.evaluate(
-                    eval_slug, payload, {**context, "agent_slug": agent_slug}
-                )
+                result = self.evaluate(eval_slug, payload, {**context, "agent_slug": agent_slug})
                 results.append(result)
 
             except Exception as e:
@@ -354,16 +351,18 @@ class EvalRuntime:
                 # Best-effort check: does this evaluator target the current agent?
                 if self._check_if_evaluator_applies(eval_slug, agent_slug, hook_type):
                     # Evaluator targets this agent - treat load failure as fail-closed
-                    results.append(EvalResult(
-                        eval_slug=eval_slug,
-                        hook_type=hook_type,
-                        agent_slug=agent_slug,
-                        overall_score=0.0,
-                        passed=False,
-                        fail_open=False,  # Treat load failures as fail-closed
-                        error=f"Failed to load evaluator: {e}",
-                        duration_ms=0.0,
-                    ))
+                    results.append(
+                        EvalResult(
+                            eval_slug=eval_slug,
+                            hook_type=hook_type,
+                            agent_slug=agent_slug,
+                            overall_score=0.0,
+                            passed=False,
+                            fail_open=False,  # Treat load failures as fail-closed
+                            error=f"Failed to load evaluator: {e}",
+                            duration_ms=0.0,
+                        )
+                    )
                 else:
                     # Evaluator doesn't target this agent - skip it
                     logger.info(

@@ -1,4 +1,5 @@
 """Utilities for tracking and identifying agent runs from filesystem artifacts."""
+
 from __future__ import annotations
 
 import json
@@ -28,7 +29,9 @@ def validate_run_id(run_id: str) -> None:
 
     # Additional safety: reject path separators and relative path components
     if "/" in run_id or "\\" in run_id or ".." in run_id:
-        raise ValueError(f"Invalid run_id: contains path separators or relative components: {run_id!r}")
+        raise ValueError(
+            f"Invalid run_id: contains path separators or relative components: {run_id!r}"
+        )
 
 
 def _safe_run_path(base_dir: Path, run_id: str) -> Path:

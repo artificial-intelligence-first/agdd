@@ -24,9 +24,13 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Package management cache
+.uv-cache/
+
 # Observability
 .runs/
 .observability_cache/
+.agdd/
 
 # Development
 .DS_Store
@@ -39,7 +43,6 @@ ops/scripts/flowrunner-env.sh
 flow-runner/
 
 # Flow Runner artifacts
-.runs/
 .flow_runs/
 
 # Benchmark outputs

@@ -45,9 +45,7 @@ class JsonRpcRequest(BaseModel):
     params: dict[str, Any] | list[Any] | None = Field(
         None, description="Method parameters (object or array)"
     )
-    id: str | int | None = Field(
-        None, description="Request identifier (null for notifications)"
-    )
+    id: str | int | None = Field(None, description="Request identifier (null for notifications)")
 
     # Extension point: signature/authorization metadata
     meta: dict[str, Any] | None = Field(
@@ -112,9 +110,7 @@ class Capability(BaseModel):
     input_schema: dict[str, Any] | None = Field(
         None, description="JSON Schema for input parameters"
     )
-    output_schema: dict[str, Any] | None = Field(
-        None, description="JSON Schema for output/result"
-    )
+    output_schema: dict[str, Any] | None = Field(None, description="JSON Schema for output/result")
 
 
 class AgentEndpoint(BaseModel):
@@ -126,9 +122,7 @@ class AgentEndpoint(BaseModel):
 
     protocol: str = Field(..., description="Protocol type (http, amqp, grpc, etc.)")
     uri: str = Field(..., description="Endpoint URI")
-    metadata: dict[str, Any] | None = Field(
-        None, description="Protocol-specific metadata"
-    )
+    metadata: dict[str, Any] | None = Field(None, description="Protocol-specific metadata")
 
 
 class AgentIdentity(BaseModel):

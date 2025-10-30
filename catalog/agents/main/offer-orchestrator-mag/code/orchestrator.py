@@ -45,7 +45,9 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
-def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs=None) -> Dict[str, Any]:
+async def run(
+    payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs=None
+) -> Dict[str, Any]:
     """
     Orchestrate offer packet generation.
 
@@ -73,17 +75,23 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         if skills and skills.exists("skill.task-decomposition"):
             try:
                 # Use task decomposition skill
-                tasks = skills.invoke("skill.task-decomposition", {"candidate_profile": payload})
+                tasks = await skills.invoke_async(
+                    "skill.task-decomposition", {"candidate_profile": payload}
+                )
                 if obs:
                     obs.log("decomposition", {"task_count": len(tasks), "tasks": tasks})
             except Exception as e:
                 if obs:
                     obs.log("decomposition_error", {"error": str(e)})
                 # Fallback to default single task
-                tasks = [{"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": payload}}]
+                tasks = [
+                    {"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": payload}}
+                ]
         else:
             # Fallback: single task to compensation advisor
-            tasks = [{"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": payload}}]
+            tasks = [
+                {"sag_id": "compensation-advisor-sag", "input": {"candidate_profile": payload}}
+            ]
 
         # ===== Phase 2: Sub-Agent Delegation =====
         results = []
@@ -108,8 +116,8 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
                 )
 
             try:
-                # Invoke SAG via runner
-                result = runner.invoke_sag(delegation)
+                # Invoke SAG via runner (async to avoid thread/event loop nesting)
+                result = await runner.invoke_sag_async(delegation)
                 results.append(result)
 
                 if obs:
@@ -154,11 +162,14 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         if successful_count == 0:
             duration_ms = _now_ms() - t0
             if obs:
-                obs.log("all_delegations_failed", {
-                    "total_tasks": len(tasks),
-                    "failed_tasks": len(results),
-                    "duration_ms": duration_ms
-                })
+                obs.log(
+                    "all_delegations_failed",
+                    {
+                        "total_tasks": len(tasks),
+                        "failed_tasks": len(results),
+                        "duration_ms": duration_ms,
+                    },
+                )
                 obs.metric("latency_ms", duration_ms)
             raise RuntimeError(
                 f"All {len(tasks)} SAG delegation(s) failed. Cannot generate valid offer packet."
@@ -168,7 +179,7 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
             try:
                 # Collect successful outputs
                 successful_outputs = [r.output for r in results if r.status == "success"]
-                aggregated = skills.invoke(
+                aggregated = await skills.invoke_async(
                     "skill.result-aggregation", {"results": successful_outputs}
                 )
                 output = aggregated
@@ -224,6 +235,8 @@ def run(payload: Dict[str, Any], *, registry=None, skills=None, runner=None, obs
         # Top-level error handling
         duration_ms = _now_ms() - t0
         if obs:
-            obs.log("error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms})
+            obs.log(
+                "error", {"error": str(e), "type": type(e).__name__, "duration_ms": duration_ms}
+            )
             obs.metric("latency_ms", duration_ms)
         raise

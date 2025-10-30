@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from typing import Any, Optional
+
+from agdd.mcp import MCPRuntime
+
 """
 Result Aggregation Skill
 
 Aggregates sub-agent results into unified output.
 """
-
-from typing import Any, Optional
-
-from agdd.mcp import MCPRuntime
 
 
 async def run(

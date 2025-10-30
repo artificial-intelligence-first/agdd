@@ -24,6 +24,7 @@ import yaml
 
 from agdd.mcp import MCPRuntime
 
+
 def _find_repo_root(start_path: Path) -> Path:
     """
     Find repository root by looking for pyproject.toml or .git directory.
