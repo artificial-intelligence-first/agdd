@@ -5,6 +5,7 @@ status: living
 last_synced: 2025-10-30
 tags: [agdd, execplan, roadmap, workflow]
 description: "Execution-plan convention for coordinating multi-session initiatives across the AG-Driven Development framework."
+source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
 sources:
   - { id: R1, title: "OpenAI Cookbook – Exec Plans", url: "https://cookbook.openai.com/articles/codex_exec_plans", accessed: "2025-10-30" }
   - { id: R2, title: "AGDD Roadmap", url: "../development/roadmap.md", accessed: "2025-10-30" }

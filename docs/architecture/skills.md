@@ -5,6 +5,7 @@ status: living
 last_synced: 2025-10-30
 tags: [agdd, skills, mcp, catalog, development]
 description: "Standards for building, documenting, and validating skills in the AG-Driven Development framework."
+source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
 sources:
   - { id: R1, title: "Skill Registry", url: "catalog/registry/skills.yaml", accessed: "2025-10-30" }
   - { id: R2, title: "Skill Runtime", url: "src/agdd/runners/agent_runner.py", accessed: "2025-10-30" }
