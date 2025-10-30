@@ -108,6 +108,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         self._locks: Dict[str, asyncio.Lock] = {}
         # Lock to synchronize access to _locks dictionary
         self._locks_lock = asyncio.Lock()
+        # Counter for periodic lock cleanup to prevent memory leaks
+        self._request_count = 0
+        self._cleanup_interval = 1000  # Clean up locks every N requests
 
     async def dispatch(self, request: Request, call_next):
         """Process the request and apply idempotency logic.
@@ -119,6 +122,13 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from the endpoint or cached/conflict response
         """
+        # Periodic cleanup to prevent lock memory leaks
+        self._request_count += 1
+        if self._request_count % self._cleanup_interval == 0:
+            # Clean up expired store entries and stale locks
+            self._store.cleanup_expired()
+            await self._cleanup_locks()
+
         # Only apply to POST requests
         if request.method != "POST":
             return await call_next(request)
@@ -277,3 +287,22 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     def cleanup_expired(self) -> None:
         """Manually trigger cleanup of expired idempotency entries."""
         self._store.cleanup_expired()
+
+    async def _cleanup_locks(self) -> None:
+        """Clean up locks for keys that are no longer in the store.
+
+        This prevents memory leaks by removing lock objects for idempotency keys
+        that have expired from the store. Only removes locks that are not currently
+        being held to avoid interfering with in-flight requests.
+        """
+        async with self._locks_lock:
+            # Find keys that exist in locks but not in store
+            store_keys = set(self._store._store.keys())
+            lock_keys = set(self._locks.keys())
+            stale_keys = lock_keys - store_keys
+
+            # Remove locks that are not currently held
+            for key in stale_keys:
+                lock = self._locks.get(key)
+                if lock and not lock.locked():
+                    del self._locks[key]

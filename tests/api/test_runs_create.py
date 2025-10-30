@@ -572,6 +572,64 @@ class TestIdempotencyMiddleware:
             )
             assert replay_count >= 1, "At least one response should be a replay"
 
+    @pytest.mark.asyncio
+    async def test_idempotency_lock_cleanup(self):
+        """Test that locks are cleaned up to prevent memory leaks."""
+        from fastapi import FastAPI
+        from httpx import ASGITransport, AsyncClient
+        from agdd.api.middleware.idempotency import IdempotencyStore, IdempotencyMiddleware
+
+        # Create a store with longer TTL so locks persist during the test
+        test_store = IdempotencyStore(ttl_seconds=10)
+
+        # Create middleware instance that we can inspect
+        middleware_instance = None
+
+        # Custom wrapper to capture the middleware instance
+        class TestIdempotencyMiddleware(IdempotencyMiddleware):
+            def __init__(self, app, store):
+                super().__init__(app, store)
+                nonlocal middleware_instance
+                middleware_instance = self
+
+        # Create test app
+        test_app = FastAPI()
+
+        @test_app.post("/test-cleanup")
+        async def test_endpoint():
+            return {"status": "ok"}
+
+        # Add middleware
+        test_app.add_middleware(TestIdempotencyMiddleware, store=test_store)
+
+        # Make several requests with different idempotency keys using async client
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
+            for i in range(10):
+                response = await client.post(
+                    "/test-cleanup",
+                    json={},
+                    headers={"Idempotency-Key": f"cleanup-key-{i}"},
+                )
+                assert response.status_code == 200
+
+        # At this point, we should have 10 locks created (still within TTL)
+        initial_lock_count = len(middleware_instance._locks)
+        assert initial_lock_count == 10, f"Expected 10 locks, got {initial_lock_count}"
+
+        # Manually remove some entries from the store to simulate expiration
+        for i in range(5):
+            key = f"cleanup-key-{i}"
+            if key in test_store._store:
+                del test_store._store[key]
+
+        # Manually trigger cleanup
+        await middleware_instance._cleanup_locks()
+
+        # After cleanup, locks for removed keys should be gone
+        after_cleanup_count = len(middleware_instance._locks)
+        assert after_cleanup_count == 5, f"Expected 5 locks after cleanup, got {after_cleanup_count}"
+
+
 
 class TestAuthenticationAndRateLimit:
     """Tests for authentication and rate limiting on POST /runs."""
