@@ -207,6 +207,15 @@ If actual output doesn't match expected:
 - Determine if the change is intentional (update expected output)
 - Investigate if the change represents a regression (fix the agent)
 
+### Malformed JSON Files
+
+If input.json or expected/output.json contains invalid JSON:
+
+- The test will fail with a clear error message indicating the JSON error location
+- Example: `Invalid input JSON: Expecting value at line 4 column 16`
+- The benchmark suite will continue running other tests
+- Fix the JSON syntax error and re-run the tests
+
 ### Non-Deterministic Results
 
 If tests produce varying results:

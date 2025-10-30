@@ -350,20 +350,61 @@ def run_golden_tests(golden_dir: Path = Path("tests/golden")) -> list[BenchResul
         if not input_file.exists():
             continue
 
-        # Load input
-        with input_file.open() as f:
-            input_data = json.load(f)
+        agent_name = test_dir.name
+
+        # Load input with error handling
+        try:
+            with input_file.open() as f:
+                input_data = json.load(f)
+        except json.JSONDecodeError as e:
+            # Create a failed result for malformed input JSON
+            result = BenchResult(
+                agent=agent_name,
+                input_data={},
+                success=False,
+                error=f"Invalid input JSON: {e.msg} at line {e.lineno} column {e.colno}",
+            )
+            results.append(result)
+            print(f"✗ FAILED golden test: {agent_name} - Invalid input.json: {e.msg}")
+            continue
+        except Exception as e:
+            # Handle other file reading errors
+            result = BenchResult(
+                agent=agent_name,
+                input_data={},
+                success=False,
+                error=f"Error reading input.json: {str(e)}",
+            )
+            results.append(result)
+            print(f"✗ FAILED golden test: {agent_name} - Error reading input.json: {e}")
+            continue
 
         # Run benchmark
-        agent_name = test_dir.name
         result = runner.run_benchmark(agent_name, input_data)
         results.append(result)
 
         # Compare with expected output if available
         expected_file = test_dir / "expected" / "output.json"
         if expected_file.exists():
-            with expected_file.open() as f:
-                expected_output = json.load(f)
+            try:
+                with expected_file.open() as f:
+                    expected_output = json.load(f)
+            except json.JSONDecodeError as e:
+                # Mark test as failed due to malformed expected JSON
+                result.success = False
+                result.error = f"Invalid expected output JSON: {e.msg} at line {e.lineno} column {e.colno}"
+                result.metadata["has_expected"] = True
+                result.metadata["expected_file"] = str(expected_file)
+                print(f"✗ FAILED golden test: {agent_name} - Invalid expected/output.json: {e.msg}")
+                continue
+            except Exception as e:
+                # Handle other file reading errors
+                result.success = False
+                result.error = f"Error reading expected output: {str(e)}"
+                result.metadata["has_expected"] = True
+                result.metadata["expected_file"] = str(expected_file)
+                print(f"✗ FAILED golden test: {agent_name} - Error reading expected/output.json: {e}")
+                continue
 
             result.metadata["has_expected"] = True
             result.metadata["expected_file"] = str(expected_file)
