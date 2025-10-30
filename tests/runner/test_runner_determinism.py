@@ -382,6 +382,45 @@ class TestApplyDeterministicSettings:
         assert result["temperature"] == 0.0
         assert "seed" in result
 
+    def test_apply_coerces_none_metadata_to_dict(self) -> None:
+        """Test that None metadata is coerced to dict."""
+        set_deterministic_mode(True)
+        set_deterministic_seed(42)
+
+        config = {"temperature": 0.7, "metadata": None}
+        result = apply_deterministic_settings(config)
+
+        # metadata should now be a dict with deterministic fields
+        assert isinstance(result["metadata"], dict)
+        assert result["metadata"]["deterministic_mode"] is True
+        assert result["metadata"]["deterministic_seed"] == 42
+
+    def test_apply_coerces_string_metadata_to_dict(self) -> None:
+        """Test that string metadata is coerced to dict."""
+        set_deterministic_mode(True)
+        set_deterministic_seed(42)
+
+        config = {"temperature": 0.7, "metadata": "some_string"}
+        result = apply_deterministic_settings(config)
+
+        # metadata should now be a dict with deterministic fields
+        assert isinstance(result["metadata"], dict)
+        assert result["metadata"]["deterministic_mode"] is True
+        assert result["metadata"]["deterministic_seed"] == 42
+
+    def test_apply_handles_missing_metadata(self) -> None:
+        """Test that missing metadata field is created."""
+        set_deterministic_mode(True)
+        set_deterministic_seed(42)
+
+        config = {"temperature": 0.7}  # No metadata field
+        result = apply_deterministic_settings(config)
+
+        # metadata should be created as a dict
+        assert isinstance(result["metadata"], dict)
+        assert result["metadata"]["deterministic_mode"] is True
+        assert result["metadata"]["deterministic_seed"] == 42
+
 
 class TestCreateReplayContext:
     """Tests for creating replay context from snapshot."""

@@ -208,7 +208,8 @@ def apply_deterministic_settings(provider_config: dict[str, Any]) -> dict[str, A
         config["top_p"] = 1.0
 
     # Add metadata indicating deterministic mode
-    if "metadata" not in config:
+    # Ensure metadata is a dict (coerce if missing or not a mapping)
+    if not isinstance(config.get("metadata"), dict):
         config["metadata"] = {}
     config["metadata"]["deterministic_mode"] = True
     config["metadata"]["deterministic_seed"] = seed
