@@ -76,11 +76,9 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                           Entry Points                              │
-│                                                                     │
 │   ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐      │
 │   │     CLI      │    │   HTTP API   │    │ GitHub Webhooks  │      │
 │   │  (agdd.cli)  │    │  (agdd.api)  │    │  (integrations)  │      │
-│   │              │    │ + Rate Limit │    │                  │      │
 │   └──────┬───────┘    └───────┬──────┘    └──────────┬───────┘      │
 └──────────┼────────────────────┼──────────────────────┼──────────────┘
            │                    │                      │
@@ -88,7 +86,6 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    MCP Integration Layer                            │
-│                                                                     │
 │   ┌─────────────────────────┐         ┌─────────────────────────┐   │
 │   │    MCP Server           │         │    MCP Runtime          │   │
 │   │  - Tool exposure        │◀────────│  - Skill execution      │   │
@@ -100,7 +97,6 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Orchestration & Execution                        │
-│                                                                     │
 │   ┌─────────────────────────┐         ┌─────────────────────────┐   │
 │   │    Agent Runner         │         │    Flow Runner          │   │
 │   │  (MAG/SAG Orchestration)│◀────────│  (Optional Plugin)      │   │
@@ -114,32 +110,29 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Core Components                              │
-│                                                                     │
-│   ┌─────────────┐     ┌──────────────┐     ┌──────────────────┐     │
-│   │  Registry   │────▶│   Skills     │     │   Contracts      │     │
-│   │  - agents   │     │  - reusable  │     │  - JSON Schema   │     │
-│   │  - skills   │     │  - composable│     │  - validation    │     │
-│   │  - routing  │     │  - async MCP │     │                  │     │
-│   │  - personas │     │              │     │                  │     │
-│   └─────────────┘     └──────────────┘     └──────────────────┘     │
+│   ┌─────────────┐     ┌───────────────┐    ┌──────────────────┐     │
+│   │  Registry   │────▶│   Skills      │    │   Contracts      │     │
+│   │  - agents   │     │  - reusable   │    │  - JSON Schema   │     │
+│   │  - skills   │     │  - composable │    │  - validation    │     │
+│   │  - routing  │     │  - async MCP  │    │                  │     │
+│   │  - personas │     │               │    │                  │     │
+│   └─────────────┘     └───────────────┘    └──────────────────┘     │
 └─────────────────────────────────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   Routing & Optimization Layer                      │
-│                                                                     │
-│  ┌─────────────┐  ┌───────────────┐  ┌──────────────┐  ┌──────────┐ │
-│  │ Router      │  │ Semantic Cache│  │ Batch Manager│  │ Cost     │ │
-│  │ - SLA-based │  │ - FAISS/Redis │  │ - OpenAI     │  │ Optimizer│ │
-│  │ - Auto-opt  │  │ - Vector K-NN │  │   Batch API  │  │ - Model  │ │
-│  │ - Fallback  │  │ - 100% savings│  │ - 50% savings│  │   tiering│ │
-│  └─────────────┘  └───────────────┘  └──────────────┘  └──────────┘ │
+│  ┌────────────┐  ┌───────────────┐  ┌──────────────┐  ┌───────────┐ │
+│  │ Router     │  │ Semantic Cache│  │ Batch Manager│  │ Cost      │ │
+│  │ - SLA-based│  │ - FAISS/Redis │  │ - OpenAI     │  │ Optimizer │ │
+│  │ - Auto-opt │  │ - Vector K-NN │  │   Batch API  │  │ - Model   │ │
+│  │ - Fallback │  │ - 100% savings│  │ - 50% savings│  │   tiering │ │
+│  └────────────┘  └───────────────┘  └──────────────┘  └───────────┘ │
 └──────────────┼──────────────────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                    Multi-Provider Support                           │
-│                                                                     │
 │   ┌────────────┐   ┌───────────┐   ┌─────────┐   ┌────────────────┐ │
 │   │  OpenAI    │   │ Anthropic │   │ Google  │   │ Local (Ollama) │ │
 │   │ - Responses│   │ - Claude  │   │ - Gemini│   │ - Responses API│ │
@@ -151,7 +144,6 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                   Storage & Observability Layer                     │
-│                                                                     │
 │   ┌──────────────────────┐              ┌────────────────────────┐  │
 │   │   Storage Layer      │              │   Observability        │  │
 │   │  - SQLite (default)  │              │  - OpenTelemetry       │  │
@@ -166,7 +158,6 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                                   ▼
                ┌─────────────────────────────────────┐
                │   Governance & Evaluation Layer     │
-               │                                     │
                │   ┌─────────────────────────────┐   │
                │   │    Governance Gate          │   │
                │   │  - Policy enforcement       │   │
