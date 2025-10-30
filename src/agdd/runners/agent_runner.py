@@ -680,6 +680,41 @@ class AgentRunner:
         )
         obs.finalize()
 
+    def _extract_text_for_moderation(self, output: Dict[str, Any]) -> str:
+        """
+        Extract text content from agent output for moderation.
+
+        This helper extracts textual content from the agent's output dictionary
+        to pass to the model output moderation hook. It recursively traverses
+        the output structure to find all text content.
+
+        Args:
+            output: Agent output dictionary
+
+        Returns:
+            Concatenated text content for moderation, or empty string if no text found
+        """
+        if not isinstance(output, dict):
+            if isinstance(output, str):
+                return output
+            return ''
+
+        texts = []
+
+        def extract_recursive(obj: Any) -> None:
+            """Recursively extract text from nested structures."""
+            if isinstance(obj, str):
+                texts.append(obj)
+            elif isinstance(obj, dict):
+                for value in obj.values():
+                    extract_recursive(value)
+            elif isinstance(obj, list):
+                for item in obj:
+                    extract_recursive(item)
+
+        extract_recursive(output)
+        return ' '.join(texts) if texts else ''
+
     def _handle_mag_error(
         self,
         exec_ctx: Optional[_ExecutionContext],
@@ -746,6 +781,12 @@ class AgentRunner:
 
             # Execute MAG
             output, duration_ms = self._execute_mag(exec_ctx, payload)
+
+            # Check model output moderation (generated content validation)
+            # Extract text content from output for moderation
+            output_text = self._extract_text_for_moderation(output)
+            if output_text:
+                _check_moderation_model_output(output_text, observer=obs)
 
             # Check egress moderation (output artifact validation)
             _check_moderation_egress(output, observer=obs)
@@ -1174,6 +1215,11 @@ class AgentRunner:
                     # Execute agent asynchronously in same event loop
                     output, duration_ms = await self._execute_agent_async(exec_ctx, delegation)
 
+                    # Check model output moderation (generated content validation)
+                    output_text = self._extract_text_for_moderation(output)
+                    if output_text:
+                        _check_moderation_model_output(output_text, observer=obs)
+
                     # Run post-evaluation checks
                     self._run_post_evaluations(exec_ctx, delegation, output, context)
 
@@ -1278,6 +1324,11 @@ class AgentRunner:
 
                     # Execute agent
                     output, duration_ms = self._execute_agent(exec_ctx, delegation)
+
+                    # Check model output moderation (generated content validation)
+                    output_text = self._extract_text_for_moderation(output)
+                    if output_text:
+                        _check_moderation_model_output(output_text, observer=obs)
 
                     # Run post-evaluation checks
                     self._run_post_evaluations(exec_ctx, delegation, output, context)
