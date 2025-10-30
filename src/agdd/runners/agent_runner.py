@@ -712,6 +712,43 @@ class AgentRunner:
             self._handle_mag_error(exec_ctx, e)
             raise
 
+    # ---------------------------------------------------------------------
+    # Backward-compatible helper used by some tests: run a single agent
+    # directly by slug, enforcing the async-only contract. This bypasses
+    # planning/observability and is intended for unit tests.
+    # ---------------------------------------------------------------------
+    def run_agent(
+        self,
+        slug: str,
+        payload: Dict[str, Any],
+        *,
+        observer: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Execute an agent entrypoint directly.
+
+        This method exists for compatibility with unit tests that expect a
+        simple runner surface. It enforces that the agent entrypoint is async
+        and executes it safely from sync context.
+
+        Args:
+            slug: Agent slug to execute
+            payload: Input payload passed to the agent
+            observer: Optional observer passed through for tests
+
+        Returns:
+            Agent output dict
+        """
+        agent = self.registry.load_agent(slug)
+        run_fn = self.registry.resolve_entrypoint(agent.entrypoint)
+
+        if not _is_async_callable(run_fn):
+            raise ValueError(f"Agent '{agent.slug}' must be async. Synchronous agents are not supported.")
+
+        async def _run():
+            return await run_fn(payload, skills=self.skills, obs=observer)
+
+        return self._run_async_safely(_run())
+
     def _run_pre_evaluations(
         self,
         exec_ctx: _ExecutionContext,
