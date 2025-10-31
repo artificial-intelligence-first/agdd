@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -99,11 +99,11 @@ class TestMemoryEntry:
         assert not entry.is_expired()
 
         # Set TTL to 1 second in the past
-        entry.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        entry.expires_at = datetime.now(UTC) - timedelta(seconds=1)
         assert entry.is_expired()
 
         # Set TTL to 1 hour in the future
-        entry.expires_at = datetime.utcnow() + timedelta(hours=1)
+        entry.expires_at = datetime.now(UTC) + timedelta(hours=1)
         assert not entry.is_expired()
 
     def test_set_ttl(self) -> None:
@@ -118,8 +118,8 @@ class TestMemoryEntry:
 
         entry.set_ttl(3600)  # 1 hour
         assert entry.expires_at is not None
-        assert entry.expires_at > datetime.utcnow()
-        assert entry.expires_at <= datetime.utcnow() + timedelta(seconds=3601)
+        assert entry.expires_at > datetime.now(UTC)
+        assert entry.expires_at <= datetime.now(UTC) + timedelta(seconds=3601)
 
 
 class TestMemoryUtilities:
@@ -358,7 +358,7 @@ class TestSQLiteMemoryStore:
             key="expired_key",
             value={"data": "expired"},
         )
-        expired_entry.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        expired_entry.expires_at = datetime.now(UTC) - timedelta(seconds=1)
 
         # Create a non-expired memory
         valid_entry = create_memory(
@@ -418,7 +418,7 @@ class TestSQLiteMemoryStore:
             key="old_key",
             value={"data": "old"},
         )
-        old_entry.created_at = datetime.utcnow() - timedelta(days=100)
+        old_entry.created_at = datetime.now(UTC) - timedelta(days=100)
 
         new_entry = create_memory(
             scope=MemoryScope.LONG_TERM,

@@ -10,7 +10,7 @@ from __future__ import annotations
 import functools
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Callable, Dict, Optional, TypeVar
 
 
@@ -150,7 +150,7 @@ def mcp_tool(
                 )
 
             # Record invocation start time
-            start_time = datetime.utcnow()
+            start_time = datetime.now(UTC)
 
             try:
                 # Placeholder: In production, this would create an AsyncMCPClient
@@ -171,7 +171,7 @@ def mcp_tool(
                 }
 
                 # Record success
-                duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+                duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
                 logger.info(
                     f"Successfully invoked {server}.{tool} in {duration_ms:.1f}ms"
                 )
@@ -180,7 +180,7 @@ def mcp_tool(
 
             except Exception as e:
                 # Record failure
-                duration_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+                duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000
                 logger.error(
                     f"Failed to invoke {server}.{tool} after {duration_ms:.1f}ms: {e}"
                 )
@@ -332,7 +332,7 @@ def mcp_cached(
             # Check cache
             if cache_key in cache:
                 result, cached_at = cache[cache_key]
-                age_seconds = (datetime.utcnow() - cached_at).total_seconds()
+                age_seconds = (datetime.now(UTC) - cached_at).total_seconds()
 
                 if age_seconds < ttl_seconds:
                     logger.debug(
@@ -350,7 +350,7 @@ def mcp_cached(
             result = await func(*args, **kwargs)
 
             # Store in cache
-            cache[cache_key] = (result, datetime.utcnow())
+            cache[cache_key] = (result, datetime.now(UTC))
 
             return result
 

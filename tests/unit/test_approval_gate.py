@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -282,7 +282,7 @@ tools:
         )
 
         # Force expiration by setting expires_at in the past
-        ticket.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        ticket.expires_at = datetime.now(UTC) - timedelta(seconds=1)
         gate._tickets[ticket.ticket_id] = ticket
 
         # Expire old tickets
@@ -355,7 +355,7 @@ tools:
         )
 
         # Force immediate expiration
-        ticket.expires_at = datetime.utcnow() + timedelta(milliseconds=100)
+        ticket.expires_at = datetime.now(UTC) + timedelta(milliseconds=100)
         gate._tickets[ticket.ticket_id] = ticket
 
         # Wait for decision (should timeout)

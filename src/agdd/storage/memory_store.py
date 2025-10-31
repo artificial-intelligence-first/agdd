@@ -11,7 +11,7 @@ import asyncio
 import json
 import sqlite3
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -411,7 +411,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
         if self._conn is None:
             raise RuntimeError("SQLite connection not initialized")
 
-        entry.updated_at = datetime.utcnow()
+        entry.updated_at = datetime.now(UTC)
         loop = asyncio.get_event_loop()
 
         def _update() -> None:
@@ -496,7 +496,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
 
             if not include_expired:
                 where_clauses.append("(expires_at IS NULL OR expires_at > ?)")
-                params.append(datetime.utcnow().isoformat())
+                params.append(datetime.now(UTC).isoformat())
 
             # Tags filter (AND logic)
             if tags:
@@ -539,7 +539,8 @@ class SQLiteMemoryStore(AbstractMemoryStore):
             if self._conn is None:
                 raise RuntimeError("SQLite connection not initialized")
 
-            where_clauses = ["memories.memory_id = memories_fts.memory_id"]
+            # Build WHERE clauses for filtering
+            where_clauses = ["memories_fts MATCH ?"]
             params: List[Any] = [query]
 
             if scope is not None:
@@ -551,20 +552,17 @@ class SQLiteMemoryStore(AbstractMemoryStore):
                 params.append(agent_slug)
 
             where_clauses.append("(memories.expires_at IS NULL OR memories.expires_at > ?)")
-            params.append(datetime.utcnow().isoformat())
+            params.append(datetime.now(UTC).isoformat())
 
             where_sql = " AND ".join(where_clauses)
             query_sql = f"""
                 SELECT memories.* FROM memories
-                INNER JOIN memories_fts ON {where_sql}
-                WHERE memories_fts MATCH ?
+                INNER JOIN memories_fts ON memories.rowid = memories_fts.rowid
+                WHERE {where_sql}
                 ORDER BY rank
                 LIMIT ?
             """
             params.append(limit)
-
-            # Rearrange params: query first for MATCH clause
-            params = [query] + params[1:]
 
             cursor = self._conn.execute(query_sql, params)
             return cursor.fetchall()
@@ -584,7 +582,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
                 raise RuntimeError("SQLite connection not initialized")
             cursor = self._conn.execute(
                 "DELETE FROM memories WHERE expires_at IS NOT NULL AND expires_at <= ?",
-                (datetime.utcnow().isoformat(),),
+                (datetime.now(UTC).isoformat(),),
             )
             return cursor.rowcount
 
@@ -602,7 +600,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
 
         from datetime import timedelta
 
-        cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+        cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
         loop = asyncio.get_event_loop()
 
         def _vacuum() -> Dict[str, Any]:
@@ -800,7 +798,7 @@ class PostgresMemoryStore(AbstractMemoryStore):
         if self._pool is None:
             raise RuntimeError("PostgreSQL connection pool not initialized")
 
-        entry.updated_at = datetime.utcnow()
+        entry.updated_at = datetime.now(UTC)
 
         async with self._pool.acquire() as conn:
             result = await conn.execute(

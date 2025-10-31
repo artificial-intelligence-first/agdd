@@ -7,7 +7,7 @@ and retention policies for agent context persistence.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -58,8 +58,8 @@ class MemoryEntry(BaseModel):
     )
 
     # Lifecycle management
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expires_at: Optional[datetime] = Field(
         default=None,
         description="TTL expiration timestamp (None = no expiration)",
@@ -127,12 +127,12 @@ class MemoryEntry(BaseModel):
         """Check if this memory entry has expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() >= self.expires_at
+        return datetime.now(UTC) >= self.expires_at
 
     def set_ttl(self, ttl_seconds: int) -> None:
         """Set TTL for this memory entry."""
-        self.expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
-        self.updated_at = datetime.utcnow()
+        self.expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+        self.updated_at = datetime.now(UTC)
 
 
 def create_memory(

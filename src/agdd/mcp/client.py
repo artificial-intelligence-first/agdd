@@ -15,7 +15,7 @@ import asyncio
 import logging
 import random
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -84,7 +84,7 @@ class CircuitBreaker:
         if self.state == CircuitState.OPEN:
             # Check if timeout has passed
             if self.last_failure_time:
-                elapsed = datetime.utcnow() - self.last_failure_time
+                elapsed = datetime.now(UTC) - self.last_failure_time
                 if elapsed.total_seconds() >= self.config.timeout_seconds:
                     logger.info("Circuit breaker transitioning to HALF_OPEN")
                     self.state = CircuitState.HALF_OPEN
@@ -116,7 +116,7 @@ class CircuitBreaker:
 
     def record_failure(self) -> None:
         """Record a failed request."""
-        self.last_failure_time = datetime.utcnow()
+        self.last_failure_time = datetime.now(UTC)
 
         if self.state == CircuitState.HALF_OPEN:
             logger.warning("Circuit breaker reopening after failure in HALF_OPEN")

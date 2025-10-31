@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Dict, Optional
 
 from agdd.core.permissions import ApprovalTicket, ToolPermission
@@ -127,8 +127,8 @@ class ApprovalGate:
             agent_slug=agent_slug,
             tool_name=tool_name,
             tool_args=tool_args,
-            requested_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(minutes=timeout_minutes),
+            requested_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(minutes=timeout_minutes),
             status="pending",
         )
 
@@ -172,7 +172,7 @@ class ApprovalGate:
 
         while True:
             # Check if ticket has expired
-            if datetime.utcnow() >= ticket.expires_at:
+            if datetime.now(UTC) >= ticket.expires_at:
                 logger.warning(f"Approval ticket {ticket.ticket_id} expired")
                 ticket.status = "expired"
                 raise ApprovalTimeoutError(
@@ -253,7 +253,7 @@ class ApprovalGate:
 
         # Update ticket
         ticket.status = "approved"
-        ticket.resolved_at = datetime.utcnow()
+        ticket.resolved_at = datetime.now(UTC)
         ticket.resolved_by = approved_by
         ticket.response = response or {}
 
@@ -299,7 +299,7 @@ class ApprovalGate:
 
         # Update ticket
         ticket.status = "denied"
-        ticket.resolved_at = datetime.utcnow()
+        ticket.resolved_at = datetime.now(UTC)
         ticket.resolved_by = denied_by
         ticket.response = {"reason": reason} if reason else {}
 
@@ -358,7 +358,7 @@ class ApprovalGate:
         Returns:
             Number of tickets expired
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         expired_count = 0
 
         for ticket_id, ticket in list(self._tickets.items()):
