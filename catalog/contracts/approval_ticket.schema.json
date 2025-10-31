@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ApprovalTicket",
+  "type": "object",
+  "properties": {
+    "ticket_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the approval ticket"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run ID that requested the approval"
+    },
+    "agent_slug": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent slug that requested the approval"
+    },
+    "tool_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name of the tool requiring approval"
+    },
+    "tool_args": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Arguments for the tool invocation"
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when approval was requested"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the ticket expires"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "denied", "expired"],
+      "description": "Current status of the approval ticket"
+    },
+    "resolved_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Timestamp when the ticket was resolved"
+    },
+    "resolved_by": {
+      "type": ["string", "null"],
+      "description": "Identifier of who resolved the ticket"
+    },
+    "response": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Response data from the approved/denied action"
+    }
+  },
+  "required": [
+    "ticket_id",
+    "run_id",
+    "agent_slug",
+    "tool_name",
+    "tool_args",
+    "requested_at",
+    "expires_at",
+    "status"
+  ],
+  "additionalProperties": false
+}

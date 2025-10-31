@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HandoffRequest",
+  "type": "object",
+  "properties": {
+    "handoff_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the handoff request"
+    },
+    "from_run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source run ID initiating the handoff"
+    },
+    "from_agent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source agent slug"
+    },
+    "to_agent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Target agent slug to hand off to"
+    },
+    "task_description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Description of the task being handed off"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Context data to pass to the target agent"
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when handoff was requested"
+    }
+  },
+  "required": [
+    "handoff_id",
+    "from_run_id",
+    "from_agent",
+    "to_agent",
+    "task_description",
+    "context",
+    "requested_at"
+  ],
+  "additionalProperties": false
+}

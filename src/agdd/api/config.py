@@ -87,6 +87,26 @@ class Settings(BaseSettings):
         default=None, description="GitHub token for posting comments (optional)"
     )
 
+    # v0.2 Enterprise Feature Flags
+    APPROVALS_ENABLED: bool = Field(
+        default=False, description="Enable approval-as-a-policy workflow"
+    )
+    MCP_ENABLED: bool = Field(
+        default=False, description="Enable remote MCP client integration"
+    )
+    DURABLE_ENABLED: bool = Field(
+        default=False, description="Enable durable run with snapshot/resume"
+    )
+    HANDOFF_ENABLED: bool = Field(
+        default=False, description="Enable handoff-as-a-tool capability"
+    )
+    MEMORY_ENABLED: bool = Field(
+        default=False, description="Enable memory IR layer"
+    )
+    APPROVAL_TTL_MIN: int = Field(
+        default=30, description="Approval ticket time-to-live in minutes"
+    )
+
     @model_validator(mode="after")
     def validate_cors_credentials(self) -> "Settings":
         """Validate that CORS credentials are not enabled with wildcard origins."""
