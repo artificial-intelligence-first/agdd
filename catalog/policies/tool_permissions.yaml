@@ -1,0 +1,348 @@
+# Tool Permissions Policy
+#
+# Defines permission levels for agent tool execution.
+# Controls which tools require approval, are always allowed, or are never allowed.
+#
+# Permission levels:
+#   - ALWAYS: Tool is always allowed without approval
+#   - REQUIRE_APPROVAL: Tool execution requires human approval
+#   - NEVER: Tool is never allowed to execute
+
+# Default permission for all tools
+# Conservative default: require approval for most operations
+default_permission: REQUIRE_APPROVAL
+
+# Category-based defaults
+# Group tools by category for easier management
+categories:
+  # Safe read-only operations
+  read_only:
+    permission: ALWAYS
+    description: "Read-only operations are safe and don't modify state"
+    tools:
+      - "*.read_*"
+      - "*.get_*"
+      - "*.list_*"
+      - "*.search_*"
+      - "*.query_*"  # SELECT queries only
+
+  # Write operations that modify state
+  write:
+    permission: REQUIRE_APPROVAL
+    description: "Write operations modify state and require approval"
+    tools:
+      - "*.create_*"
+      - "*.update_*"
+      - "*.write_*"
+      - "*.insert_*"
+      - "*.modify_*"
+
+  # Destructive operations
+  destructive:
+    permission: NEVER
+    description: "Destructive operations are never allowed"
+    tools:
+      - "*.delete_*"
+      - "*.drop_*"
+      - "*.destroy_*"
+      - "*.remove_*"
+      - "*.purge_*"
+
+  # Execution and system operations
+  execution:
+    permission: NEVER
+    description: "Execution operations are security risks"
+    tools:
+      - "*.execute_*"
+      - "*.exec_*"
+      - "*.run_*"
+      - "*.eval_*"
+      - "shell.*"
+      - "system.*"
+
+# Tool-specific permissions
+# Override category defaults for specific tools
+tools:
+  # Filesystem operations
+  "filesystem.read_file":
+    permission: ALWAYS
+    description: "Read file contents (safe)"
+
+  "filesystem.write_file":
+    permission: REQUIRE_APPROVAL
+    description: "Write to filesystem"
+
+  "filesystem.list_directory":
+    permission: ALWAYS
+    description: "List directory contents (safe)"
+
+  # Database operations
+  "database.select":
+    permission: ALWAYS
+    description: "SELECT queries are safe"
+
+  "database.insert":
+    permission: REQUIRE_APPROVAL
+    description: "INSERT modifies data"
+
+  "database.update":
+    permission: REQUIRE_APPROVAL
+    description: "UPDATE modifies data"
+
+  "database.delete":
+    permission: REQUIRE_APPROVAL
+    description: "DELETE is dangerous but sometimes necessary"
+
+  "database.execute_sql":
+    permission: REQUIRE_APPROVAL
+    description: "Arbitrary SQL requires approval"
+
+  # API calls
+  "api.get":
+    permission: ALWAYS
+    description: "GET requests are safe"
+
+  "api.post":
+    permission: REQUIRE_APPROVAL
+    description: "POST requests modify state"
+
+  "api.put":
+    permission: REQUIRE_APPROVAL
+    description: "PUT requests modify state"
+
+  "api.delete":
+    permission: REQUIRE_APPROVAL
+    description: "DELETE requests remove resources"
+
+  # Code generation
+  "code.generate":
+    permission: ALWAYS
+    description: "Code generation is safe (output only)"
+
+  "code.execute":
+    permission: NEVER
+    description: "Executing generated code is dangerous"
+
+  # Agent operations
+  "agent.delegate":
+    permission: ALWAYS
+    description: "Delegating to sub-agents is safe"
+
+  "agent.handoff":
+    permission: REQUIRE_APPROVAL
+    description: "Handoff requires approval for traceability"
+
+# Environment-specific overrides
+environments:
+  development:
+    description: "Development environment - relaxed permissions"
+    default_permission: ALWAYS
+    overrides:
+      # Still block dangerous operations
+      "*.delete_*": REQUIRE_APPROVAL
+      "*.drop_*": NEVER
+      "*.execute_*": NEVER
+      "database.delete": REQUIRE_APPROVAL
+      "filesystem.write_file": ALWAYS  # OK in dev
+
+  staging:
+    description: "Staging environment - moderate permissions"
+    default_permission: REQUIRE_APPROVAL
+    overrides:
+      # Read operations OK
+      "filesystem.read_file": ALWAYS
+      "database.select": ALWAYS
+      "api.get": ALWAYS
+      # Destructive operations blocked
+      "*.delete_*": REQUIRE_APPROVAL
+      "*.drop_*": NEVER
+
+  production:
+    description: "Production environment - strict permissions"
+    default_permission: REQUIRE_APPROVAL
+    overrides:
+      # Very limited auto-approval
+      "filesystem.read_file": ALWAYS
+      "database.select": ALWAYS
+      "api.get": ALWAYS
+      # Everything else requires approval or is blocked
+      "*.delete_*": REQUIRE_APPROVAL
+      "*.drop_*": NEVER
+      "*.execute_*": NEVER
+      "filesystem.write_file": REQUIRE_APPROVAL
+
+# Context-based rules
+# Dynamic permission evaluation based on execution context
+context_rules:
+  # Safe paths for filesystem operations
+  - name: "temp_directory_writes"
+    description: "Allow writes to /tmp without approval"
+    condition:
+      tool: "filesystem.write_file"
+      args_match:
+        path: "/tmp/*"
+    permission: ALWAYS
+
+  # Small database operations
+  - name: "small_inserts"
+    description: "Allow small INSERTs without approval"
+    condition:
+      tool: "database.insert"
+      args_match:
+        row_count:
+          less_than: 10
+    permission: ALWAYS
+
+  # Test repositories
+  - name: "test_repo_operations"
+    description: "Allow operations on test repos"
+    condition:
+      tool_pattern: "github.*"
+      args_match:
+        repo: "*/test-*"
+    permission: ALWAYS
+
+  # Read-only database users
+  - name: "readonly_db_user"
+    description: "Readonly users can't modify data anyway"
+    condition:
+      tool_pattern: "database.*"
+      context_match:
+        db_user: "*_readonly"
+    permission: ALWAYS
+
+# Dangerous operation patterns
+dangerous_patterns:
+  - pattern: "*.delete_all_*"
+    permission: NEVER
+    description: "Bulk delete operations are too dangerous"
+
+  - pattern: "*.truncate_*"
+    permission: NEVER
+    description: "TRUNCATE is destructive"
+
+  - pattern: "*production*delete*"
+    permission: REQUIRE_APPROVAL
+    description: "Production deletes always require approval"
+
+  - pattern: "*.execute_script*"
+    permission: NEVER
+    description: "Script execution is a security risk"
+
+  - pattern: "admin.*"
+    permission: REQUIRE_APPROVAL
+    description: "Admin operations always require approval"
+
+# Time-based restrictions
+time_restrictions:
+  - name: "business_hours_only"
+    description: "Certain operations only allowed during business hours"
+    tools:
+      - "database.delete"
+      - "*.drop_*"
+    allowed_hours:
+      start: "09:00"
+      end: "17:00"
+      timezone: "America/Los_Angeles"
+      days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+    outside_hours_permission: NEVER
+
+  - name: "maintenance_window"
+    description: "Destructive operations allowed during maintenance"
+    tools:
+      - "database.delete"
+      - "database.update"
+    maintenance_windows:
+      - start: "02:00"
+        end: "04:00"
+        timezone: "UTC"
+        permission_override: ALWAYS
+
+# Agent-specific permissions
+# Different permissions for different agent types
+agents:
+  # MAG (Master Agent) - orchestrator permissions
+  mag:
+    description: "Master agents have elevated permissions"
+    default_permission: ALWAYS
+    overrides:
+      "*.delete_*": REQUIRE_APPROVAL
+      "*.execute_*": NEVER
+
+  # SAG (Sub-Agent) - restricted permissions
+  sag:
+    description: "Sub-agents have limited permissions"
+    default_permission: REQUIRE_APPROVAL
+    overrides:
+      "filesystem.read_file": ALWAYS
+      "database.select": ALWAYS
+      "*.delete_*": NEVER  # SAGs cannot delete
+
+  # Human-in-the-loop agents
+  hitl:
+    description: "Human-in-the-loop agents always require approval"
+    default_permission: REQUIRE_APPROVAL
+
+# Approval settings
+approval:
+  # Default timeout for approval requests
+  default_timeout_minutes: 30
+
+  # Escalation rules
+  escalation:
+    escalate_after_minutes: 15
+    escalate_to:
+      - admin@example.com
+
+  # Auto-approve for trusted contexts
+  auto_approve:
+    enabled: false  # Must be explicitly enabled
+    conditions:
+      - context_match:
+          environment: "development"
+          user: "trusted_developer"
+        tools: ["filesystem.write_file", "database.insert"]
+
+# Audit and logging
+audit:
+  # Log all permission evaluations
+  log_evaluations: true
+
+  # Log approval decisions
+  log_decisions: true
+
+  # Alert on suspicious patterns
+  alerts:
+    - type: repeated_denials
+      threshold: 5
+      window_minutes: 10
+      description: "Alert if 5+ approvals denied in 10 minutes"
+
+    - type: always_approved_tool
+      threshold: 10
+      window_minutes: 5
+      tools: ["*.delete_*", "*.drop_*"]
+      description: "Alert on high frequency of dangerous operations"
+
+# Rate limiting
+rate_limits:
+  # Global rate limits
+  global:
+    calls_per_minute: 100
+    calls_per_hour: 1000
+
+  # Tool-specific rate limits
+  tools:
+    "database.delete":
+      calls_per_minute: 5
+      calls_per_hour: 50
+
+    "filesystem.write_file":
+      calls_per_minute: 20
+      calls_per_hour: 200
+
+  # Agent-specific rate limits
+  agents:
+    sag:
+      calls_per_minute: 10
+      calls_per_hour: 100

@@ -1,0 +1,213 @@
+# Memory IR Retention Policy
+#
+# Defines TTL settings, PII tags, and retention rules for memory entries
+# across different scopes (SESSION, LONG_TERM, ORG).
+#
+# This policy is referenced by MemoryEntry.retention_policy field and
+# enforced by memory storage backends during vacuum operations.
+
+# Default TTL settings by scope (in seconds)
+default_ttl:
+  session: 3600  # 1 hour - ephemeral run-scoped memory
+  long_term: 2592000  # 30 days - persistent agent memory
+  org: 7776000  # 90 days - organization-wide shared memory
+
+# Named retention policies
+# These can be referenced by MemoryEntry.retention_policy field
+# to override default TTL and specify custom rules
+policies:
+  # Development/testing: short TTL for rapid iteration
+  dev:
+    ttl_seconds: 3600  # 1 hour
+    description: "Short-lived memory for development and testing"
+    applies_to:
+      - session
+      - long_term
+
+  # Production: standard retention for operational data
+  production:
+    ttl_seconds: 2592000  # 30 days
+    description: "Standard production retention"
+    applies_to:
+      - long_term
+
+  # Compliance: extended retention for audit and compliance
+  compliance:
+    ttl_seconds: 31536000  # 365 days
+    description: "Extended retention for compliance and audit"
+    applies_to:
+      - long_term
+      - org
+
+  # Ephemeral: immediate expiration after run completion
+  ephemeral:
+    ttl_seconds: 0  # Immediate expiration
+    description: "Ephemeral memory deleted immediately after run"
+    applies_to:
+      - session
+
+  # Permanent: no expiration (must be manually deleted)
+  permanent:
+    ttl_seconds: null  # No expiration
+    description: "Permanent memory with no automatic expiration"
+    applies_to:
+      - org
+
+# PII (Personally Identifiable Information) tags and handling rules
+pii:
+  # Known PII tag types
+  tags:
+    - name: email
+      description: "Email addresses"
+      risk: high
+      handling: "Encrypt at rest, mask in logs"
+
+    - name: phone
+      description: "Phone numbers"
+      risk: high
+      handling: "Encrypt at rest, mask in logs"
+
+    - name: ssn
+      description: "Social Security Numbers"
+      risk: critical
+      handling: "Encrypt at rest, never log, require approval for access"
+
+    - name: name
+      description: "Full names"
+      risk: medium
+      handling: "Encrypt at rest"
+
+    - name: address
+      description: "Physical addresses"
+      risk: high
+      handling: "Encrypt at rest, mask in logs"
+
+    - name: credit_card
+      description: "Credit card numbers"
+      risk: critical
+      handling: "Encrypt at rest, tokenize, never log"
+
+    - name: ip_address
+      description: "IP addresses"
+      risk: low
+      handling: "Encrypt at rest"
+
+    - name: biometric
+      description: "Biometric data (fingerprints, face ID, etc.)"
+      risk: critical
+      handling: "Encrypt at rest, never log, require explicit consent"
+
+    - name: health
+      description: "Health and medical information (HIPAA)"
+      risk: critical
+      handling: "Encrypt at rest, strict access control, audit all access"
+
+    - name: financial
+      description: "Financial information (account numbers, etc.)"
+      risk: high
+      handling: "Encrypt at rest, tokenize when possible"
+
+  # Automatic retention policies for PII-tagged memories
+  retention_rules:
+    # Critical PII: strict retention limits
+    critical:
+      applies_to_tags:
+        - ssn
+        - credit_card
+        - biometric
+        - health
+      max_ttl_seconds: 2592000  # 30 days maximum
+      require_approval_for_extension: true
+      auto_delete_on_run_completion: true  # For SESSION scope
+
+    # High-risk PII: moderate retention limits
+    high:
+      applies_to_tags:
+        - email
+        - phone
+        - address
+        - financial
+      max_ttl_seconds: 7776000  # 90 days maximum
+      require_approval_for_extension: false
+      auto_delete_on_run_completion: false
+
+    # Medium/low-risk PII: standard retention
+    medium:
+      applies_to_tags:
+        - name
+        - ip_address
+      max_ttl_seconds: 31536000  # 365 days maximum
+      require_approval_for_extension: false
+      auto_delete_on_run_completion: false
+
+# Vacuum (cleanup) settings
+vacuum:
+  # Automatic cleanup schedule
+  auto_vacuum_enabled: true
+  auto_vacuum_interval_hours: 24  # Run cleanup daily
+
+  # Grace period before deletion (in addition to TTL)
+  grace_period_days: 7
+
+  # Scope-specific vacuum settings
+  scopes:
+    session:
+      # SESSION memories are tied to runs and should be cleaned aggressively
+      vacuum_after_days: 1
+      delete_on_run_completion: true
+
+    long_term:
+      # LONG_TERM memories persist across runs
+      vacuum_after_days: 30
+      delete_on_run_completion: false
+
+    org:
+      # ORG memories are shared and should persist longer
+      vacuum_after_days: 90
+      delete_on_run_completion: false
+
+# Backup and archival
+backup:
+  # Enable automatic backup before vacuum
+  backup_before_vacuum: true
+
+  # Archive destination (optional, requires storage backend support)
+  # archive_destination: "s3://agdd-memory-archive/backups"
+
+  # Archive format
+  archive_format: "jsonl"  # newline-delimited JSON
+
+  # Archive retention (how long to keep archived data)
+  archive_retention_days: 365
+
+# Observability and audit
+audit:
+  # Log all memory operations
+  log_memory_operations: true
+
+  # Event types to log
+  log_events:
+    - create
+    - update
+    - delete
+    - expire
+    - vacuum
+
+  # Include PII metadata in audit logs (tags only, never content)
+  log_pii_tags: true
+
+  # Alert on suspicious patterns
+  alerts:
+    # Alert if large number of memories deleted unexpectedly
+    - type: mass_deletion
+      threshold: 100
+      window_minutes: 60
+
+    # Alert if critical PII accessed frequently
+    - type: pii_access_spike
+      pii_tags:
+        - ssn
+        - credit_card
+        - biometric
+      threshold: 10
+      window_minutes: 60
