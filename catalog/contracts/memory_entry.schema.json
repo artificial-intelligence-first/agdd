@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MemoryEntry",
+  "type": "object",
+  "properties": {
+    "memory_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the memory entry"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run ID that created the memory entry"
+    },
+    "agent_slug": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent slug that owns this memory"
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Memory key for retrieval"
+    },
+    "value": {
+      "type": "string",
+      "description": "Memory value (typically JSON-encoded data)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when memory was created"
+    },
+    "expires_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Optional expiration timestamp"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional metadata for the memory entry"
+    }
+  },
+  "required": [
+    "memory_id",
+    "run_id",
+    "agent_slug",
+    "key",
+    "value",
+    "created_at",
+    "metadata"
+  ],
+  "additionalProperties": false
+}

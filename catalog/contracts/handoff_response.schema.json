@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HandoffResponse",
+  "type": "object",
+  "properties": {
+    "handoff_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier matching the original request"
+    },
+    "to_run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run ID created for the target agent"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["accepted", "rejected", "completed", "failed"],
+      "description": "Status of the handoff"
+    },
+    "result": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "description": "Result data from the target agent execution"
+    },
+    "completed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Timestamp when the handoff was completed"
+    },
+    "error": {
+      "type": ["string", "null"],
+      "description": "Error message if handoff failed"
+    }
+  },
+  "required": [
+    "handoff_id",
+    "to_run_id",
+    "status"
+  ],
+  "additionalProperties": false
+}

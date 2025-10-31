@@ -162,6 +162,87 @@ class PostgresStorageBackend(StorageBackend):
                 """
             )
 
+            # v0.2 Enterprise Tables
+
+            # Approvals table for approval-as-a-policy workflow
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS approvals (
+                    ticket_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    agent_slug TEXT NOT NULL,
+                    tool_name TEXT NOT NULL,
+                    tool_args JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    requested_at TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
+                    resolved_at TIMESTAMPTZ,
+                    resolved_by TEXT,
+                    response JSONB
+                )
+                """
+            )
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_approvals_run
+                    ON approvals (run_id, requested_at DESC)
+                """
+            )
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_approvals_status
+                    ON approvals (status, expires_at)
+                """
+            )
+
+            # Snapshots table for durable run checkpoint/resume
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS snapshots (
+                    snapshot_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    step_id TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    state JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    UNIQUE(run_id, step_id)
+                )
+                """
+            )
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_snapshots_run
+                    ON snapshots (run_id, created_at DESC)
+                """
+            )
+
+            # Memory entries table for memory IR layer
+            await conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memory_entries (
+                    memory_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+                    agent_slug TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL,
+                    expires_at TIMESTAMPTZ,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+                )
+                """
+            )
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_memory_run
+                    ON memory_entries (run_id, created_at DESC)
+                """
+            )
+            await conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_memory_key
+                    ON memory_entries (agent_slug, key, created_at DESC)
+                """
+            )
+
     async def close(self) -> None:
         """Terminate pool connections."""
         if self._pool is not None:

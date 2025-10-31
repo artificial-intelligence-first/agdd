@@ -27,7 +27,13 @@ class Event(BaseModel):
     agent_slug: str = Field(description="Agent slug (MAG/SAG identifier)")
 
     # Event classification
-    type: str = Field(description="Event type: log, mcp.call, metric, artifact, delegation, etc.")
+    type: str = Field(
+        description=(
+            "Event type: log, mcp.call, metric, artifact, delegation, "
+            "approval.required, approval.updated, handoff.request, handoff.result, "
+            "run.snapshot.saved, run.resume, memory.write, memory.read, etc."
+        )
+    )
     level: Optional[str] = Field(default=None, description="Log level: debug, info, warn, error")
 
     # Message & payload

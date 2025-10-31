@@ -210,6 +210,75 @@ class SQLiteStorageBackend(StorageBackend):
                 # FTS5 not available, disable it
                 self.enable_fts = False
 
+        # v0.2 Enterprise Tables
+
+        # Approvals table for approval-as-a-policy workflow
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS approvals (
+                ticket_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                agent_slug TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                tool_args TEXT NOT NULL DEFAULT '{}',
+                requested_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
+                resolved_at TEXT,
+                resolved_by TEXT,
+                response TEXT,
+                FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_approvals_run ON approvals(run_id, requested_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, expires_at)"
+        )
+
+        # Snapshots table for durable run checkpoint/resume
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS snapshots (
+                snapshot_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                step_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT '{}',
+                UNIQUE(run_id, step_id),
+                FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_snapshots_run ON snapshots(run_id, created_at DESC)"
+        )
+
+        # Memory entries table for memory IR layer
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS memory_entries (
+                memory_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                agent_slug TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT,
+                metadata TEXT NOT NULL DEFAULT '{}',
+                FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_run ON memory_entries(run_id, created_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_key ON memory_entries(agent_slug, key, created_at DESC)"
+        )
+
         conn.commit()
 
     async def close(self) -> None:
