@@ -12,8 +12,8 @@ import json
 from typing import Any
 
 
-def normalize_input(data: dict[str, Any]) -> dict[str, Any]:
-    """Normalize a dictionary to ensure stable ordering.
+def normalize_input(data: Any) -> Any:
+    """Normalize data structures to ensure stable ordering.
 
     Recursively sorts all dictionary keys and normalizes lists to ensure
     consistent ordering for cache key generation. Lists are sorted by their
@@ -21,10 +21,10 @@ def normalize_input(data: dict[str, Any]) -> dict[str, Any]:
     differently ordered collections.
 
     Args:
-        data: Input dictionary to normalize.
+        data: Input data to normalize (dict, list, or primitive).
 
     Returns:
-        A new dictionary with all keys sorted recursively and lists normalized.
+        Normalized data with consistent ordering for cache key generation.
 
     Example:
         >>> normalize_input({"b": 1, "a": 2})

@@ -33,23 +33,28 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 ## Features
 
 ### Core Infrastructure
-- Agent Registry: Centralized management of agent descriptors and task routing
-- Skills Framework: Reusable, composable skills for agent capabilities
-- Contract Verification: Automated JSON Schema validation
-- CLI Interface: Typer-powered command-line tools
-- HTTP API: FastAPI-powered RESTful API with OpenAPI/Swagger documentation
-- MCP Server: Expose agents as MCP tools for Claude Desktop and other MCP clients
+- **Core IR & SPI**: Intermediate representations (RunIR, PlanIR) and Service Provider Interfaces for pluggable backends
+- **Agent Registry**: Centralized management of agent descriptors and task routing
+- **Skills Framework**: Reusable, composable skills for agent capabilities
+- **Contract Verification**: Automated JSON Schema validation with catalog validation CLI
+- **CLI Interface**: Typer-powered command-line tools with catalog management commands
+- **HTTP API**: FastAPI-powered RESTful API with idempotency support and OpenAPI/Swagger documentation
+- **MCP Server**: Expose agents as MCP tools for Claude Desktop and other MCP clients
 
 ### Advanced Capabilities
-- Runner Plugins: Pluggable execution engines (Flow Runner included)
-- MAG/SAG Architecture: Main and Sub-Agent orchestration patterns
-- Observability: Comprehensive metrics, traces, and cost tracking with OpenTelemetry + Langfuse
-- Plan-Aware Routing: Agent Runner respects `Plan` flags (`use_batch`, `use_cache`, `structured_output`, `moderation`) and annotates runs for auditability
-- Semantic Cache: Vector similarity search with FAISS/Redis backends (no O(N) scans)
-- Content Moderation: OpenAI omni-moderation-latest with fail-open/fail-closed strategies
-- Batch API: 50% cost reduction via OpenAI Batch API (24h completion window)
-- Local LLM Fallback: Responses API preference with automatic chat completions downgrade for legacy endpoints
-- Governance Gates: Policy-based validation and compliance checks
+- **Planner Facade**: Unified planning interface that wraps routing and returns PlanIR for execution
+- **Provider SPI Adapters**: Pluggable LLM provider abstraction (OpenAI, Anthropic, Google) with capability matrices
+- **Runner Plugins**: Pluggable execution engines (Flow Runner included)
+- **MAG/SAG Architecture**: Main and Sub-Agent orchestration patterns
+- **Observability**: Comprehensive metrics, traces, and cost tracking with OpenTelemetry + Langfuse
+- **Plan-Aware Routing**: Agent Runner respects `Plan` flags (`use_batch`, `use_cache`, `structured_output`, `moderation`) and annotates runs for auditability
+- **Semantic Cache**: Canonical key normalization with vector similarity search (FAISS/Redis backends)
+- **Content Moderation**: Three-point moderation hooks (ingress/model-output/egress) with fail-closed defaults
+- **Batch API**: 50% cost reduction via OpenAI Batch API (24h completion window)
+- **Local LLM Fallback**: Responses API preference with automatic chat completions downgrade for legacy endpoints
+- **Governance Gates**: Policy-based validation and compliance checks
+- **Deterministic Execution**: Reproducible runs with fixed seeds and replay capabilities
+- **Idempotency & RBAC**: API request deduplication and scope-based access control
 
 ### MCP Integration
 - ✅ **MCP Server (Available)**: Expose AGDD agents as MCP tools for Claude Desktop and other MCP clients
@@ -173,8 +178,6 @@ The AGDD Framework enables developers to build and manage automated agent-driven
                └─────────────────────────────────────┘
 ```
 
-**Note:** Content Moderation (`ModerationService`) is implemented but not yet integrated into the execution flow. The service supports OpenAI's omni-moderation-latest with fail-open/fail-closed strategies but requires wiring into `agent_runner.py` for active enforcement.
-
 ## Project Structure
 
 ```
@@ -182,14 +185,25 @@ agdd/
 ├── src/                        # Source code (Python src/ layout)
 │   └── agdd/                   # Core Python package
 │       ├── cli.py              # CLI entry point
+│       ├── core/               # Core IR & SPI types
+│       │   ├── types.py        # RunIR, PlanIR, CapabilityMatrix
+│       │   └── spi/            # Service Provider Interfaces
+│       ├── planner/            # Execution planning facade
 │       ├── api/                # HTTP API (FastAPI)
+│       │   └── middleware/     # Idempotency, rate limiting
+│       ├── cache/              # Semantic cache key normalization
+│       ├── providers/          # LLM provider implementations
+│       │   └── adapters/       # SPI-compliant adapters
+│       ├── moderation/         # Content moderation hooks
 │       ├── observability/      # Observability utilities
 │       ├── registry.py         # Agent/skill resolution
 │       ├── runners/            # Execution engines
+│       ├── runner_determinism.py  # Deterministic execution
 │       ├── governance/         # Policy enforcement
 │       ├── storage/            # Data persistence layer
-│       └── assets/             # Bundled resources
+│       └── assets/             # Bundled resources & schemas
 ├── catalog/                    # User-editable assets
+│   ├── _schemas/               # Catalog validation schemas
 │   ├── agents/                 # Agent implementations
 │   │   ├── _template/          # MAG/SAG templates
 │   │   ├── main/               # Main Agents (MAG)

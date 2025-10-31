@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 else:
     PlanIR = Any
 
-from agdd.routing.router import Plan, RoutingPolicy, get_plan
+from agdd.routing import RoutingPolicy
+from agdd.routing.router import Plan, get_plan
 
 
 class Planner:

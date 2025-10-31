@@ -61,7 +61,9 @@ class PlanIR(BaseModel):
     chain: list[dict[str, Any]] = Field(
         ..., description="Ordered list of fallback steps, each with provider/model config"
     )
-    provider: str = Field(..., description="Primary provider identifier (e.g., 'openai', 'anthropic')")
+    provider: str = Field(
+        ..., description="Primary provider identifier (e.g., 'openai', 'anthropic')"
+    )
     model: str = Field(..., description="Model identifier within provider namespace")
     use_batch: bool = Field(
         ..., description="Whether to use batch API for cost optimization"

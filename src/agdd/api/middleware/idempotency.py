@@ -8,7 +8,7 @@ import asyncio
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -38,8 +38,9 @@ class IdempotencyStore:
             key: The idempotency key
 
         Returns:
-            Tuple of (request_hash, response_body_bytes, status_code, raw_headers) if found
-            and not expired, None otherwise. raw_headers is a list of (name_bytes, value_bytes) tuples.
+            Tuple of (request_hash, response_body_bytes, status_code, raw_headers)
+            if found and not expired, None otherwise. raw_headers is a list of
+            (name_bytes, value_bytes) tuples.
         """
         if key not in self._store:
             return None
