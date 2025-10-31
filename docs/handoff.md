@@ -364,29 +364,71 @@ except Exception as e:
 
 ## Integration with Approval Gate
 
-Combine handoff with approval gate for sensitive delegations:
+Handoff-as-a-Tool **enforces** approval requirements when configured with an approval gate. If a policy returns `REQUIRE_APPROVAL`, the handoff will:
+
+1. **Create an approval ticket** with handoff details
+2. **Block execution** until approval is granted
+3. **Raise PermissionError** if approval is denied or times out
+4. **Only proceed** if approval is granted
+
+### Setup
 
 ```python
 from agdd.governance.approval_gate import ApprovalGate
 from agdd.governance.permission_evaluator import PermissionEvaluator
 
 evaluator = PermissionEvaluator()
-approval_gate = ApprovalGate(permission_evaluator=evaluator)
+approval_gate = ApprovalGate(
+    permission_evaluator=evaluator,
+    default_timeout_minutes=30,
+)
 
 handoff_tool = HandoffTool(
     permission_evaluator=evaluator,
-    approval_gate=approval_gate,
+    approval_gate=approval_gate,  # Required for approval enforcement
+)
+```
+
+### Behavior
+
+**With Approval Gate Configured**:
+```python
+# Handoff requiring approval (per policy)
+try:
+    result = await handoff_tool.handoff(
+        source_agent="main",
+        target_agent="external-api",
+        task="Submit payment",
+        platform="agdd",
+        run_id="run-123",
+    )
+    # Will wait for human approval before proceeding
+except PermissionError as e:
+    # Raised if approval is denied or times out
+    logger.error(f"Handoff blocked: {e}")
+```
+
+**Without Approval Gate (Security Error)**:
+```python
+handoff_tool = HandoffTool(
+    permission_evaluator=evaluator,
+    approval_gate=None,  # No approval gate!
 )
 
-# Handoff requiring approval
-result = await handoff_tool.handoff(
-    source_agent="main",
-    target_agent="external-api",
-    task="Submit payment",
-    platform="agdd",
-)
-# If policy requires approval, will wait for human decision
+# If policy requires approval, will raise PermissionError
+try:
+    result = await handoff_tool.handoff(...)
+except PermissionError as e:
+    # "Approval required but approval gate is not configured"
+    logger.error(f"Configuration error: {e}")
 ```
+
+### Security Guarantees
+
+- ✅ **Approval enforcement is mandatory** - Cannot bypass if policy requires it
+- ✅ **Fail-safe design** - Raises error if approval gate is not configured
+- ✅ **Complete audit trail** - All approval requests are logged and tracked
+- ✅ **Timeout protection** - Handoffs don't hang indefinitely waiting for approval
 
 ## Use Cases
 

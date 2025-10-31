@@ -448,10 +448,38 @@ class HandoffTool:
                 raise PermissionError(f"Handoff to {target_agent} not allowed by policy")
 
             if permission == ToolPermission.REQUIRE_APPROVAL:
-                # TODO: Integrate with approval gate for human approval
-                logger.warning(
-                    f"Handoff to {target_agent} requires approval (not yet implemented)"
+                # Require approval via approval gate
+                if not self.approval_gate:
+                    request.status = "rejected"
+                    request.error = "Approval required but approval gate not configured"
+                    self._requests[request.handoff_id] = request
+                    raise PermissionError(
+                        f"Handoff to {target_agent} requires approval but approval gate is not configured"
+                    )
+
+                # Create approval ticket
+                logger.info(f"Handoff to {target_agent} requires approval, creating ticket")
+                ticket = self.approval_gate.create_ticket(
+                    run_id=run_id or "unknown",
+                    agent_slug=source_agent,
+                    tool_name="handoff",
+                    tool_args={
+                        "target_agent": target_agent,
+                        "task": task,
+                        "platform": platform,
+                    },
                 )
+
+                # Wait for approval decision
+                try:
+                    await self.approval_gate.wait_for_decision(ticket)
+                    logger.info(f"Handoff to {target_agent} approved (ticket {ticket.ticket_id})")
+                except Exception as e:
+                    # Approval denied or timed out
+                    request.status = "rejected"
+                    request.error = f"Approval denied: {str(e)}"
+                    self._requests[request.handoff_id] = request
+                    raise PermissionError(f"Handoff to {target_agent} denied: {str(e)}") from e
 
         # Get adapter for platform
         adapter = self.get_adapter(platform)
