@@ -56,6 +56,31 @@ The AGDD Framework enables developers to build and manage automated agent-driven
 - **Deterministic Execution**: Reproducible runs with fixed seeds and replay capabilities
 - **Idempotency & RBAC**: API request deduplication and scope-based access control
 
+### v0.2 Enterprise Features (NEW)
+- ✅ **Approval-as-a-Policy**: Human oversight for critical agent actions
+  - Policy-driven permission evaluation (ALWAYS/REQUIRE_APPROVAL/NEVER)
+  - REST API endpoints and Server-Sent Events (SSE) for real-time updates
+  - Approval ticket lifecycle with timeout handling
+  - See [Approval Guide](./docs/approval.md) for details
+- ✅ **Durable Run**: Snapshot/restore for restart resilience
+  - Automatic checkpointing at step boundaries
+  - State restoration from latest or specific checkpoint
+  - Step-level idempotency and multiple storage backends
+  - See [Durable Run Guide](./docs/durable-run.md) for details
+- ✅ **Handoff-as-a-Tool**: Standardized agent delegation
+  - Multi-platform support (AGDD, ADK, OpenAI, Anthropic)
+  - Policy enforcement with approval gate integration
+  - Request tracking and audit trail
+  - See [Handoff Guide](./docs/handoff.md) for details
+- ✅ **Memory IR Layer**: Structured persistent memory for agents
+  - Scope management (SESSION/LONG_TERM/ORG) with TTL
+  - PII tag validation and vector embedding support
+  - See [Memory Guide](./docs/memory.md) for details
+- ✅ **Remote MCP Client**: Async client for external MCP servers
+  - Circuit breaker and exponential backoff for resilience
+  - Multiple transport support (stdio, WebSocket, HTTP)
+  - See [MCP Guide](./docs/mcp.md) for details
+
 ### MCP Integration
 - ✅ **MCP Server (Available)**: Expose AGDD agents as MCP tools for Claude Desktop and other MCP clients
   - Production-ready stdio-based MCP server implementation
@@ -65,10 +90,10 @@ The AGDD Framework enables developers to build and manage automated agent-driven
   - Works with or without MCP servers, falling back to local execution
   - Templates updated for new signature requirements
   - See [MCP Migration Guide](./docs/guides/mcp-migration.md) for implementation details
-- 🚧 **MCP Client in Skills (In Development)**: External MCP server calls land with Phase 3
-  - Runtime wiring is ready; remote tool invocation is still gated
-  - Skills currently rely on local logic until MCP client launch
-  - Track progress in [MCP Integration Guide](./docs/guides/mcp-integration.md#migration-guide-preview)
+- ✅ **MCP Client (Available in v0.2)**: External MCP server calls with resilience patterns
+  - Runtime wiring complete with circuit breaker and retry logic
+  - Remote tool invocation ready for production use
+  - Track usage in [MCP Integration Guide](./docs/guides/mcp-integration.md)
 
 ### Developer Experience
 - Type Safety: Full mypy strict mode support
