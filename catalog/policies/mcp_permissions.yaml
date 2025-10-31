@@ -1,0 +1,280 @@
+# MCP Tool Permissions Policy
+#
+# Defines permission levels for MCP tool invocations.
+# Controls which tools require approval, are always allowed, or are never allowed.
+#
+# Permission levels:
+#   - ALWAYS: Tool is always allowed without approval
+#   - REQUIRE_APPROVAL: Tool execution requires human approval
+#   - NEVER: Tool is never allowed to execute
+
+# Default permission for all MCP tools
+# Conservative default: require approval for all MCP operations
+default_permission: REQUIRE_APPROVAL
+
+# Server-specific default permissions
+# Override the global default for specific MCP servers
+server_defaults:
+  # Read-only operations: safe to allow
+  github-readonly:
+    default: ALWAYS
+    description: "GitHub read-only operations (get user, list repos, etc.)"
+
+  # Write operations: require approval
+  github:
+    default: REQUIRE_APPROVAL
+    description: "GitHub write operations (create issue, PR, etc.)"
+
+  postgres:
+    default: REQUIRE_APPROVAL
+    description: "PostgreSQL database operations"
+
+  stripe:
+    default: REQUIRE_APPROVAL
+    description: "Stripe payment operations"
+
+  filesystem:
+    default: REQUIRE_APPROVAL
+    description: "Local filesystem operations"
+
+  # Example of never-allowed server
+  # production-db:
+  #   default: NEVER
+  #   description: "Production database - never allow direct access"
+
+# Tool-specific permissions
+# Fine-grained control over individual tools
+tools:
+  # GitHub tools
+  "github.get_user":
+    permission: ALWAYS
+    description: "Get GitHub user information (read-only)"
+
+  "github.get_repo":
+    permission: ALWAYS
+    description: "Get repository information (read-only)"
+
+  "github.list_issues":
+    permission: ALWAYS
+    description: "List issues (read-only)"
+
+  "github.create_issue":
+    permission: REQUIRE_APPROVAL
+    description: "Create a new issue"
+    approval_message: "Create GitHub issue?"
+
+  "github.create_pr":
+    permission: REQUIRE_APPROVAL
+    description: "Create a pull request"
+    approval_message: "Create pull request?"
+
+  "github.merge_pr":
+    permission: REQUIRE_APPROVAL
+    description: "Merge a pull request"
+    approval_message: "Merge pull request? This will modify the main branch."
+
+  "github.delete_repo":
+    permission: NEVER
+    description: "Delete repository - destructive operation"
+
+  # PostgreSQL tools
+  "postgres.query":
+    permission: REQUIRE_APPROVAL
+    description: "Execute SQL query"
+    approval_message: "Execute SQL query on database?"
+
+  "postgres.execute":
+    permission: REQUIRE_APPROVAL
+    description: "Execute SQL command (INSERT, UPDATE, DELETE)"
+    approval_message: "Execute SQL command? This may modify data."
+
+  "postgres.create_table":
+    permission: REQUIRE_APPROVAL
+    description: "Create a new table"
+
+  "postgres.drop_table":
+    permission: NEVER
+    description: "Drop table - destructive operation"
+
+  # Stripe tools
+  "stripe.create_customer":
+    permission: REQUIRE_APPROVAL
+    description: "Create Stripe customer"
+
+  "stripe.charge":
+    permission: REQUIRE_APPROVAL
+    description: "Create a charge"
+    approval_message: "Process payment charge?"
+
+  "stripe.refund":
+    permission: REQUIRE_APPROVAL
+    description: "Refund a charge"
+    approval_message: "Process refund?"
+
+  # Filesystem tools
+  "filesystem.read_file":
+    permission: ALWAYS
+    description: "Read file contents (safe operation)"
+
+  "filesystem.write_file":
+    permission: REQUIRE_APPROVAL
+    description: "Write to file"
+    approval_message: "Write to filesystem?"
+
+  "filesystem.delete_file":
+    permission: REQUIRE_APPROVAL
+    description: "Delete file"
+    approval_message: "Delete file from filesystem?"
+
+  "filesystem.execute_command":
+    permission: NEVER
+    description: "Execute shell command - security risk"
+
+# Environment-specific overrides
+# Different permission levels for different environments
+environments:
+  development:
+    description: "Development environment - relaxed permissions"
+    default_permission: ALWAYS  # Allow most operations in dev
+    overrides:
+      # Still require approval for destructive operations
+      "github.merge_pr": REQUIRE_APPROVAL
+      "github.delete_repo": NEVER
+      "postgres.drop_table": NEVER
+      "stripe.charge": REQUIRE_APPROVAL
+      "filesystem.delete_file": REQUIRE_APPROVAL
+
+  staging:
+    description: "Staging environment - moderate permissions"
+    default_permission: REQUIRE_APPROVAL
+    overrides:
+      # Read operations are safe
+      "github.get_user": ALWAYS
+      "github.get_repo": ALWAYS
+      "github.list_issues": ALWAYS
+      "filesystem.read_file": ALWAYS
+
+  production:
+    description: "Production environment - strict permissions"
+    default_permission: REQUIRE_APPROVAL
+    overrides:
+      # Very few operations allowed without approval
+      "github.get_user": ALWAYS
+      "github.get_repo": ALWAYS
+      # Destructive operations never allowed
+      "github.delete_repo": NEVER
+      "postgres.drop_table": NEVER
+      "filesystem.execute_command": NEVER
+
+# Context-based rules
+# Dynamic permission evaluation based on context
+context_rules:
+  - name: "safe_repo_operations"
+    description: "Allow operations on test repositories without approval"
+    condition:
+      tool_pattern: "github.*"
+      args_match:
+        repo: "*/test-*"  # Repos matching test-* pattern
+    permission: ALWAYS
+
+  - name: "readonly_queries"
+    description: "Allow SELECT queries without approval"
+    condition:
+      tool: "postgres.query"
+      args_match:
+        query_type: "SELECT"
+    permission: ALWAYS
+
+  - name: "small_charges"
+    description: "Allow small charges (< $10) without approval"
+    condition:
+      tool: "stripe.charge"
+      args_match:
+        amount_usd:
+          less_than: 10.0
+    permission: ALWAYS
+
+  - name: "temp_file_operations"
+    description: "Allow operations on /tmp without approval"
+    condition:
+      tool_pattern: "filesystem.*"
+      args_match:
+        path: "/tmp/*"
+    permission: ALWAYS
+
+# Dangerous operation patterns
+# Patterns that should always require approval or be blocked
+dangerous_patterns:
+  - pattern: "*.delete_*"
+    permission: REQUIRE_APPROVAL
+    description: "Any delete operation requires approval"
+
+  - pattern: "*.drop_*"
+    permission: NEVER
+    description: "Drop operations are never allowed"
+
+  - pattern: "*.execute_*"
+    permission: REQUIRE_APPROVAL
+    description: "Execute operations require approval"
+
+  - pattern: "*production*"
+    permission: REQUIRE_APPROVAL
+    description: "Operations on production resources require approval"
+
+# Approval settings
+approval:
+  # Default timeout for approval requests
+  default_timeout_minutes: 30
+
+  # Auto-approve patterns (require explicit opt-in)
+  auto_approve_enabled: false
+  auto_approve_patterns: []
+
+  # Escalation rules
+  escalation:
+    # Escalate to admin after this many minutes
+    escalate_after_minutes: 15
+    # Notify these users on escalation
+    escalate_to:
+      - admin@example.com
+
+# Audit and logging
+audit:
+  # Log all MCP tool invocations
+  log_all_invocations: true
+
+  # Log approved/denied decisions
+  log_approval_decisions: true
+
+  # Alert on suspicious patterns
+  alerts:
+    - type: high_frequency
+      threshold: 10
+      window_minutes: 5
+      description: "Alert if more than 10 MCP calls in 5 minutes"
+
+    - type: repeated_denials
+      threshold: 3
+      window_minutes: 10
+      description: "Alert if approval denied 3+ times in 10 minutes"
+
+# Rate limiting
+rate_limits:
+  # Global rate limit for all MCP operations
+  global:
+    calls_per_minute: 60
+    calls_per_hour: 1000
+
+  # Per-server rate limits
+  servers:
+    github:
+      calls_per_minute: 30
+      calls_per_hour: 500
+
+    stripe:
+      calls_per_minute: 10
+      calls_per_hour: 100
+
+    postgres:
+      calls_per_minute: 100
+      calls_per_hour: 2000
