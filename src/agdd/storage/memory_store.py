@@ -417,6 +417,9 @@ class SQLiteMemoryStore(AbstractMemoryStore):
         def _update() -> None:
             if self._conn is None:
                 raise RuntimeError("SQLite connection not initialized")
+            # Build update parameters explicitly (exclude memory_id and created_at)
+            row = self._entry_to_row(entry)
+            update_params = row[1:6] + row[7:]  # Skip memory_id (0) and created_at (6)
             cursor = self._conn.execute(
                 """
                 UPDATE memories SET
@@ -425,7 +428,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
                     retention_policy = ?, embedding = ?, tags = ?, metadata = ?
                 WHERE memory_id = ?
                 """,
-                self._entry_to_row(entry)[1:] + (entry.memory_id,),
+                update_params + (entry.memory_id,),
             )
             if cursor.rowcount == 0:
                 raise ValueError(f"Memory with ID {entry.memory_id} does not exist")

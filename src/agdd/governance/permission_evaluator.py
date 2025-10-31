@@ -102,39 +102,8 @@ class PermissionEvaluator:
         Returns:
             ToolPermission level (ALWAYS, REQUIRE_APPROVAL, NEVER)
         """
-        # 1. Check tool-specific permissions
-        tool_permission = self._check_tool_permission(tool_name)
-        if tool_permission is not None:
-            logger.debug(
-                f"Tool {tool_name} has explicit permission: {tool_permission.value}"
-            )
-            return tool_permission
-
-        # 2. Check context-based rules
-        context_permission = self._check_context_rules(tool_name, context)
-        if context_permission is not None:
-            logger.debug(
-                f"Tool {tool_name} matched context rule: {context_permission.value}"
-            )
-            return context_permission
-
-        # 3. Check dangerous patterns
-        pattern_permission = self._check_dangerous_patterns(tool_name)
-        if pattern_permission is not None:
-            logger.debug(
-                f"Tool {tool_name} matched dangerous pattern: {pattern_permission.value}"
-            )
-            return pattern_permission
-
-        # 4. Check category-based defaults
-        category_permission = self._check_category_permission(tool_name)
-        if category_permission is not None:
-            logger.debug(
-                f"Tool {tool_name} in category with permission: {category_permission.value}"
-            )
-            return category_permission
-
-        # 5. Check environment-specific overrides
+        # 1. Check environment-specific overrides first (highest priority)
+        # This allows environment settings to override tool-specific policies
         env_permission = self._check_environment_override(tool_name)
         if env_permission is not None:
             logger.debug(
@@ -142,10 +111,42 @@ class PermissionEvaluator:
             )
             return env_permission
 
-        # 6. Fall back to default permission
+        # 2. Check tool-specific permissions
+        tool_permission = self._check_tool_permission(tool_name)
+        if tool_permission is not None:
+            logger.debug(
+                f"Tool {tool_name} has explicit permission: {tool_permission.value}"
+            )
+            return tool_permission
+
+        # 3. Check context-based rules
+        context_permission = self._check_context_rules(tool_name, context)
+        if context_permission is not None:
+            logger.debug(
+                f"Tool {tool_name} matched context rule: {context_permission.value}"
+            )
+            return context_permission
+
+        # 4. Check dangerous patterns
+        pattern_permission = self._check_dangerous_patterns(tool_name)
+        if pattern_permission is not None:
+            logger.debug(
+                f"Tool {tool_name} matched dangerous pattern: {pattern_permission.value}"
+            )
+            return pattern_permission
+
+        # 5. Check category-based defaults
+        category_permission = self._check_category_permission(tool_name)
+        if category_permission is not None:
+            logger.debug(
+                f"Tool {tool_name} in category with permission: {category_permission.value}"
+            )
+            return category_permission
+
+        # 6. Fall back to global default permission
         default_permission = self.policy.get("default_permission", "REQUIRE_APPROVAL")
         logger.debug(
-            f"Tool {tool_name} using default permission: {default_permission}"
+            f"Tool {tool_name} using global default permission: {default_permission}"
         )
 
         return ToolPermission(default_permission.lower())
