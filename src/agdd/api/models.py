@@ -50,6 +50,25 @@ class RunSummary(BaseModel):
     has_logs: bool = Field(..., description="Whether logs.jsonl exists")
 
 
+class CreateRunRequest(BaseModel):
+    """Request payload for creating a new agent run via POST /runs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent: str = Field(..., description="Agent slug identifier to execute")
+    payload: dict[str, Any] = Field(..., description="Agent input payload conforming to contract")
+    idempotency_key: str | None = Field(
+        default=None, description="Optional idempotency key for duplicate prevention"
+    )
+
+
+class CreateRunResponse(BaseModel):
+    """Response from creating a new agent run."""
+
+    run_id: str = Field(..., description="Unique run identifier")
+    status: str = Field(..., description="Run status (e.g., 'started', 'completed')")
+
+
 class ApiError(BaseModel):
     """Standard API error response."""
 
@@ -63,6 +82,7 @@ class ApiError(BaseModel):
         "unauthorized",
         "rate_limit_exceeded",
         "internal_error",
+        "conflict",
     ] = Field(..., description="Machine-readable error code")
     message: str = Field(..., description="Human-readable error message")
     details: dict[str, Any] | None = Field(default=None, description="Additional error context")

@@ -11,7 +11,9 @@ from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import Settings, get_settings
+from .middleware import IdempotencyMiddleware
 from .routes import agents, github, runs
+from .routes import runs_create
 
 # Get settings
 settings: Settings = get_settings()
@@ -35,6 +37,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add idempotency middleware
+app.add_middleware(IdempotencyMiddleware)
 
 
 @app.middleware("http")
@@ -140,6 +145,7 @@ async def validation_exception_handler(
 # Include routers
 app.include_router(agents.router, prefix=settings.API_PREFIX)
 app.include_router(runs.router, prefix=settings.API_PREFIX)
+app.include_router(runs_create.router, prefix=settings.API_PREFIX)
 app.include_router(github.router, prefix=settings.API_PREFIX)
 
 
