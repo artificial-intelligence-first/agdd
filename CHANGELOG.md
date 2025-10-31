@@ -38,6 +38,61 @@ sources:
 #### Added
 - Placeholder for upcoming changes.
 
+### [0.2.0] - 2025-10-31
+
+#### Added
+- **Approval-as-a-Policy**: Human oversight for critical agent actions with policy-driven permission evaluation
+  - Permission evaluator with YAML-based policies (ALWAYS/REQUIRE_APPROVAL/NEVER)
+  - Approval ticket lifecycle management with TTL and expiration handling
+  - REST API endpoints: `GET/POST /api/v1/runs/{run_id}/approvals/{approval_id}`
+  - Server-Sent Events (SSE) for real-time approval status updates
+  - Integration with approval gate for tool execution governance (#102)
+  - Documentation: [docs/approval.md](./docs/approval.md)
+
+- **Durable Run**: Snapshot/restore capabilities for restart resilience
+  - Automatic checkpointing at step boundaries
+  - State restoration from latest or specific checkpoint
+  - Step-level idempotency with `(run_id, step_id)` uniqueness
+  - Multiple storage backends: file-based, SQLite, PostgreSQL
+  - `DurableRunner` and `SnapshotStore` implementations (#102)
+  - Documentation: [docs/durable-run.md](./docs/durable-run.md)
+
+- **Handoff-as-a-Tool**: Standardized agent delegation interface
+  - Multi-platform support: AGDD, ADK, OpenAI, Anthropic
+  - Platform-specific adapters with automatic format translation
+  - Policy enforcement with approval gate integration
+  - Request tracking and audit trail
+  - Tool schema export for LLM integration (#102)
+  - Documentation: [docs/handoff.md](./docs/handoff.md)
+
+- **Memory IR Layer**: Structured persistent memory for agents
+  - `MemoryEntry` model with scope (SESSION/LONG_TERM/ORG) and TTL management
+  - PII tag validation and vector embedding support
+  - SQLite and PostgreSQL storage backends with FTS5 full-text search
+  - Retention policies and automatic expiration (#102)
+  - Documentation: [docs/memory.md](./docs/memory.md)
+
+- **Remote MCP Client**: Async client for external MCP servers
+  - Circuit breaker pattern for fault tolerance
+  - Exponential backoff with jitter for retries
+  - Multiple transport support: stdio, WebSocket, HTTP
+  - Integration with skill runtime (#102)
+  - Documentation: [docs/mcp.md](./docs/mcp.md)
+
+- **Feature Flags**: Backward-compatible rollout for all v0.2 features
+  - `APPROVALS_ENABLED`, `MCP_ENABLED`, `DURABLE_ENABLED`, `HANDOFF_ENABLED`, `MEMORY_ENABLED`
+  - All features default to disabled for opt-in adoption
+
+#### Changed
+- Extended API config with v0.2 enterprise feature flags and settings
+- Enhanced storage schema with `approvals`, `snapshots`, and `memory_entries` tables
+- Updated FastAPI server to include approval routes
+- Improved observability with approval, checkpoint, and handoff events
+
+#### Fixed
+- Enhanced error handling for approval timeouts and denials
+- Improved idempotency for snapshot writes and approval tickets
+
 ### [0.1.0] - 2025-10-30
 
 #### Added
@@ -58,7 +113,8 @@ sources:
 
 ## Links
 
-- [Unreleased]: https://github.com/artificial-intelligence-first/agdd/compare/v0.1.0...HEAD
+- [Unreleased]: https://github.com/artificial-intelligence-first/agdd/compare/v0.2.0...HEAD
+- [0.2.0]: https://github.com/artificial-intelligence-first/agdd/compare/v0.1.0...v0.2.0
 - [0.1.0]: https://github.com/artificial-intelligence-first/agdd/releases/tag/v0.1.0
 
 ## Update Log
