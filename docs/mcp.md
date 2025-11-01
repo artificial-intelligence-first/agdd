@@ -22,14 +22,14 @@ The Remote MCP (Model Context Protocol) Client provides robust, resilient integr
 
 ## Feature Flag
 
-Remote MCP client is controlled by the `AGDD_MCP_ENABLED` feature flag:
+Remote MCP client is controlled by the `MAGSAG_MCP_ENABLED` feature flag:
 
 ```bash
 # Enable remote MCP client
-export AGDD_MCP_ENABLED=true
+export MAGSAG_MCP_ENABLED=true
 
 # Disable remote MCP client (default)
-export AGDD_MCP_ENABLED=false
+export MAGSAG_MCP_ENABLED=false
 ```
 
 ## Usage
@@ -37,7 +37,7 @@ export AGDD_MCP_ENABLED=false
 ### Basic Client Usage
 
 ```python
-from agdd.mcp.client import AsyncMCPClient, TransportType
+from magsag.mcp.client import AsyncMCPClient, TransportType
 
 # Create an HTTP-based MCP client
 client = AsyncMCPClient(
@@ -70,7 +70,7 @@ await client.close()
 ### Retry Configuration
 
 ```python
-from agdd.mcp.client import RetryConfig
+from magsag.mcp.client import RetryConfig
 
 # Custom retry configuration
 retry_config = RetryConfig(
@@ -92,7 +92,7 @@ client = AsyncMCPClient(
 ### Circuit Breaker
 
 ```python
-from agdd.mcp.client import CircuitBreakerConfig, CircuitState
+from magsag.mcp.client import CircuitBreakerConfig, CircuitState
 
 # Configure circuit breaker
 circuit_config = CircuitBreakerConfig(
@@ -122,7 +122,7 @@ client.reset_circuit()
 #### @mcp_tool Decorator
 
 ```python
-from agdd.mcp.decorators import mcp_tool
+from magsag.mcp.decorators import mcp_tool
 
 @mcp_tool(
     server="github",
@@ -146,7 +146,7 @@ issue = await create_github_issue(
 #### @mcp_authenticated Decorator
 
 ```python
-from agdd.mcp.decorators import mcp_authenticated
+from magsag.mcp.decorators import mcp_authenticated
 
 @mcp_authenticated(auth_env_var="API_KEY", auth_type="bearer")
 async def call_protected_api(auth_header: str) -> dict:
@@ -163,7 +163,7 @@ async def call_protected_api(auth_header: str) -> dict:
 #### @mcp_cached Decorator
 
 ```python
-from agdd.mcp.decorators import mcp_cached, mcp_tool
+from magsag.mcp.decorators import mcp_cached, mcp_tool
 
 @mcp_cached(ttl_seconds=300)  # Cache for 5 minutes
 @mcp_tool(server="github", tool="get_user")
@@ -260,7 +260,7 @@ export DATABASE_URL="postgresql://user:pass@localhost/db"
 ### Secrets Resolution
 
 ```python
-from agdd.mcp.decorators import resolve_secret
+from magsag.mcp.decorators import resolve_secret
 
 # Resolve from environment
 token = resolve_secret("env://GITHUB_TOKEN")
@@ -328,7 +328,7 @@ MCPClientError (base)
 ### Example
 
 ```python
-from agdd.mcp.client import (
+from magsag.mcp.client import (
     MCPClientError,
     MCPTimeoutError,
     MCPCircuitOpenError,
@@ -355,7 +355,7 @@ except MCPClientError as e:
 import logging
 
 # Enable debug logging for MCP client
-logging.getLogger("agdd.mcp.client").setLevel(logging.DEBUG)
+logging.getLogger("magsag.mcp.client").setLevel(logging.DEBUG)
 
 # Logs:
 # - Client initialization
@@ -522,7 +522,7 @@ retry_config = RetryConfig(max_attempts=1)
 env | grep TOKEN
 
 # Test secret resolution
-from agdd.mcp.decorators import resolve_secret
+from magsag.mcp.decorators import resolve_secret
 print(resolve_secret("env://GITHUB_TOKEN"))
 ```
 

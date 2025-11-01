@@ -29,7 +29,7 @@ import yaml
 
 # MCP integration imports
 try:
-    from agdd.mcp.runtime import MCPRuntime
+    from magsag.mcp.runtime import MCPRuntime
 except ImportError:
     # Graceful degradation if MCP runtime not available
     MCPRuntime = None  # type: ignore

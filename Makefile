@@ -5,7 +5,7 @@
 
 # Default target
 help:
-	@echo "AGDD Framework - Make targets"
+	@echo "MAGSAG Framework - Make targets"
 	@echo ""
 	@echo "Development:"
 	@echo "  make install          - Install dependencies (uv sync)"
@@ -80,7 +80,7 @@ test-integration:
 	uv run --no-sync -m pytest tests/integration/ -v -n auto
 
 test-coverage:
-	uv run -m pytest --cov=agdd --cov-report=term-missing --cov-report=html
+	uv run -m pytest --cov=magsag --cov-report=term-missing --cov-report=html
 
 test-mcp:
 	@echo "Running MCP tests (sequential mode with proper cleanup)..."
@@ -97,7 +97,7 @@ vendor-check:
 agent-run:
 	@echo "Running sample MAG execution..."
 	@echo '{"role":"Senior Engineer","level":"Senior","experience_years":8}' | \
-		uv run agdd agent run offer-orchestrator-mag
+		uv run magsag agent run offer-orchestrator-mag
 
 flow-run:
 	@echo "Running sample flow..."
@@ -106,7 +106,7 @@ flow-run:
 		exit 1; \
 	fi
 	@source ops/scripts/flowrunner-env.sh && \
-		uv run agdd flow run examples/flowrunner/prompt_flow.yaml
+		uv run magsag flow run examples/flowrunner/prompt_flow.yaml
 
 # Flow Runner Setup
 setup-flowrunner:

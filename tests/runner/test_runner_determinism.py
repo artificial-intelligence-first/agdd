@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import pytest
 
-from agdd.runner_determinism import (
+from magsag.runner_determinism import (
     apply_deterministic_settings,
     compute_run_fingerprint,
     create_replay_context,
@@ -64,7 +64,7 @@ class TestDeterministicSeed:
         # Clear explicit seed
         set_deterministic_seed(None)  # type: ignore[arg-type]
 
-        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "9999")
+        monkeypatch.setenv("MAGSAG_DETERMINISTIC_SEED", "9999")
         seed = get_deterministic_seed()
         assert seed == 9999
 
@@ -72,8 +72,8 @@ class TestDeterministicSeed:
         """Test that default seed generation is stable within a minute."""
         # Clear explicit seed and env var
         set_deterministic_seed(None)  # type: ignore[arg-type]
-        if "AGDD_DETERMINISTIC_SEED" in os.environ:
-            del os.environ["AGDD_DETERMINISTIC_SEED"]
+        if "MAGSAG_DETERMINISTIC_SEED" in os.environ:
+            del os.environ["MAGSAG_DETERMINISTIC_SEED"]
 
         seed1 = get_deterministic_seed()
         seed2 = get_deterministic_seed()
@@ -88,8 +88,8 @@ class TestDeterministicSeed:
 
         # Clear explicit seed and env var
         set_deterministic_seed(None)  # type: ignore[arg-type]
-        if "AGDD_DETERMINISTIC_SEED" in os.environ:
-            del os.environ["AGDD_DETERMINISTIC_SEED"]
+        if "MAGSAG_DETERMINISTIC_SEED" in os.environ:
+            del os.environ["MAGSAG_DETERMINISTIC_SEED"]
 
         # Get seed once
         first_seed = get_deterministic_seed()
@@ -107,12 +107,12 @@ class TestDeterministicSeed:
         # Clear explicit seed
         set_deterministic_seed(None)  # type: ignore[arg-type]
 
-        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "9999")
+        monkeypatch.setenv("MAGSAG_DETERMINISTIC_SEED", "9999")
         first_call = get_deterministic_seed()
         assert first_call == 9999
 
         # Change env var after first call
-        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "8888")
+        monkeypatch.setenv("MAGSAG_DETERMINISTIC_SEED", "8888")
 
         # Should still return cached value
         second_call = get_deterministic_seed()
@@ -168,14 +168,14 @@ class TestDeterministicSeed:
         """Test that get_deterministic_seed() applies seed to random when mode is enabled."""
         # Clear cached seed
         set_deterministic_seed(None)  # type: ignore[arg-type]
-        if "AGDD_DETERMINISTIC_SEED" in os.environ:
-            del os.environ["AGDD_DETERMINISTIC_SEED"]
+        if "MAGSAG_DETERMINISTIC_SEED" in os.environ:
+            del os.environ["MAGSAG_DETERMINISTIC_SEED"]
 
         # Enable deterministic mode
         set_deterministic_mode(True)
 
         # Set env seed
-        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "999")
+        monkeypatch.setenv("MAGSAG_DETERMINISTIC_SEED", "999")
 
         # Get seed (should apply to random module)
         seed = get_deterministic_seed()
@@ -276,27 +276,27 @@ class TestSnapshotEnvironment:
 
     def test_snapshot_captures_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that relevant environment variables are captured."""
-        monkeypatch.setenv("AGDD_DETERMINISTIC_SEED", "123")
-        monkeypatch.setenv("AGDD_ENABLE_MCP", "true")
+        monkeypatch.setenv("MAGSAG_DETERMINISTIC_SEED", "123")
+        monkeypatch.setenv("MAGSAG_ENABLE_MCP", "true")
 
         snapshot = snapshot_environment()
 
-        assert "AGDD_DETERMINISTIC_SEED" in snapshot["env_vars"]
-        assert snapshot["env_vars"]["AGDD_DETERMINISTIC_SEED"] == "123"
-        assert "AGDD_ENABLE_MCP" in snapshot["env_vars"]
-        assert snapshot["env_vars"]["AGDD_ENABLE_MCP"] == "true"
+        assert "MAGSAG_DETERMINISTIC_SEED" in snapshot["env_vars"]
+        assert snapshot["env_vars"]["MAGSAG_DETERMINISTIC_SEED"] == "123"
+        assert "MAGSAG_ENABLE_MCP" in snapshot["env_vars"]
+        assert snapshot["env_vars"]["MAGSAG_ENABLE_MCP"] == "true"
 
     def test_snapshot_excludes_missing_env_vars(self) -> None:
         """Test that missing environment variables are not included."""
         # Clear all relevant env vars
-        for key in ["AGDD_DETERMINISTIC_SEED", "AGDD_ENABLE_MCP", "AGDD_LOG_LEVEL"]:
+        for key in ["MAGSAG_DETERMINISTIC_SEED", "MAGSAG_ENABLE_MCP", "MAGSAG_LOG_LEVEL"]:
             if key in os.environ:
                 del os.environ[key]
 
         snapshot = snapshot_environment()
 
         # env_vars dict should be empty or contain only present vars
-        for key in ["AGDD_DETERMINISTIC_SEED", "AGDD_ENABLE_MCP", "AGDD_LOG_LEVEL"]:
+        for key in ["MAGSAG_DETERMINISTIC_SEED", "MAGSAG_ENABLE_MCP", "MAGSAG_LOG_LEVEL"]:
             if key in snapshot["env_vars"]:
                 pytest.fail(f"Expected {key} to be absent from snapshot")
 

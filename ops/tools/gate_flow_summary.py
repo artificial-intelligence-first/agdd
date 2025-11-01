@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from agdd.governance.gate import evaluate
+from magsag.governance.gate import evaluate
 
 
 def main(summary_path: str, policy_path: str | None = None) -> int:

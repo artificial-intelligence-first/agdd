@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agdd.ai/schemas/skills/salary-band-lookup/input.schema.json",
+  "$id": "https://magsag.ai/schemas/skills/salary-band-lookup/input.schema.json",
   "title": "SalaryBandLookupInput",
   "description": "Input for salary band lookup skill",
   "type": "object",

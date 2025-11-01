@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode, set_deterministic_seed
+from magsag.runner_determinism import get_deterministic_mode, set_deterministic_mode, set_deterministic_seed
 
 
 class TestAgentRunnerDeterminism:
@@ -16,8 +16,8 @@ class TestAgentRunnerDeterminism:
     def test_prepare_execution_applies_deterministic_settings(self) -> None:
         """Test that deterministic context triggers settings application."""
         # Import here to avoid circular dependencies
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Create a mock agent descriptor
         mock_agent = MagicMock(spec=AgentDescriptor)
@@ -69,8 +69,8 @@ class TestAgentRunnerDeterminism:
 
     def test_prepare_execution_without_deterministic_context(self) -> None:
         """Test that execution without deterministic context leaves config unchanged."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Create a mock agent descriptor
         original_config = {
@@ -109,8 +109,8 @@ class TestAgentRunnerDeterminism:
 
     def test_deterministic_mode_propagates_to_observability(self) -> None:
         """Test that deterministic context propagates to ObservabilityLogger."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         mock_agent = MagicMock(spec=AgentDescriptor)
         mock_agent.slug = "test-agent"
@@ -144,8 +144,8 @@ class TestAgentRunnerDeterminism:
 
     def test_cached_agent_not_mutated_by_deterministic_run(self) -> None:
         """Test that deterministic runs don't mutate the cached agent descriptor."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Create a mock agent with specific config
         original_config = {
@@ -181,8 +181,8 @@ class TestAgentRunnerDeterminism:
 
     def test_deterministic_then_nondeterministic_runs_isolated(self) -> None:
         """Test that a deterministic run doesn't affect subsequent non-deterministic runs."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         original_config = {
             "temperature": 0.7,
@@ -230,8 +230,8 @@ class TestAgentRunnerDeterminism:
 
     def test_programmatic_deterministic_context_applies_settings(self) -> None:
         """Test that context={"deterministic": True} works without global mode."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)
@@ -279,8 +279,8 @@ class TestAgentRunnerDeterminism:
 
     def test_programmatic_deterministic_execution_restores_mode_after_run(self) -> None:
         """Test that deterministic mode is restored after successful execution."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)
@@ -324,8 +324,8 @@ class TestAgentRunnerDeterminism:
 
     def test_deterministic_context_restores_mode_on_exception(self) -> None:
         """Test that deterministic mode is restored even if settings application fails."""
-        from agdd.runners.agent_runner import AgentRunner
-        from agdd.registry import AgentDescriptor
+        from magsag.runners.agent_runner import AgentRunner
+        from magsag.registry import AgentDescriptor
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)

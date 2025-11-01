@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.worktree import (
+from magsag.worktree import (
     WorktreeConflictError,
     WorktreeForbiddenError,
     WorktreeLimitError,
@@ -15,9 +15,9 @@ from agdd.worktree import (
     WorktreeSettings,
     get_event_bus,
 )
-from agdd.worktree.metadata import WorktreeMetadata, load_metadata
-from agdd.worktree.naming import branch_name
-from agdd.worktree.types import WorktreeInfo
+from magsag.worktree.metadata import WorktreeMetadata, load_metadata
+from magsag.worktree.naming import branch_name
+from magsag.worktree.types import WorktreeInfo
 
 
 def _run_git(cwd: Path, *args: str) -> None:
@@ -29,8 +29,8 @@ def git_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     _run_git(repo, "init", "-b", "main")
-    _run_git(repo, "config", "user.email", "agdd@example.com")
-    _run_git(repo, "config", "user.name", "AGDD Tests")
+    _run_git(repo, "config", "user.email", "magsag@example.com")
+    _run_git(repo, "config", "user.name", "MAGSAG Tests")
     (repo / "README.md").write_text("hello\n", encoding="utf-8")
     _run_git(repo, "add", "README.md")
     _run_git(repo, "commit", "-m", "initial")
@@ -119,7 +119,7 @@ def test_create_allows_protected_base_when_branching(
         assert record.metadata is not None
         assert record.metadata.base == "main"
     finally:
-        monkeypatch.setenv("AGDD_WT_ALLOW_FORCE", "1")
+        monkeypatch.setenv("MAGSAG_WT_ALLOW_FORCE", "1")
         manager.remove("run-main", force=True)
 
 
@@ -215,5 +215,5 @@ def test_create_supports_detach_and_no_checkout(
         assert record.metadata.no_checkout is True
         assert record.info.branch_short is None
     finally:
-        monkeypatch.setenv("AGDD_WT_ALLOW_FORCE", "1")
+        monkeypatch.setenv("MAGSAG_WT_ALLOW_FORCE", "1")
         manager.remove("run-detach", force=True)

@@ -14,9 +14,9 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRuntime
-from agdd.registry import Registry, SkillDescriptor
-from agdd.runners.agent_runner import SkillRuntime
+from magsag.mcp import MCPRegistry, MCPRuntime
+from magsag.registry import Registry, SkillDescriptor
+from magsag.runners.agent_runner import SkillRuntime
 
 
 pytestmark = pytest.mark.slow

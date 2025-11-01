@@ -1,5 +1,5 @@
 ---
-title: AG-Driven Development (AGDD) Framework Hardening ExecPlan
+title: MAGSAG Framework Hardening ExecPlan
 last_synced: 2025-10-24
 source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/PLANS.md
 description: Living document tracking governance, release, and documentation hardening
@@ -7,14 +7,14 @@ change_log:
   - 2025-10-24: Added front-matter and SSOT PLANS reference
 ---
 
-# AG-Driven Development (AGDD) Framework Hardening ExecPlan
+# MAGSAG Framework Hardening ExecPlan
 
 **Note:** For canonical ExecPlan format and planning guidelines, refer to [PLANS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/PLANS.md).
 
 This ExecPlan is a living document. Keep Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective current as work proceeds.
 
 ## Purpose / Big Picture
-Anchor the AG-Driven Development (AGDD) repository around a resilient, AI-first walking skeleton so subsequent feature work inherits proven governance, observability, and packaging practices from day one.
+Anchor the MAGSAG repository around a resilient, AI-first walking skeleton so subsequent feature work inherits proven governance, observability, and packaging practices from day one.
 
 ## To-do
 ### Governance and Policy
@@ -48,8 +48,8 @@ Anchor the AG-Driven Development (AGDD) repository around a resilient, AI-first 
 Framework deliverables are in place with passing tests and policy checks, ready for iterative enhancements to governance coverage and release operations.
 
 ## Context and Orientation
-- Repository: `agdd` (feature lineage: `feat/bootstrap-agdd`).
-- Core directories: `src/agdd/`, `catalog/`, `ops/`, `docs/`.
+- Repository: `magsag` (feature lineage: `feat/bootstrap-magsag`).
+- Core directories: `src/magsag/`, `catalog/`, `ops/`, `docs/`.
 - Supporting documentation: `docs/guides/agent-development.md`, `README.md`, `SSOT.md`, `docs/development/changelog.md`.
 
 ## Plan of Work
@@ -66,10 +66,10 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 ## Validation and Acceptance
 - [ ] `uv run -m pytest -q`
 - [ ] `uv run python ops/tools/check_docs.py`
-- [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
-- [ ] `uv run agdd flow available`
-- [ ] `uv run agdd flow summarize --output /tmp/summary.json`
-- [ ] `uv run agdd flow gate /tmp/summary.json`
+- [ ] `echo '{"role":"Engineer","level":"Mid"}' | uv run magsag agent run offer-orchestrator-mag`
+- [ ] `uv run magsag flow available`
+- [ ] `uv run magsag flow summarize --output /tmp/summary.json`
+- [ ] `uv run magsag flow gate /tmp/summary.json`
 - [ ] `uv build` (smoke test packaging when bundled resources change)
 
 ## Idempotence and Recovery
@@ -79,15 +79,15 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 
 ## Artifacts and Notes
 - Policy definitions: `catalog/policies/flow_governance.yaml`.
-- Governance tooling: `src/agdd/observability/summarize_runs.py`, CLI command `agdd flow gate`.
+- Governance tooling: `src/magsag/observability/summarize_runs.py`, CLI command `magsag flow gate`.
 - Runner scripts: `ops/scripts/setup-flowrunner.sh` (generates `ops/scripts/flowrunner-env.sh`).
 - Agent templates: `catalog/agents/_template/mag-template/` and `catalog/agents/_template/sag-template/`.
 - Development automation: `Makefile` with common tasks.
 - Historical progress captured in this ExecPlan; future PRs must reference relevant sections.
 
 ## Interfaces and Dependencies
-- Flow Runner CLI (`agdd.cli.flow`) for workflow execution.
-- Agent Runner (`agdd.runners.agent_runner`) for MAG/SAG orchestration.
+- Flow Runner CLI (`magsag.cli.flow`) for workflow execution.
+- Agent Runner (`magsag.runners.agent_runner`) for MAG/SAG orchestration.
 - Agent registry (`catalog/registry/agents.yaml`) and skill registry (`catalog/registry/skills.yaml`).
 - Agent descriptors in `catalog/agents/{main,sub}/<agent-slug>/agent.yaml`.
 - JSON Schema contracts in `catalog/contracts/` consumed by agents and skills.
@@ -99,7 +99,7 @@ Framework deliverables are in place with passing tests and policy checks, ready 
 - [x] Agent Runner with MAG/SAG invocation and observability
 - [x] Registry loader for agent/skill resolution
 - [x] OfferOrchestratorMAG (main agent) and CompensationAdvisorSAG (sub-agent)
-- [x] CLI command `agdd agent run` for MAG execution
+- [x] CLI command `magsag agent run` for MAG execution
 - [x] Contracts: candidate_profile, comp_advisor_input/output, offer_packet
 - [x] Skills: salary-band-lookup, task-decomposition, result-aggregation
 - [x] E2E integration tests with observability validation

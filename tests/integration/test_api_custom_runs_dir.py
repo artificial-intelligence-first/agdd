@@ -6,8 +6,8 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from agdd.api.config import Settings, get_settings
-from agdd.api.server import app
+from magsag.api.config import Settings, get_settings
+from magsag.api.server import app
 
 
 import pytest

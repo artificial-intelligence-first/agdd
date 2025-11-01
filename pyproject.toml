@@ -3,9 +3,9 @@ requires = ["setuptools>=69.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agdd"
+name = "magsag"
 version = "0.2.0"
-description = "Framework for AG-Driven Development (AGDD) systems"
+description = "Framework for MAGSAG systems"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -72,30 +72,30 @@ mcp-client = [
 ]
 # Both MCP client and server functionality
 mcp = [
-    "agdd[mcp-client,mcp-server]",
+    "magsag[mcp-client,mcp-server]",
 ]
 # Recommended for production deployments
 production = [
-    "agdd[mcp,postgres,redis,observability]",
+    "magsag[mcp,postgres,redis,observability]",
 ]
 # Everything including dev tools
 all = [
-    "agdd[dev,production]",
+    "magsag[dev,production]",
 ]
 
 
 [project.scripts]
-agdd = "agdd.cli:app"
+magsag = "magsag.cli:app"
 
 [tool.setuptools]
 include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["agdd*"]
+include = ["magsag*"]
 
 [tool.setuptools.package-data]
-"agdd" = [
+"magsag" = [
     "assets/**/*.json",
     "assets/**/*.yaml",
     "assets/**/*.yml",

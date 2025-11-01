@@ -5,10 +5,10 @@ role: main
 entrypoint: catalog/agents/main/offer-orchestrator-mag/code/orchestrator.py:run
 depends_on:
   sub_agents:
-    - agdd://sub.compensation-advisor-sag@>=0.1.0
+    - magsag://sub.compensation-advisor-sag@>=0.1.0
   skills:
-    - agdd://skill.task-decomposition@>=0.1.0
-    - agdd://skill.result-aggregation@>=0.1.0
+    - magsag://skill.task-decomposition@>=0.1.0
+    - magsag://skill.result-aggregation@>=0.1.0
 contracts:
   input_schema: catalog/contracts/candidate_profile.schema.json
   output_schema: catalog/contracts/offer_packet.schema.json

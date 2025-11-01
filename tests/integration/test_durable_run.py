@@ -14,8 +14,8 @@ from typing import Optional
 
 import pytest
 
-from agdd.runners.durable import DurableRunner, SnapshotStore
-from agdd.storage.backends.sqlite import SQLiteStorageBackend
+from magsag.runners.durable import DurableRunner, SnapshotStore
+from magsag.storage.backends.sqlite import SQLiteStorageBackend
 
 @pytest.fixture
 def snapshot_store(tmp_path: Path) -> SnapshotStore:

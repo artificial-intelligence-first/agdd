@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agdd.integrations.github.comment_parser import (
+from magsag.integrations.github.comment_parser import (
     extract_from_code_blocks,
     parse_comment,
 )

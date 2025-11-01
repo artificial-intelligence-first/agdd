@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from agdd.api.server import app
+from magsag.api.server import app
 
 import pytest
 

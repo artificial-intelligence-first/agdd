@@ -8,14 +8,14 @@ change_log:
 
 # GitHub Integration Guide
 
-AGDD ships with a GitHub webhook bridge that executes agents from pull request or issue comments and posts the results back to the originating thread. This guide explains the end-to-end setup, supported commands, and troubleshooting steps.
+MAGSAG ships with a GitHub webhook bridge that executes agents from pull request or issue comments and posts the results back to the originating thread. This guide explains the end-to-end setup, supported commands, and troubleshooting steps.
 
 ## Prerequisites
 
-- Deployed AGDD HTTP API with `/api/v1/github/webhook` reachable from GitHub
-- `AGDD_GITHUB_WEBHOOK_SECRET` configured in both GitHub and the API server
-- `AGDD_GITHUB_TOKEN` with `repo` scope (for posting comments)
-- Optional: `AGDD_API_KEY` if the API server requires authentication for outbound artifact links
+- Deployed MAGSAG HTTP API with `/api/v1/github/webhook` reachable from GitHub
+- `MAGSAG_GITHUB_WEBHOOK_SECRET` configured in both GitHub and the API server
+- `MAGSAG_GITHUB_TOKEN` with `repo` scope (for posting comments)
+- Optional: `MAGSAG_API_KEY` if the API server requires authentication for outbound artifact links
 
 ## Webhook Setup
 
@@ -32,7 +32,7 @@ The script verifies `gh` authentication and registers the webhook for the follow
 - `pull_request_review_comment`
 - `pull_request`
 
-You can also configure the webhook manually in the repository settings. Ensure the **content type** is `application/json` and the secret matches `AGDD_GITHUB_WEBHOOK_SECRET` on the server.
+You can also configure the webhook manually in the repository settings. Ensure the **content type** is `application/json` and the secret matches `MAGSAG_GITHUB_WEBHOOK_SECRET` on the server.
 
 ## Comment Syntax
 
@@ -65,7 +65,7 @@ The integration posts rich feedback summarizing the run outcome.
 
 ### Success Example
 
-> ✅ **AGDD Agent `offer-orchestrator-mag` execution completed**
+> ✅ **MAGSAG Agent `offer-orchestrator-mag` execution completed**
 >
 > **Run ID**: `mag-20240101-abcdef`
 >
@@ -81,7 +81,7 @@ The integration posts rich feedback summarizing the run outcome.
 
 ### Failure Example
 
-> ❌ **AGDD Agent `offer-orchestrator-mag` execution failed**
+> ❌ **MAGSAG Agent `offer-orchestrator-mag` execution failed**
 >
 > **Error**: `ValueError`
 >
@@ -97,15 +97,15 @@ The integration posts rich feedback summarizing the run outcome.
 ## Security Considerations
 
 - Every request is authenticated via the `X-Hub-Signature-256` header using HMAC SHA-256. Invalid signatures return HTTP 401.
-- API keys are never required for inbound webhooks (GitHub cannot set custom Authorization headers), but artifact links include bearer-protected endpoints. Configure `AGDD_API_KEY` if the links should be private.
-- Webhook handlers gracefully handle missing `AGDD_GITHUB_TOKEN` by skipping comment replies to avoid blocking the event pipeline.
+- API keys are never required for inbound webhooks (GitHub cannot set custom Authorization headers), but artifact links include bearer-protected endpoints. Configure `MAGSAG_API_KEY` if the links should be private.
+- Webhook handlers gracefully handle missing `MAGSAG_GITHUB_TOKEN` by skipping comment replies to avoid blocking the event pipeline.
 
 ## GitHub Actions Integration
 
 The repository includes [`examples/api/github_actions.yml`](../../examples/api/github_actions.yml) with two primary jobs:
 
-1. **CLI execution:** Checks out the repo, installs dependencies with `uv`, and runs `agdd agent run` locally.
-2. **API execution:** Calls the HTTP API using secrets `AGDD_API_URL` and `AGDD_API_KEY`, then fetches run summaries and logs.
+1. **CLI execution:** Checks out the repo, installs dependencies with `uv`, and runs `magsag agent run` locally.
+2. **API execution:** Calls the HTTP API using secrets `MAGSAG_API_URL` and `MAGSAG_API_KEY`, then fetches run summaries and logs.
 
 Use the workflow as a template for scheduled automations or manual triggers.
 
@@ -113,16 +113,16 @@ Use the workflow as a template for scheduled automations or manual triggers.
 
 | Symptom | Diagnosis | Resolution |
 | --- | --- | --- |
-| Webhook returns 401 | Signature mismatch | Confirm `AGDD_GITHUB_WEBHOOK_SECRET` matches GitHub settings |
-| No comment posted | Missing `AGDD_GITHUB_TOKEN` | Configure a token with `repo` scope on the API server |
+| Webhook returns 401 | Signature mismatch | Confirm `MAGSAG_GITHUB_WEBHOOK_SECRET` matches GitHub settings |
+| No comment posted | Missing `MAGSAG_GITHUB_TOKEN` | Configure a token with `repo` scope on the API server |
 | Agent not triggered | Command not detected | Ensure `@agent-slug {json}` syntax is outside quoted text or fenced code blocks |
-| Rate limit warnings | Burst of events | Increase `AGDD_RATE_LIMIT_QPS` or enable Redis-backed limiter |
-| Comment posts succeed but artifacts 401 | API key enforced | Share `AGDD_API_KEY` with human reviewers or host artifacts without auth |
+| Rate limit warnings | Burst of events | Increase `MAGSAG_RATE_LIMIT_QPS` or enable Redis-backed limiter |
+| Comment posts succeed but artifacts 401 | API key enforced | Share `MAGSAG_API_KEY` with human reviewers or host artifacts without auth |
 
 ## Monitoring
 
 - Check `/api/v1/github/health` for a lightweight readiness probe.
-- Enable FastAPI logging (`AGDD_API_DEBUG=1`) during development to inspect incoming payloads (secrets are never logged).
+- Enable FastAPI logging (`MAGSAG_API_DEBUG=1`) during development to inspect incoming payloads (secrets are never logged).
 - The webhook handlers log failures to post comments via Python's standard logging facility; ensure your deployment collects WARN level logs.
 
 For deeper HTTP API behaviour, refer back to [API Usage Guide](./api-usage.md).

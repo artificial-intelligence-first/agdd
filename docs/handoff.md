@@ -2,12 +2,12 @@
 
 ## Overview
 
-Handoff-as-a-Tool provides a standardized interface for agents to delegate work to other agents or systems. It enables cross-platform agent collaboration with policy enforcement, observability, and multi-platform support (AGDD, ADK, OpenAI, Anthropic).
+Handoff-as-a-Tool provides a standardized interface for agents to delegate work to other agents or systems. It enables cross-platform agent collaboration with policy enforcement, observability, and multi-platform support (MAGSAG, ADK, OpenAI, Anthropic).
 
 ## Key Features
 
 - **Unified Interface**: Single API for delegating to any platform
-- **Multi-Platform Support**: AGDD, ADK, OpenAI, Anthropic
+- **Multi-Platform Support**: MAGSAG, ADK, OpenAI, Anthropic
 - **Platform-Specific Adapters**: Automatic format translation
 - **Policy Enforcement**: Approval requirements for sensitive handoffs
 - **Request Tracking**: Complete audit trail of delegation requests
@@ -24,7 +24,7 @@ Handoff-as-a-Tool provides a standardized interface for agents to delegate work 
 │   handoff(                                                  │
 │     target_agent="specialist-sag",                          │
 │     task="Analyze customer sentiment",                      │
-│     platform="agdd"                                         │
+│     platform="magsag"                                         │
 │   )                                                         │
 └──────────────────┬──────────────────────────────────────────┘
                    │
@@ -44,7 +44,7 @@ Handoff-as-a-Tool provides a standardized interface for agents to delegate work 
 ┌─────────────────────────────────────────────────────────────┐
 │        Platform Adapters                                    │
 │   ┌─────────────┬─────────────┬─────────────┬───────────┐  │
-│   │    AGDD     │     ADK     │   OpenAI    │ Anthropic │  │
+│   │    MAGSAG     │     ADK     │   OpenAI    │ Anthropic │  │
 │   │   invoke_   │   ADK API   │ Assistants  │   Claude  │  │
 │   │   mag/sag   │             │     API     │    API    │  │
 │   └─────────────┴─────────────┴─────────────┴───────────┘  │
@@ -64,13 +64,13 @@ Handoff-as-a-Tool provides a standardized interface for agents to delegate work 
 Set the feature flag in your environment:
 
 ```bash
-export AGDD_HANDOFF_ENABLED=true
+export MAGSAG_HANDOFF_ENABLED=true
 ```
 
 Or in your API config:
 
 ```python
-from agdd.api.config import Settings
+from magsag.api.config import Settings
 
 settings = Settings(
     HANDOFF_ENABLED=True,
@@ -80,14 +80,14 @@ settings = Settings(
 ### Basic Usage
 
 ```python
-from agdd.routing.handoff_tool import HandoffTool
+from magsag.routing.handoff_tool import HandoffTool
 
 # Initialize handoff tool
 handoff_tool = HandoffTool()
 
 recent_reviews = ["Great support turnaround", "Rep resolved billing quickly"]
 
-# Delegate to another AGDD agent
+# Delegate to another MAGSAG agent
 result = await handoff_tool.handoff(
     source_agent="main-orchestrator",
     target_agent="specialist-analyzer",
@@ -99,7 +99,7 @@ result = await handoff_tool.handoff(
         "customer_id": "12345",
         "time_range": "last_7_days",
     },
-    platform="agdd",
+    platform="magsag",
     run_id="run-123",
 )
 
@@ -108,14 +108,14 @@ print(f"Status: {result['status']}")
 print(f"Result: {result['result']}")
 ```
 
-`payload` is optional for non-AGDD integrations, but when an `AgentRunner` instance is supplied it is passed directly to the delegated MAG entrypoint.
+`payload` is optional for non-MAGSAG integrations, but when an `AgentRunner` instance is supplied it is passed directly to the delegated MAG entrypoint.
 
 ### Multi-Platform Handoff
 
 ```python
 # Handoff to ADK agent
 adk_result = await handoff_tool.handoff(
-    source_agent="agdd-main",
+    source_agent="magsag-main",
     target_agent="adk-specialist",
     task="Process structured data extraction",
     platform="adk",
@@ -123,7 +123,7 @@ adk_result = await handoff_tool.handoff(
 
 # Handoff to OpenAI Assistant
 openai_result = await handoff_tool.handoff(
-    source_agent="agdd-main",
+    source_agent="magsag-main",
     target_agent="asst_abc123",  # OpenAI Assistant ID
     task="Generate creative content",
     platform="openai",
@@ -131,7 +131,7 @@ openai_result = await handoff_tool.handoff(
 
 # Handoff to Anthropic Claude
 anthropic_result = await handoff_tool.handoff(
-    source_agent="agdd-main",
+    source_agent="magsag-main",
     target_agent="claude-specialist",
     task="Analyze legal documents",
     platform="anthropic",
@@ -144,7 +144,7 @@ Handoff can be exposed as a tool to LLMs:
 
 ```python
 # Get tool schema for specific platform
-schema = handoff_tool.get_tool_schema(platform="agdd")
+schema = handoff_tool.get_tool_schema(platform="magsag")
 
 # Use schema in LLM tool definition
 tools = [
@@ -157,7 +157,7 @@ tools = [
 
 Platform-specific schemas:
 
-#### AGDD Schema
+#### MAGSAG Schema
 ```json
 {
   "name": "handoff",
@@ -210,17 +210,17 @@ Platform-specific schemas:
 
 ## Platform Adapters
 
-### AGDD Adapter
+### MAGSAG Adapter
 
-Delegates to native AGDD agents using `invoke_mag()` or `invoke_sag()`:
+Delegates to native MAGSAG agents using `invoke_mag()` or `invoke_sag()`:
 
 ```python
-from agdd.routing.handoff_tool import AGDDHandoffAdapter
+from magsag.routing.handoff_tool import MAGSAGHandoffAdapter
 
-adapter = AGDDHandoffAdapter()
+adapter = MAGSAGHandoffAdapter()
 
 # Check platform support
-assert adapter.supports_platform("agdd")
+assert adapter.supports_platform("magsag")
 
 # Execute handoff
 result = await adapter.execute_handoff(handoff_request)
@@ -231,7 +231,7 @@ result = await adapter.execute_handoff(handoff_request)
 Delegates to Anthropic ADK agents:
 
 ```python
-from agdd.routing.handoff_tool import ADKHandoffAdapter
+from magsag.routing.handoff_tool import ADKHandoffAdapter
 
 adapter = ADKHandoffAdapter()
 assert adapter.supports_platform("adk")
@@ -242,7 +242,7 @@ assert adapter.supports_platform("adk")
 Delegates to OpenAI Assistants or custom agents:
 
 ```python
-from agdd.routing.handoff_tool import OpenAIHandoffAdapter
+from magsag.routing.handoff_tool import OpenAIHandoffAdapter
 
 adapter = OpenAIHandoffAdapter()
 assert adapter.supports_platform("openai")
@@ -253,7 +253,7 @@ assert adapter.supports_platform("openai")
 Delegates to Anthropic Claude API agents:
 
 ```python
-from agdd.routing.handoff_tool import AnthropicHandoffAdapter
+from magsag.routing.handoff_tool import AnthropicHandoffAdapter
 
 adapter = AnthropicHandoffAdapter()
 assert adapter.supports_platform("anthropic")
@@ -292,7 +292,7 @@ failed = handoff_tool.list_handoffs(status="failed")
 Handoff can integrate with permission evaluator for policy-based control:
 
 ```python
-from agdd.governance.permission_evaluator import PermissionEvaluator
+from magsag.governance.permission_evaluator import PermissionEvaluator
 
 # Initialize with permission evaluator
 evaluator = PermissionEvaluator()
@@ -304,7 +304,7 @@ try:
         source_agent="restricted-agent",
         target_agent="sensitive-system",
         task="Access confidential data",
-        platform="agdd",
+        platform="magsag",
     )
 except PermissionError as e:
     print(f"Handoff denied by policy: {e}")
@@ -386,8 +386,8 @@ Handoff-as-a-Tool **enforces** approval requirements when configured with an app
 ### Setup
 
 ```python
-from agdd.governance.approval_gate import ApprovalGate
-from agdd.governance.permission_evaluator import PermissionEvaluator
+from magsag.governance.approval_gate import ApprovalGate
+from magsag.governance.permission_evaluator import PermissionEvaluator
 
 evaluator = PermissionEvaluator()
 approval_gate = ApprovalGate(
@@ -411,7 +411,7 @@ try:
         source_agent="main",
         target_agent="external-api",
         task="Submit payment",
-        platform="agdd",
+        platform="magsag",
         run_id="run-123",
     )
     # Will wait for human approval before proceeding
@@ -457,7 +457,7 @@ async def orchestrate_offer(candidate_profile):
         target_agent="compensation-advisor-sag",
         task="Calculate compensation package",
         context=candidate_profile,
-        platform="agdd",
+        platform="magsag",
     )
 
     # Delegate benefits analysis
@@ -466,7 +466,7 @@ async def orchestrate_offer(candidate_profile):
         target_agent="benefits-advisor-sag",
         task="Recommend benefits package",
         context=candidate_profile,
-        platform="agdd",
+        platform="magsag",
     )
 
     return combine_results(comp_result, benefits_result)
@@ -474,12 +474,12 @@ async def orchestrate_offer(candidate_profile):
 
 ### 2. Cross-Platform Collaboration
 
-AGDD agent delegates to external platform:
+MAGSAG agent delegates to external platform:
 
 ```python
-# AGDD agent uses OpenAI for specific task
+# MAGSAG agent uses OpenAI for specific task
 result = await handoff_tool.handoff(
-    source_agent="agdd-analyst",
+    source_agent="magsag-analyst",
     target_agent="asst_creative_writer",
     task="Generate marketing copy",
     context={"product": "...", "audience": "..."},
@@ -498,7 +498,7 @@ result = await handoff_tool.handoff(
     target_agent="payment-processor",
     task="Process refund of $5000",
     context={"order_id": "12345", "amount": 5000},
-    platform="agdd",
+    platform="magsag",
 )
 # Waits for approval before executing
 ```
@@ -575,7 +575,7 @@ Handoff events are logged for observability:
   "handoff_id": "uuid",
   "source_agent": "main",
   "target_agent": "specialist",
-  "platform": "agdd",
+  "platform": "magsag",
   "created_at": "2025-10-31T10:00:00Z"
 }
 ```

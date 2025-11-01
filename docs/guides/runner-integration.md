@@ -8,18 +8,18 @@ change_log:
 
 # Runner Integration Guide
 
-This document captures the expectations for runner adapters that integrate with AG-Driven Development (AGDD).
+This document captures the expectations for runner adapters that integrate with the MAGSAG Framework.
 
 ## Current Adapter
 - **Flow Runner (`FlowRunner`)**
   - Capabilities: `dry-run`, `artifacts`
-  - CLI support: `agdd cli flow available|validate|run|summarize|gate`
+  - CLI support: `magsag cli flow available|validate|run|summarize|gate`
   - Artifacts: `.runs/<RUN_ID>/logs.jsonl`, `summary.json`, `mcp_calls.jsonl`
-  - Governance: `policies/flow_governance.yaml`, validated via `agdd flow gate` or `make flow-run`
+  - Governance: `policies/flow_governance.yaml`, validated via `magsag flow gate` or `make flow-run`
 
 ## Required Interface
 
-All runners must implement `agdd.runners.base.Runner` and expose:
+All runners must implement `magsag.runners.base.Runner` and expose:
 
 - `is_available()` - detect whether the runner can execute on the current machine.
 - `validate()` - schema or contract validation with optional fallback behavior.
@@ -30,7 +30,7 @@ All runners must implement `agdd.runners.base.Runner` and expose:
 The following capability identifiers describe optional features:
 
 - `dry-run` - supports non-destructive planning runs.
-- `artifacts` - produces structured run artifacts accessible by AGDD tooling.
+- `artifacts` - produces structured run artifacts accessible by MAGSAG tooling.
 - `resume` - allows resuming a run from an intermediate step.
 - `retries` - supports runner-managed retry policies.
 - `otel-trace` - emits OpenTelemetry traces.
@@ -44,7 +44,7 @@ When adding a new runner adapter:
 
 1. Implement the `Runner` protocol and `info()` method.
 2. Provide a minimal example flow and schema if the runner needs bespoke definitions.
-3. Ensure `src/agdd/observability/summarize_runs.py` can normalize the runner's artifacts or supply a custom normalizer.
+3. Ensure `src/magsag/observability/summarize_runs.py` can normalize the runner's artifacts or supply a custom normalizer.
 4. Add tests under `tests/runner/conformance/` exercising:
    - `is_available()` detection (can be skipped when the runner binary is missing).
    - `validate()` error handling for known-bad inputs.
@@ -55,18 +55,18 @@ When adding a new runner adapter:
 
 ## Governance & Observability
 
-- Flow summaries must conform to `src/agdd/assets/contracts/flow_summary.schema.json`.
+- Flow summaries must conform to `src/magsag/assets/contracts/flow_summary.schema.json`.
 - Vendor assets (e.g., Flow Runner schema) are locked via `tools/verify_vendor.py`.
 - CI must execute the runner integration tests and publish run summaries for policy evaluation.
 
 ## Agent Runner
 
-The **Agent Runner** (`agdd.runners.agent_runner`) orchestrates MAG (Main Agent) and SAG (Sub-Agent) execution with built-in observability.
+The **Agent Runner** (`magsag.runners.agent_runner`) orchestrates MAG (Main Agent) and SAG (Sub-Agent) execution with built-in observability.
 
 ### Key Interfaces
 
 ```python
-from agdd.runners.agent_runner import invoke_mag, invoke_sag, Delegation, Result
+from magsag.runners.agent_runner import invoke_mag, invoke_sag, Delegation, Result
 
 # Invoke a Main Agent
 output = invoke_mag("offer-orchestrator-mag", {"role": "Engineer", "level": "Senior"})
@@ -85,7 +85,7 @@ result = invoke_sag(delegation)
 - **Dependency Injection**: Registry, skills, and runner instances injected into agent code
 - **Retry Logic**: SAGs can configure retry policies with exponential backoff
 - **Observability**: Automatic logging and metrics to `.runs/agents/<RUN_ID>/`, with centralized cost persistence in `.runs/costs/` and optional OpenTelemetry spans
-- **Plan Awareness**: Honors `agdd.routing.router.Plan` flags for batch, cache, structured outputs, and moderation decisions
+- **Plan Awareness**: Honors `magsag.routing.router.Plan` flags for batch, cache, structured outputs, and moderation decisions
 - **Error Handling**: Graceful failure handling with partial result aggregation
 
 ### Observability Artifacts
@@ -125,7 +125,7 @@ JSONL format with one event per line:
 - `tokens` - Token usage (if available)
 - `cost` - Estimated cost (if available)
 
-Cost ledger entries are written separately to `.runs/costs/costs.jsonl` and `.runs/costs.db` via `agdd.observability.cost_tracker`.
+Cost ledger entries are written separately to `.runs/costs/costs.jsonl` and `.runs/costs.db` via `magsag.observability.cost_tracker`.
 
 #### `summary.json` - Run Summary
 ```json
@@ -159,7 +159,7 @@ Agent executions should meet these minimum thresholds:
 
 ### LLM Plan Integration
 
-`AgentRunner` loads execution plans via `agdd.routing.router.get_plan()` and embeds the selected `Plan` snapshot in each run directory. The snapshot includes:
+`AgentRunner` loads execution plans via `magsag.routing.router.get_plan()` and embeds the selected `Plan` snapshot in each run directory. The snapshot includes:
 
 - `use_batch`, `use_cache`, `structured_output`, `moderation` flags
 - Provider/model decisions and metadata

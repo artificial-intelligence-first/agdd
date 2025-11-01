@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agdd.providers.google import GoogleProvider
+from magsag.providers.google import GoogleProvider
 
 
 class TestGoogleProvider:

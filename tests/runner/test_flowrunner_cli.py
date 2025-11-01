@@ -41,7 +41,7 @@ def _maybe_set_pythonpath() -> None:
 def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     _maybe_set_pythonpath()
     return subprocess.run(
-        [sys.executable, "-m", "agdd.cli", *args], capture_output=True, text=True, check=False
+        [sys.executable, "-m", "magsag.cli", *args], capture_output=True, text=True, check=False
     )
 
 

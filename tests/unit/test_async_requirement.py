@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from agdd.runners.agent_runner import AgentRunner, SkillRuntime
+from magsag.runners.agent_runner import AgentRunner, SkillRuntime
 
 
 class TestAsyncRequirement:

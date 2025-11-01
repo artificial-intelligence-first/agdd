@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 # Import shared dataclasses from agent_runner
 try:
-    from agdd.runners.agent_runner import Delegation, Result  # type: ignore[import-not-found]
+    from magsag.runners.agent_runner import Delegation, Result  # type: ignore[import-not-found]
 except ImportError:
     # Fallback for when running outside package context
     from dataclasses import dataclass

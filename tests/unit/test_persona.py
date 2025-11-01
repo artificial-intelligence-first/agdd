@@ -1,11 +1,11 @@
 """Unit tests for persona utilities"""
 
-from agdd.persona import (
+from magsag.persona import (
     build_system_prompt_with_persona,
     get_agent_persona,
     extract_persona_section,
 )
-from agdd.registry import Registry
+from magsag.registry import Registry
 
 
 class TestBuildSystemPromptWithPersona:

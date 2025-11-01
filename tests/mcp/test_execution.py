@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
-from agdd.mcp.config import MCPServerConfig
-from agdd.mcp.server import MCPServer
+from magsag.mcp import MCPRegistry, MCPRuntime, MCPToolResult
+from magsag.mcp.config import MCPServerConfig
+from magsag.mcp.server import MCPServer
 
 
 pytestmark = pytest.mark.slow
@@ -124,7 +124,7 @@ async def test_mcp_stdio_server_tool_execution(
     server = MCPServer(config)
 
     try:
-        with caplog.at_level(logging.DEBUG, logger="agdd.mcp.server"):
+        with caplog.at_level(logging.DEBUG, logger="magsag.mcp.server"):
             await server.start()
 
         tools = server.get_tools()
@@ -204,7 +204,7 @@ class TestMCPToolExecution:
         runtime.grant_permissions(["mcp:test-pg"])
 
         # Mock the actual PostgreSQL execution
-        with patch("agdd.mcp.server.asyncpg.create_pool") as mock_pool:
+        with patch("magsag.mcp.server.asyncpg.create_pool") as mock_pool:
             # Create mock pool and connection
             mock_conn = AsyncMock()
             mock_conn.fetch = AsyncMock(return_value=[{"result": 1}])
@@ -241,7 +241,7 @@ class TestMCPToolExecution:
         runtime.grant_permissions(["mcp:test-pg"])
 
         # Mock PostgreSQL connection
-        with patch("agdd.mcp.server.asyncpg.create_pool", new_callable=AsyncMock) as mock_pool:
+        with patch("magsag.mcp.server.asyncpg.create_pool", new_callable=AsyncMock) as mock_pool:
             # Create async mock for pool instance
             mock_pool_instance = AsyncMock()
             mock_pool_instance.acquire = AsyncMock()

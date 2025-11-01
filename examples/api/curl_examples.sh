@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# AGDD HTTP API - Comprehensive curl command examples
+# MAGSAG HTTP API - Comprehensive curl command examples
 #
 # Usage:
 #   export API_URL="http://localhost:8000"  # Optional, defaults to localhost
-#   export AGDD_API_KEY="your-key"          # Optional, only if auth enabled
+#   export MAGSAG_API_KEY="your-key"          # Optional, only if auth enabled
 #   ./examples/api/curl_examples.sh
 
 set -euo pipefail
@@ -11,7 +11,7 @@ set -euo pipefail
 # Configuration
 API_URL="${API_URL:-http://localhost:8000}"
 API_PREFIX="/api/v1"
-API_KEY="${AGDD_API_KEY:-}"
+API_KEY="${MAGSAG_API_KEY:-}"
 
 # Colors
 GREEN='\033[0;32m'
@@ -46,12 +46,12 @@ print_warning() {
     echo -e "${YELLOW}⚠ $1${NC}"
 }
 
-echo "AGDD HTTP API Examples"
+echo "MAGSAG HTTP API Examples"
 echo "======================"
 echo "API URL: $API_URL$API_PREFIX"
 if [ -n "$API_KEY" ]; then
   echo "Auth: Enabled"
-  AUTH_HEADER_DISPLAY="-H 'Authorization: Bearer \$AGDD_API_KEY'"
+  AUTH_HEADER_DISPLAY="-H 'Authorization: Bearer \$MAGSAG_API_KEY'"
 else
   echo "Auth: Disabled"
   AUTH_HEADER_DISPLAY=""
@@ -204,5 +204,5 @@ echo "  • OpenAPI:    $API_URL$API_PREFIX/openapi.json"
 echo ""
 echo "Environment:"
 echo "  API_URL=$API_URL"
-echo "  AGDD_API_KEY=${AGDD_API_KEY:+(set)}"
+echo "  MAGSAG_API_KEY=${MAGSAG_API_KEY:+(set)}"
 echo ""

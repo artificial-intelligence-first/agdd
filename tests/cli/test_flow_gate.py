@@ -8,7 +8,7 @@ from pathlib import Path
 
 def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, "-m", "agdd.cli", *args], capture_output=True, text=True, check=False
+        [sys.executable, "-m", "magsag.cli", *args], capture_output=True, text=True, check=False
     )
 
 

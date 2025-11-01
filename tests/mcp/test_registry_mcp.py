@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRegistryError
+from magsag.mcp import MCPRegistry, MCPRegistryError
 
 pytestmark = pytest.mark.slow
 

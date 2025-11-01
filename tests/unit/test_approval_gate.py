@@ -8,13 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from agdd.core.permissions import ToolPermission
-from agdd.governance.approval_gate import (
+from magsag.core.permissions import ToolPermission
+from magsag.governance.approval_gate import (
     ApprovalDeniedError,
     ApprovalGate,
     ApprovalTimeoutError,
 )
-from agdd.governance.permission_evaluator import PermissionEvaluator
+from magsag.governance.permission_evaluator import PermissionEvaluator
 
 
 class TestPermissionEvaluator:

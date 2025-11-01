@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agdd.ai/schemas/skills/task-decomposition/output.schema.json",
+  "$id": "https://magsag.ai/schemas/skills/task-decomposition/output.schema.json",
   "title": "TaskDecompositionOutput",
   "description": "Output from task decomposition skill",
   "type": "array",

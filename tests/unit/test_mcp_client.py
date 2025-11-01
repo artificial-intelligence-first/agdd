@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 import warnings
 
-from agdd.mcp.client import (
+from magsag.mcp.client import (
     AsyncMCPClient,
     CircuitBreaker,
     CircuitBreakerConfig,

@@ -1,7 +1,7 @@
 ---
-title: AGDD HTTP API Reference
+title: MAGSAG HTTP API Reference
 last_synced: 2025-10-25
-description: Complete reference for AGDD FastAPI endpoints, authentication, and observability
+description: Complete reference for MAGSAG FastAPI endpoints, authentication, and observability
 change_log:
   - 2025-10-25: Phase 3 - Fixed authentication error response format to match documented schema
   - 2025-10-25: Phase 3 - Updated run ID examples to use correct format (mag-{8-char-hex})
@@ -9,45 +9,45 @@ change_log:
   - 2025-10-24: Added run_id format specification and retrieval documentation
 ---
 
-# AGDD HTTP API Reference
+# MAGSAG HTTP API Reference
 
-The AG-Driven Development (AGDD) HTTP API exposes agent orchestration, run observability, and GitHub automation over FastAPI. This document provides an end-to-end reference for configuration, authentication, endpoints, and troubleshooting.
+The MAGSAG HTTP API exposes agent orchestration, run observability, and GitHub automation over FastAPI. This document provides an end-to-end reference for configuration, authentication, endpoints, and troubleshooting.
 
 ## Base URL and Configuration
 
 | Setting | Description | Default |
 | --- | --- | --- |
-| `AGDD_API_HOST` | Host interface for uvicorn | `0.0.0.0` |
-| `AGDD_API_PORT` | Listening port | `8000` |
-| `AGDD_API_PREFIX` | URL prefix for versioned endpoints | `/api/v1` |
-| `AGDD_API_DEBUG` | Enables FastAPI debug and auto-reload (dev only) | `false` |
-| `AGDD_RUNS_BASE_DIR` | Filesystem root for agent run artifacts | `.runs/agents` |
-| `AGDD_API_KEY` | Shared secret for bearer/x-api-key authentication | `None` (disabled) |
-| `AGDD_RATE_LIMIT_QPS` | Requests per second per credential/IP | `None` (disabled) |
-| `AGDD_REDIS_URL` | Redis connection string for distributed rate limiting | `None` |
-| `AGDD_GITHUB_WEBHOOK_SECRET` | Secret for GitHub HMAC verification | `None` |
-| `AGDD_GITHUB_TOKEN` | Token used for posting GitHub comments | `None` |
+| `MAGSAG_API_HOST` | Host interface for uvicorn | `0.0.0.0` |
+| `MAGSAG_API_PORT` | Listening port | `8000` |
+| `MAGSAG_API_PREFIX` | URL prefix for versioned endpoints | `/api/v1` |
+| `MAGSAG_API_DEBUG` | Enables FastAPI debug and auto-reload (dev only) | `false` |
+| `MAGSAG_RUNS_BASE_DIR` | Filesystem root for agent run artifacts | `.runs/agents` |
+| `MAGSAG_API_KEY` | Shared secret for bearer/x-api-key authentication | `None` (disabled) |
+| `MAGSAG_RATE_LIMIT_QPS` | Requests per second per credential/IP | `None` (disabled) |
+| `MAGSAG_REDIS_URL` | Redis connection string for distributed rate limiting | `None` |
+| `MAGSAG_GITHUB_WEBHOOK_SECRET` | Secret for GitHub HMAC verification | `None` |
+| `MAGSAG_GITHUB_TOKEN` | Token used for posting GitHub comments | `None` |
 
-Run artifacts default to `.runs/agents`, and cost ledgers are persisted separately under `.runs/costs/` via `agdd.observability.cost_tracker`.
+Run artifacts default to `.runs/agents`, and cost ledgers are persisted separately under `.runs/costs/` via `magsag.observability.cost_tracker`.
 
 Create a `.env` file (see `.env.example`) to override these defaults before launching `uvicorn`:
 
 ```bash
 cp .env.example .env
-uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
+uv run uvicorn magsag.api.server:app --host 0.0.0.0 --port 8000
 ```
 
 ## Authentication
 
-- **API Key (recommended):** Configure `AGDD_API_KEY` and supply either an `Authorization: Bearer <token>` header or `x-api-key: <token>` with each request.
-- **Unauthenticated development:** Leave `AGDD_API_KEY` unset. Authentication is skipped, but the rate limiter still keys on client IP.
-- **GitHub webhook:** Set `AGDD_GITHUB_WEBHOOK_SECRET`. Incoming webhook signatures are verified via `X-Hub-Signature-256` using HMAC SHA-256. Requests without a valid signature receive HTTP 401.
+- **API Key (recommended):** Configure `MAGSAG_API_KEY` and supply either an `Authorization: Bearer <token>` header or `x-api-key: <token>` with each request.
+- **Unauthenticated development:** Leave `MAGSAG_API_KEY` unset. Authentication is skipped, but the rate limiter still keys on client IP.
+- **GitHub webhook:** Set `MAGSAG_GITHUB_WEBHOOK_SECRET`. Incoming webhook signatures are verified via `X-Hub-Signature-256` using HMAC SHA-256. Requests without a valid signature receive HTTP 401.
 
 Secrets are intentionally never echoed in logs, example scripts, or error messages.
 
 ## Rate Limiting
 
-Set `AGDD_RATE_LIMIT_QPS` to enable a token-bucket limiter. By default it uses an in-memory store (process-wide). Provide `AGDD_REDIS_URL` for multi-process deployments; a Lua script ensures atomic updates and tags each request with a unique `timestamp:seq` member to avoid race conditions.
+Set `MAGSAG_RATE_LIMIT_QPS` to enable a token-bucket limiter. By default it uses an in-memory store (process-wide). Provide `MAGSAG_REDIS_URL` for multi-process deployments; a Lua script ensures atomic updates and tags each request with a unique `timestamp:seq` member to avoid race conditions.
 
 Rate limits are keyed by:
 
@@ -66,17 +66,17 @@ Exceeding the limit returns HTTP 429 with:
 
 ## Request Size Limits
 
-Configure `AGDD_API_MAX_REQUEST_BYTES` (default: 10 MiB) to reject oversized payloads early. Requests exceeding the limit respond with HTTP 413 and `{"detail": "Request body too large"}`; malformed `Content-Length` headers return HTTP 400. Adjust the limit to match your expected request sizes.
+Configure `MAGSAG_API_MAX_REQUEST_BYTES` (default: 10 MiB) to reject oversized payloads early. Requests exceeding the limit respond with HTTP 413 and `{"detail": "Request body too large"}`; malformed `Content-Length` headers return HTTP 400. Adjust the limit to match your expected request sizes.
 
 ## Endpoints
 
-All routes below are prefixed with `AGDD_API_PREFIX` (`/api/v1` by default) unless otherwise noted.
+All routes below are prefixed with `MAGSAG_API_PREFIX` (`/api/v1` by default) unless otherwise noted.
 
 ### `GET /agents`
 
 Lists registered agents from `registry/agents.yaml`.
 
-- **Authentication:** Required when `AGDD_API_KEY` is set
+- **Authentication:** Required when `MAGSAG_API_KEY` is set
 - **Query Parameters:** None
 - **Response (200):**
 
@@ -94,7 +94,7 @@ Lists registered agents from `registry/agents.yaml`.
 
 Executes a main agent (MAG) and returns its output plus run metadata.
 
-- **Authentication:** Required when `AGDD_API_KEY` is set
+- **Authentication:** Required when `MAGSAG_API_KEY` is set
 - **Body:**
 
 ```json
@@ -129,7 +129,7 @@ Executes a main agent (MAG) and returns its output plus run metadata.
 
 Retrieves summary (`summary.json`) and metrics (`metrics.json`) for a completed run. The run ID is validated to prevent directory traversal.
 
-- **Authentication:** Required when `AGDD_API_KEY` is set
+- **Authentication:** Required when `MAGSAG_API_KEY` is set
 - **Response (200):**
 
 ```json
@@ -150,7 +150,7 @@ Retrieves summary (`summary.json`) and metrics (`metrics.json`) for a completed 
 
 Streams newline-delimited logs.
 
-- **Authentication:** Required when `AGDD_API_KEY` is set
+- **Authentication:** Required when `MAGSAG_API_KEY` is set
 - **Query Parameters:**
   - `tail` (int): Return only the last N lines
   - `follow` (bool): When true, respond with `text/event-stream` and keep streaming new log lines (Server-Sent Events)
@@ -218,9 +218,9 @@ Processes GitHub events:
 - `pull_request_review_comment`
 - `pull_request`
 
-Commands of the form ``@agent-slug {"key": "value"}`` trigger agent execution. Results (success or failure) are posted back to GitHub using `AGDD_GITHUB_TOKEN`.
+Commands of the form ``@agent-slug {"key": "value"}`` trigger agent execution. Results (success or failure) are posted back to GitHub using `MAGSAG_GITHUB_TOKEN`.
 
-- **Authentication:** Signature verification via `AGDD_GITHUB_WEBHOOK_SECRET`
+- **Authentication:** Signature verification via `MAGSAG_GITHUB_WEBHOOK_SECRET`
 - **Rate Limiting:** Enabled via dependency injection
 - **Response (200):** `{ "status": "ok" }`
 
@@ -237,26 +237,26 @@ Root-level health check primarily used by load balancers and uptime monitors. No
 ```bash
 # Export once
 export API_URL="http://localhost:8000"
-export AGDD_API_KEY="local-dev-key"
+export MAGSAG_API_KEY="local-dev-key"
 
 # List agents
-curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+curl -sS -H "Authorization: Bearer $MAGSAG_API_KEY" \
   "$API_URL/api/v1/agents" | jq
 
 # Run an agent
 curl -sS -X POST \
-  -H "Authorization: Bearer $AGDD_API_KEY" \
+  -H "Authorization: Bearer $MAGSAG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"payload": {"role": "Staff Engineer", "experience_years": 12}}' \
   "$API_URL/api/v1/agents/offer-orchestrator-mag/run"
 
 # Tail logs
 RUN_ID="mag-a1b2c3d4"
-curl -sS -H "Authorization: Bearer $AGDD_API_KEY" \
+curl -sS -H "Authorization: Bearer $MAGSAG_API_KEY" \
   "$API_URL/api/v1/runs/$RUN_ID/logs?tail=20"
 
 # Follow logs with SSE (Ctrl+C to exit)
-curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+curl -N -H "Authorization: Bearer $MAGSAG_API_KEY" \
   "$API_URL/api/v1/runs/$RUN_ID/logs?follow=true"
 ```
 
@@ -327,9 +327,9 @@ Common error payloads:
 
 ## Troubleshooting
 
-- **`401 Unauthorized`:** Ensure the request includes the correct API key or disable auth locally by removing `AGDD_API_KEY`.
+- **`401 Unauthorized`:** Ensure the request includes the correct API key or disable auth locally by removing `MAGSAG_API_KEY`.
 - **`401 invalid_signature`:** Confirm the webhook secret matches the value configured in GitHub and the API server.
-- **`429 Too Many Requests`:** Increase `AGDD_RATE_LIMIT_QPS`, deploy Redis for horizontal scaling, or stagger automation jobs.
+- **`429 Too Many Requests`:** Increase `MAGSAG_RATE_LIMIT_QPS`, deploy Redis for horizontal scaling, or stagger automation jobs.
 - **`404 Run not found`:** The MAG may still be running. Poll `/runs/{run_id}` and confirm run artifacts under `.runs/agents/`.
 - **SSE drops:** Some proxies buffer Server-Sent Events. Use `tail` polling as a fallback when streaming is not supported.
 

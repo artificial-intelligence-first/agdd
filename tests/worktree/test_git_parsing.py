@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from agdd.worktree.git import parse_porcelain_z
+from magsag.worktree.git import parse_porcelain_z
 
 
 def test_parse_porcelain_z_parses_multiple_entries() -> None:

@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from agdd.api.rate_limit import InMemoryRateLimiter
+from magsag.api.rate_limit import InMemoryRateLimiter
 
 
 def test_in_memory_rate_limiter_allows_requests_within_limit() -> None:

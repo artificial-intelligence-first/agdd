@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.optimization.optimizer import (
+from magsag.optimization.optimizer import (
     CacheStrategy,
     CostOptimizer,
     ExecutionMode,

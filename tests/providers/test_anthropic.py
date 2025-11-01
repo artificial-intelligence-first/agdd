@@ -6,7 +6,7 @@ from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
 
-from agdd.providers.anthropic import (
+from magsag.providers.anthropic import (
     AnthropicProvider,
     CompletionRequest,
     OpenAIMessage,
@@ -237,7 +237,7 @@ def test_convert_tools_none() -> None:
 # ============================================================================
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_complete_basic(mock_client_class: Mock) -> None:
     """Test basic completion request without tools."""
     # Setup mock
@@ -273,7 +273,7 @@ def test_provider_complete_basic(mock_client_class: Mock) -> None:
     assert response["tool_calls"] is None
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_complete_with_tool_use(mock_client_class: Mock) -> None:
     """Test completion with tool_use stop_reason."""
     # Setup mock with tool_use response
@@ -333,7 +333,7 @@ def test_provider_complete_with_tool_use(mock_client_class: Mock) -> None:
     assert tool_call["function"]["arguments"] == {"location": "San Francisco"}
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_complete_with_system(mock_client_class: Mock) -> None:
     """Test that system messages are properly converted to system parameter."""
     # Setup mock
@@ -377,7 +377,7 @@ def test_provider_complete_with_system(mock_client_class: Mock) -> None:
 # ============================================================================
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_stream_text(mock_client_class: Mock) -> None:
     """Test streaming with incremental text deltas."""
     # Mock SSE stream
@@ -420,7 +420,7 @@ def test_provider_stream_text(mock_client_class: Mock) -> None:
     assert deltas[1]["text"] == " world"
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_stream_tool_use(mock_client_class: Mock) -> None:
     """Test streaming with tool_use events."""
     # Mock SSE stream with tool use
@@ -485,7 +485,7 @@ def test_provider_stream_tool_use(mock_client_class: Mock) -> None:
     assert '"location":' in tool_delta_text
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_stream_tool_use_without_fine_grained(mock_client_class: Mock) -> None:
     """Test streaming with tool_use when fine-grained streaming is disabled.
 
@@ -538,7 +538,7 @@ def test_provider_stream_tool_use_without_fine_grained(mock_client_class: Mock) 
     assert tool_use_event["input"] == {"location": "Tokyo", "unit": "celsius"}
 
 
-@patch("agdd.providers.anthropic.httpx.Client")
+@patch("magsag.providers.anthropic.httpx.Client")
 def test_provider_headers_with_tool_streaming(mock_client_class: Mock) -> None:
     """Test that fine-grained tool streaming beta header is included when requested."""
     mock_response = Mock()

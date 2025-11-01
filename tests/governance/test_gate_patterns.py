@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agdd.governance.gate import _match_pattern
+from magsag.governance.gate import _match_pattern
 
 
 def test_match_pattern_exact() -> None:

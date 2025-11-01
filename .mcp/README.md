@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Server Configuration
 
-This directory contains MCP server configurations for the AGDD framework.
+This directory contains MCP server configurations for the MAGSAG framework.
 
 ## Available Servers
 
@@ -35,7 +35,7 @@ Read-only PostgreSQL database access.
 
 ## Usage
 
-These MCP servers are automatically available to agents running within the AGDD framework. The servers are invoked via npx and use the official Model Context Protocol SDKs.
+These MCP servers are automatically available to agents running within the MAGSAG framework. The servers are invoked via npx and use the official Model Context Protocol SDKs.
 
 **Important**: MCP servers using filesystem or git configurations must be run from the repository root directory. The configurations use relative paths (`.`) to ensure portability across different environments and user setups.
 

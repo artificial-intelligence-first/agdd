@@ -1,6 +1,6 @@
 # Golden Tests
 
-This directory contains golden test cases for AGDD agents. Golden tests verify that agents produce expected outputs for known inputs, enabling regression detection and behavior validation.
+This directory contains golden test cases for MAGSAG agents. Golden tests verify that agents produce expected outputs for known inputs, enabling regression detection and behavior validation.
 
 ## Overview
 
@@ -237,7 +237,7 @@ Planned improvements to the golden test framework:
 
 ## References
 
-- [AGDD Architecture Documentation](../../docs/architecture/)
+- [MAGSAG Architecture Documentation](../../docs/architecture/)
 - [Benchmark Harness](../../benchmarks/harness.py)
 - [PLANS.md WS-11](../../PLANS.md)
 

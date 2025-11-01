@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Setup GitHub webhook for AGDD API integration
+# Setup GitHub webhook for MAGSAG API integration
 #
 # Usage:
 #   GITHUB_WEBHOOK_SECRET=your-secret ./scripts/setup-github-webhook.sh owner/repo https://your-api.com
@@ -56,8 +56,8 @@ echo ""
 echo "✅ Webhook created successfully!"
 echo ""
 echo "Next steps:"
-echo "1. Ensure your API server has AGDD_GITHUB_WEBHOOK_SECRET=$SECRET"
-echo "2. Ensure your API server has AGDD_GITHUB_TOKEN=<your-github-token>"
+echo "1. Ensure your API server has MAGSAG_GITHUB_WEBHOOK_SECRET=$SECRET"
+echo "2. Ensure your API server has MAGSAG_GITHUB_TOKEN=<your-github-token>"
 echo "3. Test by commenting '@agent-slug {\"test\": true}' on an issue"
 echo ""
 echo "To list webhooks:"

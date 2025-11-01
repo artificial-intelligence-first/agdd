@@ -1,6 +1,6 @@
 """Integration tests for MCP with skills and agents.
 
-This module tests the integration of MCP with the AGDD framework,
+This module tests the integration of MCP with the MAGSAG framework,
 including skills auto-discovery and permission validation.
 """
 
@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
+from magsag.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 
 
 pytestmark = pytest.mark.slow
@@ -144,7 +144,7 @@ class TestSkillsMCPIntegration:
         assert runtime.check_permission("pg-readonly")
 
         # Mock PostgreSQL connection
-        with patch("agdd.mcp.server.asyncpg.create_pool") as mock_pool:
+        with patch("magsag.mcp.server.asyncpg.create_pool") as mock_pool:
             mock_conn = AsyncMock()
             mock_conn.fetch = AsyncMock(
                 return_value=[{"band": "L4", "min_salary": 100000, "max_salary": 150000}]

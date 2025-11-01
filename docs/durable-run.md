@@ -62,7 +62,7 @@ Durable Run provides snapshot/restore capabilities for agent executions, enablin
 │           Storage Backend                                   │
 │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │   │ File System  │  │   SQLite     │  │  PostgreSQL  │     │
-│   │ (.agdd/      │  │ (snapshots   │  │ (snapshots   │     │
+│   │ (.magsag/      │  │ (snapshots   │  │ (snapshots   │     │
 │   │ snapshots/)  │  │  table)      │  │  table)      │     │
 │   └──────────────┘  └──────────────┘  └──────────────┘     │
 └─────────────────────────────────────────────────────────────┘
@@ -75,13 +75,13 @@ Durable Run provides snapshot/restore capabilities for agent executions, enablin
 Set the feature flag in your environment:
 
 ```bash
-export AGDD_DURABLE_ENABLED=true
+export MAGSAG_DURABLE_ENABLED=true
 ```
 
 Or in your API config:
 
 ```python
-from agdd.api.config import Settings
+from magsag.api.config import Settings
 
 settings = Settings(
     DURABLE_ENABLED=True,
@@ -93,7 +93,7 @@ Durable snapshots emit storage events (`run.snapshot.saved`, `run.resume`) that 
 ### Basic Usage
 
 ```python
-from agdd.runners.durable import DurableRunner, SnapshotStore
+from magsag.runners.durable import DurableRunner, SnapshotStore
 
 # Initialize durable runner
 snapshot_store = SnapshotStore()
@@ -182,8 +182,8 @@ print(f"Deleted {count} checkpoints")
 ### Integration with Agent Runner
 
 ```python
-from agdd.runners.agent_runner import AgentRunner
-from agdd.runners.durable import DurableRunner
+from magsag.runners.agent_runner import AgentRunner
+from magsag.runners.durable import DurableRunner
 
 class DurableAgentRunner(AgentRunner):
     """Agent runner with durable execution support."""
@@ -239,7 +239,7 @@ class RunSnapshot:
 
 #### File-Based Storage (Default)
 
-Snapshots stored in `.agdd/snapshots/{run_id}/{step_id}.json`:
+Snapshots stored in `.magsag/snapshots/{run_id}/{step_id}.json`:
 
 ```json
 {
@@ -262,9 +262,9 @@ Snapshots stored in `.agdd/snapshots/{run_id}/{step_id}.json`:
 Enable SQLite backend:
 
 ```python
-from agdd.storage.backends.sqlite import SQLiteStorageBackend
+from magsag.storage.backends.sqlite import SQLiteStorageBackend
 
-storage = SQLiteStorageBackend(db_path=".agdd/storage.db")
+storage = SQLiteStorageBackend(db_path=".magsag/storage.db")
 await storage.initialize()
 
 snapshot_store = SnapshotStore(storage_backend=storage)
@@ -291,9 +291,9 @@ CREATE INDEX idx_snapshots_created ON snapshots(created_at);
 Enable PostgreSQL backend:
 
 ```python
-from agdd.storage.backends.postgres import PostgresStorageBackend
+from magsag.storage.backends.postgres import PostgresStorageBackend
 
-storage = PostgresStorageBackend(dsn="postgresql://user:pass@localhost/agdd")
+storage = PostgresStorageBackend(dsn="postgresql://user:pass@localhost/magsag")
 await storage.initialize()
 
 snapshot_store = SnapshotStore(storage_backend=storage)

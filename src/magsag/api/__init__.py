@@ -1,0 +1,1 @@
+"""MAGSAG HTTP API module."""

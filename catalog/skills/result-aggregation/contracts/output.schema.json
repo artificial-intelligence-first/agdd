@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agdd.ai/schemas/skills/result-aggregation/output.schema.json",
+  "$id": "https://magsag.ai/schemas/skills/result-aggregation/output.schema.json",
   "title": "ResultAggregationOutput",
   "description": "Output from result aggregation skill",
   "type": "object",

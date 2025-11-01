@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-from agdd.providers.base import BaseLLMProvider, LLMResponse
+from magsag.providers.base import BaseLLMProvider, LLMResponse
 
 
 class TestLLMResponse:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
@@ -8,14 +9,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from agdd.worktree import WorktreeConflictError, WorktreeRecord
-from agdd.worktree.metadata import WorktreeMetadata
-from agdd.worktree.types import WorktreeInfo
+from magsag.worktree import WorktreeConflictError, WorktreeRecord
+from magsag.worktree.metadata import WorktreeMetadata
+from magsag.worktree.types import WorktreeInfo
 
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    from agdd.api.server import app
+    from magsag.api.server import app
 
     with TestClient(app) as test_client:
         yield test_client
@@ -43,7 +44,7 @@ def _make_record() -> WorktreeRecord:
 
 def test_list_worktrees_returns_records(client: TestClient) -> None:
     record = _make_record()
-    with patch("agdd.api.routes.worktrees.WorktreeManager") as manager_cls:
+    with patch("magsag.api.routes.worktrees.WorktreeManager") as manager_cls:
         manager = MagicMock()
         manager.managed_records.return_value = [record]
         manager_cls.return_value = manager
@@ -58,7 +59,7 @@ def test_list_worktrees_returns_records(client: TestClient) -> None:
 
 
 def test_create_worktree_propagates_conflicts(client: TestClient) -> None:
-    with patch("agdd.api.routes.worktrees.WorktreeManager") as manager_cls:
+    with patch("magsag.api.routes.worktrees.WorktreeManager") as manager_cls:
         manager = MagicMock()
         manager.create.side_effect = WorktreeConflictError("exists")
         manager_cls.return_value = manager
@@ -74,7 +75,7 @@ def test_create_worktree_propagates_conflicts(client: TestClient) -> None:
 
 
 def test_delete_worktree_invokes_manager(client: TestClient) -> None:
-    with patch("agdd.api.routes.worktrees.WorktreeManager") as manager_cls:
+    with patch("magsag.api.routes.worktrees.WorktreeManager") as manager_cls:
         manager = MagicMock()
         manager_cls.return_value = manager
 
@@ -85,11 +86,17 @@ def test_delete_worktree_invokes_manager(client: TestClient) -> None:
 
 
 def test_lock_and_unlock_worktree(client: TestClient) -> None:
-    locked_record = _make_record()
-    locked_record.info.locked = True  # type: ignore[attr-defined]
-    unlocked_record = _make_record()
-    unlocked_record.info.locked = False  # type: ignore[attr-defined]
-    with patch("agdd.api.routes.worktrees.WorktreeManager") as manager_cls:
+    base_locked = _make_record()
+    locked_record = WorktreeRecord(
+        info=replace(base_locked.info, locked=True),
+        metadata=base_locked.metadata,
+    )
+    base_unlocked = _make_record()
+    unlocked_record = WorktreeRecord(
+        info=replace(base_unlocked.info, locked=False),
+        metadata=base_unlocked.metadata,
+    )
+    with patch("magsag.api.routes.worktrees.WorktreeManager") as manager_cls:
         manager = MagicMock()
         manager.lock.return_value = locked_record
         manager.unlock.return_value = unlocked_record

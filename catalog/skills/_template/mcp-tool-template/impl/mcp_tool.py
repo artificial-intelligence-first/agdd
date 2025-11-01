@@ -3,7 +3,7 @@ MCP Tool Template
 
 Template for creating skills that wrap Model Context Protocol (MCP) tools.
 This provides a standardized structure for integrating external MCP servers
-into the AGDD framework.
+into the MAGSAG framework.
 
 Usage:
     1. Copy this template to catalog/skills/<your-skill-name>/impl/mcp_tool.py
@@ -22,7 +22,7 @@ from typing import Any, Optional
 import jsonschema
 import yaml
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 
 def _find_repo_root(start_path: Path) -> Path:

@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agdd.ai/schemas/skill.schema.json",
-  "title": "AGDD Skill Schema",
-  "description": "Schema for AGDD skill definitions",
+  "$id": "https://magsag.ai/schemas/skill.schema.json",
+  "title": "MAGSAG Skill Schema",
+  "description": "Schema for MAGSAG skill definitions",
   "type": "object",
   "required": ["version", "id", "name", "entrypoint"],
   "properties": {

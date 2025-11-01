@@ -172,7 +172,7 @@ backup:
   backup_before_vacuum: true
 
   # Archive destination (optional, requires storage backend support)
-  # archive_destination: "s3://agdd-memory-archive/backups"
+  # archive_destination: "s3://magsag-memory-archive/backups"
 
   # Archive format
   archive_format: "jsonl"  # newline-delimited JSON

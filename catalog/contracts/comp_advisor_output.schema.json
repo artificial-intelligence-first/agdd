@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agdd.ai/schemas/comp_advisor_output.schema.json",
+  "$id": "https://magsag.ai/schemas/comp_advisor_output.schema.json",
   "title": "CompAdvisorOutput",
   "description": "Output from the CompensationAdvisorSAG sub-agent",
   "type": "object",

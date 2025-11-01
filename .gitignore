@@ -11,7 +11,7 @@ env/
 
 # Build artifacts
 *.egg-info/
-agdd.egg-info/
+magsag.egg-info/
 dist/
 build/
 
@@ -30,7 +30,7 @@ htmlcov/
 # Observability
 .runs/
 .observability_cache/
-.agdd/
+.magsag/
 /.worktrees/
 
 # Development

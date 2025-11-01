@@ -1,6 +1,6 @@
 # Benchmarks
 
-Performance benchmarks for AGDD components.
+Performance benchmarks for MAGSAG components.
 
 ## Running Benchmarks
 

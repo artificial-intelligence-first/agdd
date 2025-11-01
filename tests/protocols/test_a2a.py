@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from agdd.protocols.a2a import (
+from magsag.protocols.a2a import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
     METHOD_NOT_FOUND,

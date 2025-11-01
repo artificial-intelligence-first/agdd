@@ -32,13 +32,13 @@ Before migrating skills to MCP:
 
 1. **Understand MCP Basics**: Review [mcp-integration.md](./mcp-integration.md) for MCP fundamentals
 2. **MCP Servers Configured**: Have appropriate MCP servers configured in `.mcp/servers/`
-3. **Python Environment**: Python 3.12+ with `agdd[mcp-server]` installed
+3. **Python Environment**: Python 3.12+ with `magsag[mcp-server]` installed
 4. **Skill Structure**: Existing skill with proper contracts and tests
 
 **Required Knowledge:**
 - Python async/await syntax
 - JSON Schema validation
-- AGDD skill structure (see [agent-development.md](./agent-development.md))
+- MAGSAG skill structure (see [agent-development.md](./agent-development.md))
 
 **Installation:**
 ```bash
@@ -87,7 +87,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 # Import MCP types
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 def run(
     payload: Dict[str, Any],
@@ -108,7 +108,7 @@ def run(
 ```
 
 **Key Changes:**
-- Import `MCPRuntime` from `agdd.mcp`
+- Import `MCPRuntime` from `magsag.mcp`
 - Add `mcp` as keyword-only optional parameter (`*, mcp: Optional[MCPRuntime] = None`)
 - Type hint properly for IDE support
 - Document the new parameter in docstring
@@ -132,7 +132,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 def run(
     payload: Dict[str, Any],
@@ -232,7 +232,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 def run(
     payload: Dict[str, Any],
@@ -381,7 +381,7 @@ def test_fallback_level_adjustments():
 # catalog/skills/salary-band-lookup/tests/test_salary_band_lookup_mcp.py
 import pytest
 from unittest.mock import AsyncMock, patch
-from agdd.mcp import MCPRegistry, MCPRuntime, MCPToolResult
+from magsag.mcp import MCPRegistry, MCPRuntime, MCPToolResult
 
 from catalog.skills.salary_band_lookup.impl.salary_band_lookup import run
 
@@ -615,7 +615,7 @@ skills:
 ```bash
 # Check skill permissions are loaded
 uv run python -c "
-from agdd.registry import Registry
+from magsag.registry import Registry
 registry = Registry()
 skill = registry.load_skill('skill.your-skill')
 print('Permissions:', skill.permissions)
@@ -667,7 +667,7 @@ cat .mcp/servers/pg-readonly.yaml
 
 **Error Message:**
 ```
-ImportError: No module named 'agdd.mcp'
+ImportError: No module named 'magsag.mcp'
 ```
 
 **Cause:**
@@ -679,7 +679,7 @@ MCP dependencies not installed.
 uv sync --extra mcp-server
 
 # Verify installation
-uv run python -c "from agdd.mcp import MCPRuntime; print('MCP installed')"
+uv run python -c "from magsag.mcp import MCPRuntime; print('MCP installed')"
 ```
 
 ### Common Error: Async Execution Failed
@@ -994,7 +994,7 @@ import asyncio
 import logging
 from typing import Any, Dict, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -1160,7 +1160,7 @@ import asyncio
 import logging
 from typing import Any, Dict, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -1265,7 +1265,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 logger = logging.getLogger(__name__)
 
@@ -1434,7 +1434,7 @@ Use this checklist when migrating a skill to MCP:
 
 - [ ] **2. Update Skill Code**
   - [ ] Add `mcp` parameter to `run()` function
-  - [ ] Import `MCPRuntime` from `agdd.mcp`
+  - [ ] Import `MCPRuntime` from `magsag.mcp`
   - [ ] Implement MCP logic with graceful fallback
   - [ ] Add permission checks
   - [ ] Handle async execution properly
@@ -1471,7 +1471,7 @@ Use this checklist when migrating a skill to MCP:
 ### Links to Related Documentation
 
 **Core Documentation:**
-- [MCP Integration Guide](./mcp-integration.md) - Overview of MCP in AGDD
+- [MCP Integration Guide](./mcp-integration.md) - Overview of MCP in MAGSAG
 - [Agent Development Guide](./agent-development.md) - Building agents and skills
 - [MCP Server Guide](./mcp-server.md) - Exposing agents as MCP tools
 
@@ -1483,10 +1483,10 @@ Use this checklist when migrating a skill to MCP:
 **Reference:**
 - [Model Context Protocol Specification](https://modelcontextprotocol.io/)
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-- [AGDD SSOT](../architecture/ssot.md) - Terminology and policies
+- [MAGSAG SSOT](../architecture/ssot.md) - Terminology and policies
 
 ---
 
 **Last Updated:** 2025-10-29
 **Version:** 1.0.0
-**Maintainer:** AGDD Core Team
+**Maintainer:** MAGSAG Core Team

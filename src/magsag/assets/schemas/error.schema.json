@@ -1,0 +1,204 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/artificial-intelligence-first/magsag/schemas/error/v1",
+  "title": "MAGSAG Error Taxonomy v1",
+  "description": "Standardized error codes and error response structure for MAGSAG. All errors should use these codes for consistent handling, logging, and user feedback.",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Standardized error code following MAGSAG-{DOMAIN}-{NUMBER} pattern",
+      "enum": [
+        "MAGSAG-INPUT-001",
+        "MAGSAG-INPUT-002",
+        "MAGSAG-INPUT-003",
+        "MAGSAG-POLICY-001",
+        "MAGSAG-POLICY-002",
+        "MAGSAG-POLICY-003",
+        "MAGSAG-MODERATION-001",
+        "MAGSAG-MODERATION-002",
+        "MAGSAG-MODERATION-003",
+        "MAGSAG-PROVIDER-RETRIABLE-001",
+        "MAGSAG-PROVIDER-RETRIABLE-002",
+        "MAGSAG-PROVIDER-RETRIABLE-003",
+        "MAGSAG-PROVIDER-FATAL-001",
+        "MAGSAG-PROVIDER-FATAL-002",
+        "MAGSAG-PROVIDER-FATAL-003",
+        "MAGSAG-PROVIDER-RATE-LIMIT",
+        "MAGSAG-PROVIDER-AUTH-FAILED",
+        "MAGSAG-PROVIDER-INVALID-REQUEST",
+        "MAGSAG-PROVIDER-TIMEOUT",
+        "MAGSAG-PROVIDER-NETWORK",
+        "MAGSAG-STORE-001",
+        "MAGSAG-STORE-002",
+        "MAGSAG-STORE-003",
+        "MAGSAG-CACHE-001",
+        "MAGSAG-CACHE-002",
+        "MAGSAG-AGENT-NOT-FOUND",
+        "MAGSAG-AGENT-INVALID",
+        "MAGSAG-SKILL-NOT-FOUND",
+        "MAGSAG-SKILL-VALIDATION-FAILED",
+        "MAGSAG-SKILL-EXECUTION-FAILED",
+        "MAGSAG-MCP-SERVER-ERROR",
+        "MAGSAG-MCP-REGISTRY-ERROR",
+        "MAGSAG-MCP-RUNTIME-ERROR",
+        "MAGSAG-RUN-NOT-FOUND",
+        "MAGSAG-RUN-INVALID-STATE",
+        "MAGSAG-FLOW-STEP-FAILED",
+        "MAGSAG-FLOW-TIMEOUT",
+        "MAGSAG-AUTH-UNAUTHORIZED",
+        "MAGSAG-AUTH-FORBIDDEN",
+        "MAGSAG-AUTH-SIGNATURE-INVALID",
+        "MAGSAG-RATE-LIMIT-EXCEEDED",
+        "MAGSAG-INTERNAL-ERROR",
+        "MAGSAG-UNKNOWN-ERROR"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable error message",
+      "minLength": 1
+    },
+    "details": {
+      "type": "object",
+      "description": "Additional error context and metadata",
+      "additionalProperties": true
+    },
+    "retriable": {
+      "type": "boolean",
+      "description": "Whether the operation can be retried",
+      "default": false
+    },
+    "retry_after": {
+      "type": "number",
+      "description": "Suggested retry delay in seconds",
+      "minimum": 0
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Associated run identifier"
+    },
+    "span_id": {
+      "type": "string",
+      "description": "Associated span identifier"
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Unix timestamp when error occurred",
+      "minimum": 0
+    }
+  },
+  "definitions": {
+    "errorDomains": {
+      "description": "Error domain classification",
+      "type": "object",
+      "properties": {
+        "INPUT": {
+          "description": "User input validation errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "MAGSAG-INPUT-001"},
+              "description": {"const": "Invalid payload structure"}
+            }
+          }
+        },
+        "POLICY": {
+          "description": "Policy evaluation and enforcement errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "MAGSAG-POLICY-001"},
+              "description": {"const": "Policy violation"}
+            }
+          }
+        },
+        "MODERATION": {
+          "description": "Content moderation errors",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {"const": "MAGSAG-MODERATION-001"},
+              "description": {"const": "Content blocked by moderation"}
+            }
+          }
+        },
+        "PROVIDER": {
+          "description": "Provider/LLM integration errors",
+          "type": "object",
+          "properties": {
+            "RETRIABLE": {
+              "description": "Transient provider errors that can be retried",
+              "type": "array"
+            },
+            "FATAL": {
+              "description": "Non-retriable provider errors",
+              "type": "array"
+            }
+          }
+        },
+        "STORE": {
+          "description": "Storage and persistence errors",
+          "type": "array"
+        },
+        "CACHE": {
+          "description": "Cache operation errors",
+          "type": "array"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "code": "MAGSAG-INPUT-001",
+      "message": "Invalid payload structure",
+      "details": {
+        "field": "messages",
+        "reason": "Field is required but missing"
+      },
+      "retriable": false,
+      "timestamp": 1698765432.123
+    },
+    {
+      "code": "MAGSAG-PROVIDER-RATE-LIMIT",
+      "message": "Rate limit exceeded for provider",
+      "details": {
+        "provider": "openai",
+        "model": "gpt-4",
+        "limit": "10000 tokens per minute"
+      },
+      "retriable": true,
+      "retry_after": 60,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_def456",
+      "timestamp": 1698765442.456
+    },
+    {
+      "code": "MAGSAG-MODERATION-001",
+      "message": "Content blocked by moderation",
+      "details": {
+        "checkpoint": "ingress",
+        "policy_id": "pol_default_v1",
+        "reason": "Potentially harmful content detected"
+      },
+      "retriable": false,
+      "run_id": "run_abc123xyz",
+      "span_id": "span_ghi789",
+      "timestamp": 1698765445.789
+    },
+    {
+      "code": "MAGSAG-AGENT-NOT-FOUND",
+      "message": "Agent not found",
+      "details": {
+        "agent": "non-existent-agent",
+        "catalog_path": "catalog/agents"
+      },
+      "retriable": false,
+      "timestamp": 1698765450.012
+    }
+  ]
+}

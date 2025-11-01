@@ -15,10 +15,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agdd.core.permissions import ToolPermission
-from agdd.governance.permission_evaluator import PermissionEvaluator
-from agdd.routing.handoff_tool import (
-    AGDDHandoffAdapter,
+from magsag.core.permissions import ToolPermission
+from magsag.governance.permission_evaluator import PermissionEvaluator
+from magsag.routing.handoff_tool import (
+    MAGSAGHandoffAdapter,
     ADKHandoffAdapter,
     AnthropicHandoffAdapter,
     HandoffTool,
@@ -48,13 +48,13 @@ def handoff_tool_with_permissions():
 class TestHandoffAdapters:
     """Tests for platform-specific handoff adapters."""
 
-    def test_agdd_adapter_supports_platform(self):
-        """Test AGDD adapter platform detection."""
-        adapter = AGDDHandoffAdapter()
+    def test_magsag_adapter_supports_platform(self):
+        """Test MAGSAG adapter platform detection."""
+        adapter = MAGSAGHandoffAdapter()
 
-        assert adapter.supports_platform("agdd")
+        assert adapter.supports_platform("magsag")
         assert adapter.supports_platform("native")
-        assert adapter.supports_platform("AGDD")  # Case insensitive
+        assert adapter.supports_platform("MAGSAG")  # Case insensitive
         assert not adapter.supports_platform("openai")
 
     def test_adk_adapter_supports_platform(self):
@@ -63,7 +63,7 @@ class TestHandoffAdapters:
 
         assert adapter.supports_platform("adk")
         assert adapter.supports_platform("anthropic-adk")
-        assert not adapter.supports_platform("agdd")
+        assert not adapter.supports_platform("magsag")
 
     def test_openai_adapter_supports_platform(self):
         """Test OpenAI adapter platform detection."""
@@ -81,9 +81,9 @@ class TestHandoffAdapters:
         assert adapter.supports_platform("claude")
         assert not adapter.supports_platform("openai")
 
-    def test_agdd_adapter_tool_schema(self):
-        """Test AGDD adapter tool schema format."""
-        adapter = AGDDHandoffAdapter()
+    def test_magsag_adapter_tool_schema(self):
+        """Test MAGSAG adapter tool schema format."""
+        adapter = MAGSAGHandoffAdapter()
         schema = adapter.format_tool_schema()
 
         assert schema["name"] == "handoff"
@@ -127,10 +127,10 @@ class TestHandoffTool:
 
     def test_get_adapter(self, handoff_tool):
         """Test getting adapter by platform."""
-        # AGDD adapter
-        agdd_adapter = handoff_tool.get_adapter("agdd")
-        assert agdd_adapter is not None
-        assert isinstance(agdd_adapter, AGDDHandoffAdapter)
+        # MAGSAG adapter
+        magsag_adapter = handoff_tool.get_adapter("magsag")
+        assert magsag_adapter is not None
+        assert isinstance(magsag_adapter, MAGSAGHandoffAdapter)
 
         # OpenAI adapter
         openai_adapter = handoff_tool.get_adapter("openai")
@@ -143,9 +143,9 @@ class TestHandoffTool:
 
     def test_get_tool_schema(self, handoff_tool):
         """Test getting tool schema for different platforms."""
-        # AGDD schema
-        agdd_schema = handoff_tool.get_tool_schema("agdd")
-        assert agdd_schema["name"] == "handoff"
+        # MAGSAG schema
+        magsag_schema = handoff_tool.get_tool_schema("magsag")
+        assert magsag_schema["name"] == "handoff"
 
         # OpenAI schema
         openai_schema = handoff_tool.get_tool_schema("openai")
@@ -163,7 +163,7 @@ class TestHandoffTool:
             target_agent="sub-agent",
             task="Process customer inquiry",
             context={"customer_id": "123"},
-            platform="agdd",
+            platform="magsag",
             run_id="test-run-123",
         )
 
@@ -190,7 +190,7 @@ class TestHandoffTool:
             source_agent="main-agent",
             target_agent="sub-agent",
             task="Test task",
-            platform="agdd",
+            platform="magsag",
         )
 
         handoff_id = result["handoff_id"]
@@ -205,8 +205,8 @@ class TestHandoffTool:
         assert request.status == "completed"
 
     @pytest.mark.asyncio
-    async def test_handoff_agdd_runner_integration(self):
-        """AGDD adapter should delegate via provided runner instance."""
+    async def test_handoff_magsag_runner_integration(self):
+        """MAGSAG adapter should delegate via provided runner instance."""
 
         class DummyRunner:
             def __init__(self) -> None:
@@ -253,21 +253,21 @@ class TestHandoffTool:
             source_agent="agent-1",
             target_agent="agent-2",
             task="Task 1",
-            platform="agdd",
+            platform="magsag",
         )
 
         await handoff_tool.handoff(
             source_agent="agent-1",
             target_agent="agent-3",
             task="Task 2",
-            platform="agdd",
+            platform="magsag",
         )
 
         await handoff_tool.handoff(
             source_agent="agent-2",
             target_agent="agent-4",
             task="Task 3",
-            platform="agdd",
+            platform="magsag",
         )
 
         # List all handoffs
@@ -290,7 +290,7 @@ class TestHandoffTool:
             append_event=AsyncMock(return_value=None),
         )
         monkeypatch.setattr(
-            "agdd.routing.handoff_tool.get_storage_backend",
+            "magsag.routing.handoff_tool.get_storage_backend",
             AsyncMock(return_value=storage_mock),
         )
 
@@ -300,7 +300,7 @@ class TestHandoffTool:
             source_agent="event-agent",
             target_agent="receiver",
             task="Collect metrics",
-            platform="agdd",
+            platform="magsag",
             run_id="run-events-1",
         )
 
@@ -337,7 +337,7 @@ class TestHandoffTool:
                 source_agent="test-agent",
                 target_agent="restricted-agent",
                 task="Sensitive operation",
-                platform="agdd",
+                platform="magsag",
                 run_id="test-run-123",
             )
 
@@ -345,7 +345,7 @@ class TestHandoffTool:
     async def test_handoff_with_approval_enforcement(self):
         """Test handoff with approval gate enforcement."""
         from unittest.mock import MagicMock, AsyncMock
-        from agdd.governance.approval_gate import ApprovalDeniedError
+        from magsag.governance.approval_gate import ApprovalDeniedError
 
         # Create permission evaluator that returns REQUIRE_APPROVAL
         evaluator = MagicMock()
@@ -372,7 +372,7 @@ class TestHandoffTool:
                 source_agent="test-agent",
                 target_agent="restricted-agent",
                 task="Sensitive operation",
-                platform="agdd",
+                platform="magsag",
                 run_id="test-run-123",
             )
 
@@ -392,15 +392,15 @@ class TestHandoffE2E:
         Test handoff across multiple platforms.
 
         Simulates:
-        1. AGDD agent delegates to ADK agent
+        1. MAGSAG agent delegates to ADK agent
         2. ADK agent delegates to OpenAI agent
-        3. OpenAI agent delegates back to AGDD agent
+        3. OpenAI agent delegates back to MAGSAG agent
         """
         handoff_tool = HandoffTool()
 
-        # AGDD → ADK
+        # MAGSAG → ADK
         result1 = await handoff_tool.handoff(
-            source_agent="agdd-main",
+            source_agent="magsag-main",
             target_agent="adk-specialist",
             task="Analyze customer sentiment",
             platform="adk",
@@ -418,12 +418,12 @@ class TestHandoffE2E:
 
         assert result2["status"] == "completed"
 
-        # OpenAI → AGDD
+        # OpenAI → MAGSAG
         result3 = await handoff_tool.handoff(
             source_agent="openai-assistant",
-            target_agent="agdd-finalizer",
+            target_agent="magsag-finalizer",
             task="Format final report",
-            platform="agdd",
+            platform="magsag",
         )
 
         assert result3["status"] == "completed"

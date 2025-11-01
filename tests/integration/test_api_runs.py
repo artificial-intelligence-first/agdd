@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from agdd.api.server import app
+from magsag.api.server import app
 
 pytestmark = pytest.mark.slow
 
@@ -58,8 +58,8 @@ def temp_run_dir(tmp_path: Path) -> Path:
 def test_get_run_with_artifacts(temp_run_dir: Path) -> None:
     """Test getting run with all artifacts present."""
     # Override settings dependency to use temp directory
-    from agdd.api.config import Settings, get_settings
-    from agdd.api.server import app
+    from magsag.api.config import Settings, get_settings
+    from magsag.api.server import app
 
     def override_settings() -> Settings:
         s = Settings()

@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from agdd.api.server import app
+from magsag.api.server import app
 
 client = TestClient(app)
 

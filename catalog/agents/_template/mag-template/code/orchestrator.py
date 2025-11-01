@@ -13,7 +13,7 @@ from typing import Any, Dict
 
 # Import shared dataclasses from agent_runner
 try:
-    from agdd.runners.agent_runner import Delegation, Result
+    from magsag.runners.agent_runner import Delegation, Result
 except ImportError:
     # Fallback for when running outside package context
     from dataclasses import dataclass

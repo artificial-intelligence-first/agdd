@@ -10,8 +10,8 @@ from typing import AsyncIterator
 import pytest
 import pytest_asyncio
 
-from agdd.storage.backends.sqlite import SQLiteStorageBackend
-from agdd.storage.models import ApprovalTicketRecord, RunSnapshotRecord
+from magsag.storage.backends.sqlite import SQLiteStorageBackend
+from magsag.storage.models import ApprovalTicketRecord, RunSnapshotRecord
 
 pytestmark = pytest.mark.slow
 

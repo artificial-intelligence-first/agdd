@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a bug in AGDD framework
+about: Report a bug in MAGSAG framework
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -22,7 +22,7 @@ What actually happens
 
 ## Environment
 - Python version:
-- AGDD version:
+- MAGSAG version:
 - OS:
 - uv version:
 

@@ -2,8 +2,8 @@
 
 import pytest
 
-from agdd.routing.policy import Route, RoutingPolicy
-from agdd.routing.router import Plan, get_plan, load_policy
+from magsag.routing.policy import Route, RoutingPolicy
+from magsag.routing.router import Plan, get_plan, load_policy
 
 
 @pytest.fixture
@@ -190,7 +190,7 @@ def test_load_policy_auto_optimize() -> None:
 
 def test_get_plan_default_policy() -> None:
     """Test get_plan with default policy from package resources."""
-    from agdd.routing import router
+    from magsag.routing import router
 
     # Reset default policy to force reload
     router._default_policy = None

@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from agdd.core.permissions import ToolPermission
-from agdd.mcp.client import MCPClientError
-from agdd.mcp.decorators import (
+from magsag.core.permissions import ToolPermission
+from magsag.mcp.client import MCPClientError
+from magsag.mcp.decorators import (
     _CLIENT_CACHE,
     _CLIENT_RETRY_OVERRIDES,
     _get_mcp_client,
@@ -25,10 +25,10 @@ async def test_mcp_tool_invokes_client(monkeypatch: pytest.MonkeyPatch) -> None:
     permission_mock = MagicMock()
     permission_mock.evaluate.return_value = ToolPermission.ALWAYS
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_permission_evaluator", lambda: permission_mock
+        "magsag.mcp.decorators._get_permission_evaluator", lambda: permission_mock
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._ensure_approval_gate",
+        "magsag.mcp.decorators._ensure_approval_gate",
         AsyncMock(return_value=None),
     )
 
@@ -37,7 +37,7 @@ async def test_mcp_tool_invokes_client(monkeypatch: pytest.MonkeyPatch) -> None:
         invoke=AsyncMock(return_value={"ok": True}),
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_mcp_client",
+        "magsag.mcp.decorators._get_mcp_client",
         AsyncMock(return_value=client_mock),
     )
 
@@ -60,7 +60,7 @@ async def test_mcp_tool_handles_approval(monkeypatch: pytest.MonkeyPatch) -> Non
     permission_mock = MagicMock()
     permission_mock.evaluate.return_value = ToolPermission.ALWAYS
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_permission_evaluator", lambda: permission_mock
+        "magsag.mcp.decorators._get_permission_evaluator", lambda: permission_mock
     )
 
     ticket = SimpleNamespace(ticket_id="ticket-1")
@@ -69,7 +69,7 @@ async def test_mcp_tool_handles_approval(monkeypatch: pytest.MonkeyPatch) -> Non
         wait_for_decision=AsyncMock(return_value=None),
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._ensure_approval_gate",
+        "magsag.mcp.decorators._ensure_approval_gate",
         AsyncMock(return_value=gate_mock),
     )
 
@@ -78,7 +78,7 @@ async def test_mcp_tool_handles_approval(monkeypatch: pytest.MonkeyPatch) -> Non
         invoke=AsyncMock(return_value={"result": "ok"}),
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_mcp_client",
+        "magsag.mcp.decorators._get_mcp_client",
         AsyncMock(return_value=client_mock),
     )
 
@@ -121,10 +121,10 @@ async def test_mcp_tool_denied_by_policy(monkeypatch: pytest.MonkeyPatch) -> Non
     permission_mock = MagicMock()
     permission_mock.evaluate.return_value = ToolPermission.NEVER
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_permission_evaluator", lambda: permission_mock
+        "magsag.mcp.decorators._get_permission_evaluator", lambda: permission_mock
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._ensure_approval_gate",
+        "magsag.mcp.decorators._ensure_approval_gate",
         AsyncMock(return_value=None),
     )
     client_mock = SimpleNamespace(
@@ -132,7 +132,7 @@ async def test_mcp_tool_denied_by_policy(monkeypatch: pytest.MonkeyPatch) -> Non
         invoke=AsyncMock(return_value={}),
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_mcp_client",
+        "magsag.mcp.decorators._get_mcp_client",
         AsyncMock(return_value=client_mock),
     )
 
@@ -159,7 +159,7 @@ async def test_get_mcp_client_rejects_non_mcp_servers() -> None:
 async def test_get_mcp_client_respects_retry_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     """First call with low retries should not affect later higher overrides."""
 
-    from agdd.mcp.client import AsyncMCPClient
+    from magsag.mcp.client import AsyncMCPClient
 
     original_cache = dict(_CLIENT_CACHE)
     original_overrides = dict(_CLIENT_RETRY_OVERRIDES)
@@ -172,8 +172,8 @@ async def test_get_mcp_client_respects_retry_overrides(monkeypatch: pytest.Monke
     async def fake_close(self: AsyncMCPClient) -> None:
         self._initialized = False
 
-    monkeypatch.setattr("agdd.mcp.client.AsyncMCPClient.initialize", fake_initialize)
-    monkeypatch.setattr("agdd.mcp.client.AsyncMCPClient.close", fake_close)
+    monkeypatch.setattr("magsag.mcp.client.AsyncMCPClient.initialize", fake_initialize)
+    monkeypatch.setattr("magsag.mcp.client.AsyncMCPClient.close", fake_close)
 
     try:
         client_low = await _get_mcp_client("filesystem", 1)
@@ -193,10 +193,10 @@ async def test_mcp_tool_requires_gate_but_disabled(monkeypatch: pytest.MonkeyPat
     permission_mock = MagicMock()
     permission_mock.evaluate.return_value = ToolPermission.REQUIRE_APPROVAL
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_permission_evaluator", lambda: permission_mock
+        "magsag.mcp.decorators._get_permission_evaluator", lambda: permission_mock
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._ensure_approval_gate",
+        "magsag.mcp.decorators._ensure_approval_gate",
         AsyncMock(return_value=None),
     )
     client_mock = SimpleNamespace(
@@ -204,7 +204,7 @@ async def test_mcp_tool_requires_gate_but_disabled(monkeypatch: pytest.MonkeyPat
         invoke=AsyncMock(return_value={}),
     )
     monkeypatch.setattr(
-        "agdd.mcp.decorators._get_mcp_client",
+        "magsag.mcp.decorators._get_mcp_client",
         AsyncMock(return_value=client_mock),
     )
 

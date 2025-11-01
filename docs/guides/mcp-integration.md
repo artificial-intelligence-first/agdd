@@ -24,11 +24,11 @@ Detailed migration instructions will ship alongside the Phase 3 release.
 
 # Model Context Protocol (MCP) Integration
 
-This guide covers the integration of Model Context Protocol (MCP) servers with AGDD agents, enabling access to external tools, data sources, and services through a standardized interface.
+This guide covers the integration of Model Context Protocol (MCP) servers with MAGSAG agents, enabling access to external tools, data sources, and services through a standardized interface.
 
 ## Overview
 
-The Model Context Protocol (MCP) is an open protocol that standardizes how AI applications interact with external tools and data sources. AGDD integrates MCP to provide agents with:
+The Model Context Protocol (MCP) is an open protocol that standardizes how AI applications interact with external tools and data sources. MAGSAG integrates MCP to provide agents with:
 
 - **File system access**: Read/write files with security controls
 - **Git operations**: Repository management and code analysis
@@ -37,11 +37,11 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how AI ap
 - **Database access**: Query structured data sources
 - **Custom tools**: Extend agent capabilities with domain-specific tools
 
-## MCP Architecture in AGDD
+## MCP Architecture in MAGSAG
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    AGDD Agent Runtime                        │
+│                    MAGSAG Agent Runtime                        │
 │                                                              │
 │  ┌──────────────┐         ┌──────────────┐                 │
 │  │     MAG      │────────▶│     SAG      │                  │
@@ -75,7 +75,7 @@ The Model Context Protocol (MCP) is an open protocol that standardizes how AI ap
 
 ## Available MCP Servers
 
-AGDD includes pre-configured MCP servers in `.mcp/servers/`:
+MAGSAG includes pre-configured MCP servers in `.mcp/servers/`:
 
 ### 1. Filesystem Server (`filesystem.yaml`)
 
@@ -243,7 +243,7 @@ limits:
 
 **Environment Setup:**
 ```bash
-export PG_RO_URL="postgresql://readonly:password@localhost/agdd"
+export PG_RO_URL="postgresql://readonly:password@localhost/magsag"
 ```
 
 **Available Tools:**
@@ -257,16 +257,16 @@ export PG_RO_URL="postgresql://readonly:password@localhost/agdd"
 - No DDL/DML operations (INSERT, UPDATE, DELETE)
 - Requires `PG_RO_URL` environment variable
 
-## AGDD stdio MCP Runtime
+## MAGSAG stdio MCP Runtime
 
-AGDD ships with `src/agdd/mcp/server.py`, which manages stdio-based MCP servers and optional PostgreSQL adapters.
+MAGSAG ships with `src/magsag/mcp/server.py`, which manages stdio-based MCP servers and optional PostgreSQL adapters.
 
 ### Handshake Sequence
 
 When a server configuration with `type: mcp` is started, `MCPServer.start()`:
 
 1. Launches the configured command with stdio pipes.
-2. Sends an `initialize` request identifying AGDD as the client.
+2. Sends an `initialize` request identifying MAGSAG as the client.
 3. Waits for a successful response and issues the `notifications/initialized` signal.
 4. Calls `tools/list` to retrieve tool metadata and caches each tool's JSON Schema.
 
@@ -384,7 +384,7 @@ cat .runs/agents/<RUN_ID>/mcp_calls.jsonl | \
 
 ```bash
 # View MCP stats in run summary
-uv run agdd flow summarize --output summary.json
+uv run magsag flow summarize --output summary.json
 cat summary.json | jq '.mcp_stats'
 
 # Example output:
@@ -627,7 +627,7 @@ limits:
 
 ```bash
 # .env
-PG_RO_URL="postgresql://readonly:***@localhost/agdd"
+PG_RO_URL="postgresql://readonly:***@localhost/magsag"
 ```
 
 ### 4. Read-Only Access

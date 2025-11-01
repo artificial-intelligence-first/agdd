@@ -1,4 +1,4 @@
-"""Tests for MCP server provider that exposes AGDD agents."""
+"""Tests for MCP server provider that exposes MAGSAG agents."""
 
 import tempfile
 from pathlib import Path
@@ -10,7 +10,7 @@ pytestmark = pytest.mark.slow
 
 # Import HAS_MCP_SDK from server_provider to check if FastMCP is actually available
 try:
-    from agdd.mcp.server_provider import HAS_MCP_SDK
+    from magsag.mcp.server_provider import HAS_MCP_SDK
 
 except ImportError:
     # server_provider module itself couldn't be imported
@@ -18,12 +18,12 @@ except ImportError:
 
 
 @pytest.mark.skipif(not HAS_MCP_SDK, reason="mcp SDK not installed")
-class TestAGDDMCPServer:
-    """Test cases for AGDD MCP server provider."""
+class TestMAGSAGMCPServer:
+    """Test cases for MAGSAG MCP server provider."""
 
     def test_server_creation(self) -> None:
         """Test creating an MCP server instance."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         server = create_server(
             expose_agents=True,
@@ -36,7 +36,7 @@ class TestAGDDMCPServer:
 
     def test_server_with_filters(self) -> None:
         """Test creating server with agent/skill filters."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         server = create_server(
             expose_agents=True,
@@ -49,7 +49,7 @@ class TestAGDDMCPServer:
 
     def test_agent_tool_registration(self) -> None:
         """Test that agents are registered as MCP tools."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
@@ -92,7 +92,7 @@ evaluation: {}
 
     def test_skill_tool_registration(self) -> None:
         """Test that skills are registered as MCP tools."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
@@ -123,10 +123,10 @@ skills:
             # Check that FastMCP server was created
             assert server.mcp is not None
 
-    @patch("agdd.runners.agent_runner.AgentRunner.invoke_mag")
+    @patch("magsag.runners.agent_runner.AgentRunner.invoke_mag")
     def test_agent_execution_via_mcp(self, mock_invoke: MagicMock) -> None:
         """Test executing an agent via MCP tool call."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         # Mock agent execution
         mock_invoke.return_value = {
@@ -181,7 +181,7 @@ evaluation: {}
 
     def test_agent_filter_applies(self) -> None:
         """Test that agent filter correctly limits exposed agents."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
@@ -224,7 +224,7 @@ evaluation: {{}}
 
     def test_runner_uses_server_registry(self) -> None:
         """Test that the agent runner uses the server's registry."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
@@ -270,7 +270,7 @@ evaluation: {}
 
     def test_skill_filter_applies(self) -> None:
         """Test that skill filter correctly limits exposed skills."""
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             base_path = Path(tmpdir)
@@ -312,7 +312,7 @@ skills:
 def test_import_without_mcp_sdk() -> None:
     """Test that importing server_provider fails gracefully without MCP SDK."""
     try:
-        from agdd.mcp.server_provider import create_server
+        from magsag.mcp.server_provider import create_server
 
         # Should raise ImportError during server creation
         with pytest.raises(ImportError, match="MCP SDK not installed"):
@@ -324,9 +324,9 @@ def test_import_without_mcp_sdk() -> None:
 
 @pytest.mark.skipif(not HAS_MCP_SDK, reason="mcp SDK not installed")
 def test_server_provider_in_init() -> None:
-    """Test that server provider is available in agdd.mcp module."""
-    from agdd.mcp import HAS_SERVER_PROVIDER, create_server
-    from agdd.mcp.server_provider import HAS_MCP_SDK as PROVIDER_HAS_SDK
+    """Test that server provider is available in magsag.mcp module."""
+    from magsag.mcp import HAS_SERVER_PROVIDER, create_server
+    from magsag.mcp.server_provider import HAS_MCP_SDK as PROVIDER_HAS_SDK
 
     assert HAS_SERVER_PROVIDER is True
     assert PROVIDER_HAS_SDK is True

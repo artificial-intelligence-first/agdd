@@ -1,0 +1,1 @@
+"""Governance utilities for MAGSAG."""

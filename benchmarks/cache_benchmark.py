@@ -12,7 +12,7 @@ from typing import Any
 
 import numpy as np
 
-from agdd.optimization.cache import CacheBackend, CacheConfig, create_cache
+from magsag.optimization.cache import CacheBackend, CacheConfig, create_cache
 
 
 def benchmark_cache(

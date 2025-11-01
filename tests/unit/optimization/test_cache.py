@@ -7,7 +7,7 @@ import pytest
 # Skip all tests if numpy is not installed
 np = pytest.importorskip("numpy")
 
-from agdd.optimization.cache import (  # noqa: E402
+from magsag.optimization.cache import (  # noqa: E402
     CacheBackend,
     CacheConfig,
     CacheEntry,
@@ -194,7 +194,7 @@ class TestFAISSCache:
         removed from the FAISS index, not just logically deleted from metadata.
         """
         # Get access to the underlying FAISS cache to check index size
-        from agdd.optimization.cache import FAISSCache
+        from magsag.optimization.cache import FAISSCache
 
         assert isinstance(cache, FAISSCache), "This test requires FAISS cache"
 
@@ -460,7 +460,7 @@ class TestIVFFlatTraining:
         assert cache.size() == 3
 
         # Get access to check if trained
-        from agdd.optimization.cache import FAISSCache
+        from magsag.optimization.cache import FAISSCache
 
         assert isinstance(cache, FAISSCache)
         # Should NOT be trained yet (only 3 active vectors < 10 required)
@@ -504,7 +504,7 @@ class TestIVFFlatTraining:
             cache.set(f"key_{i}", embedding, {"index": i})
 
         # Verify training occurred
-        from agdd.optimization.cache import FAISSCache
+        from magsag.optimization.cache import FAISSCache
 
         assert isinstance(cache, FAISSCache)
         assert cache._trained, "Cache should be trained after 15 entries"

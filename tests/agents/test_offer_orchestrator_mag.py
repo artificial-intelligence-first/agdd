@@ -7,7 +7,7 @@ allow quick CI runs with `-m "not slow"`.
 
 import pytest
 
-from agdd.runners.agent_runner import AgentRunner
+from magsag.runners.agent_runner import AgentRunner
 
 
 @pytest.mark.slow

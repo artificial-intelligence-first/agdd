@@ -8,7 +8,7 @@ change_log:
 
 # Content Moderation Guide
 
-AGDD integrates OpenAI's omni-moderation-latest model to ensure safe content generation before and after LLM interactions.
+MAGSAG integrates OpenAI's omni-moderation-latest model to ensure safe content generation before and after LLM interactions.
 
 ## Overview
 
@@ -32,7 +32,7 @@ export OPENAI_API_KEY="sk-..."
 ### Basic Usage
 
 ```python
-from agdd.moderation import moderate_content, ModerationError
+from magsag.moderation import moderate_content, ModerationError
 
 try:
     # Moderate user input
@@ -55,7 +55,7 @@ except ModerationError as e:
 ### ModerationConfig
 
 ```python
-from agdd.moderation import ModerationConfig, ModerationService
+from magsag.moderation import ModerationConfig, ModerationService
 
 config = ModerationConfig(
     model="omni-moderation-latest",
@@ -76,9 +76,9 @@ service = ModerationService(config)
 OPENAI_API_KEY="sk-..."
 
 # Optional overrides
-AGDD_MODERATION_MODEL="omni-moderation-latest"
-AGDD_MODERATION_BLOCK_ON_FLAGGED="true"
-AGDD_MODERATION_TIMEOUT="10.0"
+MAGSAG_MODERATION_MODEL="omni-moderation-latest"
+MAGSAG_MODERATION_BLOCK_ON_FLAGGED="true"
+MAGSAG_MODERATION_TIMEOUT="10.0"
 ```
 
 ## Integration with Agent Runner
@@ -110,7 +110,7 @@ defaults:
 ### Manual Integration in Agent Code
 
 ```python
-from agdd.moderation import get_moderation_service, ModerationError
+from magsag.moderation import get_moderation_service, ModerationError
 
 def run(payload: dict, **deps) -> dict:
     service = get_moderation_service()
@@ -169,7 +169,7 @@ def run(payload: dict, **deps) -> dict:
 ### Analyzing Results
 
 ```python
-from agdd.moderation import moderate_content
+from magsag.moderation import moderate_content
 
 result = moderate_content("Potentially unsafe content")
 
@@ -197,7 +197,7 @@ if result.flagged:
 Moderate content with images:
 
 ```python
-from agdd.moderation import get_moderation_service
+from magsag.moderation import get_moderation_service
 
 service = get_moderation_service()
 
@@ -224,7 +224,7 @@ for category, input_types in result.category_applied_input_types.items():
 Efficiently moderate multiple items:
 
 ```python
-from agdd.moderation import get_moderation_service, ModerationConfig
+from magsag.moderation import get_moderation_service, ModerationConfig
 
 service = get_moderation_service()
 
@@ -295,7 +295,7 @@ The moderation service supports two error handling strategies:
 #### Fail-Open (Default, Permissive)
 
 ```python
-from agdd.moderation import ModerationConfig, get_moderation_service
+from magsag.moderation import ModerationConfig, get_moderation_service
 
 # Default: fail-open (permissive on errors)
 config = ModerationConfig(fail_closed_on_error=False)
@@ -344,7 +344,7 @@ if result.metadata.get("fail_closed"):
 ### Custom Error Handling
 
 ```python
-from agdd.moderation import ModerationConfig, ModerationService
+from magsag.moderation import ModerationConfig, ModerationService
 
 # Disable blocking to handle flags manually
 config = ModerationConfig(block_on_flagged=False)
@@ -369,7 +369,7 @@ if result.flagged:
 When `Plan.moderation=True`, agent runner applies moderation automatically:
 
 ```python
-from agdd.routing import get_plan
+from magsag.routing import get_plan
 
 # Get plan with moderation enabled
 plan = get_plan("sensitive-content-task")
@@ -403,5 +403,5 @@ Moderation results are logged in observability artifacts:
 
 - [OpenAI Moderation API](https://platform.openai.com/docs/guides/moderation)
 - [Content Policy](https://openai.com/policies/usage-policies)
-- [AGDD Routing Guide](./multi-provider.md)
-- [AGDD Observability](../storage.md)
+- [MAGSAG Routing Guide](./multi-provider.md)
+- [MAGSAG Observability](../storage.md)

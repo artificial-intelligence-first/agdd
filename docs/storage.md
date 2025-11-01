@@ -1,14 +1,14 @@
 ---
-title: AGDD Storage Layer
+title: MAGSAG Storage Layer
 last_synced: 2025-10-24
 description: Pluggable data management system for agent execution data and observability
 change_log:
   - 2025-10-24: Added front-matter and architecture overview
 ---
 
-# AGDD Storage Layer
+# MAGSAG Storage Layer
 
-The AGDD storage layer provides a pluggable, scalable data management system for querying and analyzing agent execution data.
+The MAGSAG storage layer provides a pluggable, scalable data management system for querying and analyzing agent execution data.
 
 ## Overview
 
@@ -29,7 +29,7 @@ The storage layer provides CLI and API tools for managing observability data gen
 - **Migration tool**: Imports legacy `.runs/agents/` data into the storage layer for analysis
 
 The storage layer complements (not replaces) the existing agent observability system.
-Cost tracking is handled separately by `agdd.observability.cost_tracker` and persists artifacts under `.runs/costs/` (JSONL ledger and SQLite database).
+Cost tracking is handled separately by `magsag.observability.cost_tracker` and persists artifacts under `.runs/costs/` (JSONL ledger and SQLite database).
 
 ## Architecture
 
@@ -66,17 +66,17 @@ All events follow a consistent structure:
 
 ```bash
 # Storage backend selection
-export AGDD_STORAGE_BACKEND=sqlite  # sqlite, postgres, timescale
-export AGDD_STORAGE_DB_PATH=.agdd/storage.db  # SQLite only
-export AGDD_STORAGE_ENABLE_FTS=true  # Enable full-text search
+export MAGSAG_STORAGE_BACKEND=sqlite  # sqlite, postgres, timescale
+export MAGSAG_STORAGE_DB_PATH=.magsag/storage.db  # SQLite only
+export MAGSAG_STORAGE_ENABLE_FTS=true  # Enable full-text search
 
 # PostgreSQL/TimescaleDB backend
-export AGDD_STORAGE_DSN=postgresql://user:pass@localhost/agdd
+export MAGSAG_STORAGE_DSN=postgresql://user:pass@localhost/magsag
 
 # Data lifecycle
-export AGDD_STORAGE_HOT_DAYS=7  # Keep hot data for 7 days
-export AGDD_STORAGE_ARCHIVE_ENABLED=false
-export AGDD_STORAGE_ARCHIVE_DESTINATION=s3://bucket/prefix
+export MAGSAG_STORAGE_HOT_DAYS=7  # Keep hot data for 7 days
+export MAGSAG_STORAGE_ARCHIVE_ENABLED=false
+export MAGSAG_STORAGE_ARCHIVE_DESTINATION=s3://bucket/prefix
 ```
 
 ### Settings File
@@ -84,10 +84,10 @@ export AGDD_STORAGE_ARCHIVE_DESTINATION=s3://bucket/prefix
 Alternatively, create `.env`:
 
 ```ini
-AGDD_STORAGE_BACKEND=sqlite
-AGDD_STORAGE_DB_PATH=.agdd/storage.db
-AGDD_STORAGE_ENABLE_FTS=true
-AGDD_STORAGE_HOT_DAYS=7
+MAGSAG_STORAGE_BACKEND=sqlite
+MAGSAG_STORAGE_DB_PATH=.magsag/storage.db
+MAGSAG_STORAGE_ENABLE_FTS=true
+MAGSAG_STORAGE_HOT_DAYS=7
 ```
 
 ## Usage
@@ -96,55 +96,55 @@ AGDD_STORAGE_HOT_DAYS=7
 
 ```bash
 # Initialize SQLite storage (default)
-agdd data init
+magsag data init
 
 # Initialize with custom path
-agdd data init --backend sqlite --db-path /var/agdd/storage.db
+magsag data init --backend sqlite --db-path /var/magsag/storage.db
 
 # Disable full-text search
-agdd data init --no-fts
+magsag data init --no-fts
 ```
 
 ### Query Runs
 
 ```bash
 # List recent runs
-agdd data query --limit 10
+magsag data query --limit 10
 
 # List runs for specific agent
-agdd data query --agent offer-orchestrator-mag --limit 20
+magsag data query --agent offer-orchestrator-mag --limit 20
 
 # List failed runs
-agdd data query --status failed
+magsag data query --status failed
 
 # Get specific run details
-agdd data query --run-id mag-a1b2c3d4
+magsag data query --run-id mag-a1b2c3d4
 ```
 
 ### Search Events
 
 ```bash
 # Full-text search across all events
-agdd data search "error rate limit"
+magsag data search "error rate limit"
 
 # Search within specific agent
-agdd data search "token" --agent offer-orchestrator-mag
+magsag data search "token" --agent offer-orchestrator-mag
 
 # Limit results
-agdd data search "exception" --limit 50
+magsag data search "exception" --limit 50
 ```
 
 ### Data Management
 
 ```bash
 # Preview cleanup (dry run)
-agdd data vacuum --hot-days 7 --dry-run
+magsag data vacuum --hot-days 7 --dry-run
 
 # Delete data older than 7 days
-agdd data vacuum --hot-days 7
+magsag data vacuum --hot-days 7
 
 # Archive old data to S3 (future)
-agdd data archive s3://my-bucket/agdd-archive --since 30
+magsag data archive s3://my-bucket/magsag-archive --since 30
 ```
 
 ## Migration from Legacy Storage
@@ -162,7 +162,7 @@ python ops/scripts/migrate_to_storage.py --source .runs/agents
 python ops/scripts/migrate_to_storage.py \
   --source .runs/agents \
   --backend sqlite \
-  --db-path /var/agdd/storage.db
+  --db-path /var/magsag/storage.db
 ```
 
 Cost ledgers produced after the migration live in `.runs/costs/` and do not require conversion; back up both `costs.jsonl` and `costs.db` for historical analysis.
@@ -172,7 +172,7 @@ Cost ledgers produced after the migration live in `.runs/costs/` and do not requ
 ### Python API (for custom tools)
 
 ```python
-from agdd.storage import get_storage_backend
+from magsag.storage import get_storage_backend
 
 async def example():
     # Get storage backend
@@ -200,7 +200,7 @@ async def example():
 To implement a custom backend, inherit from `StorageBackend`:
 
 ```python
-from agdd.storage.base import StorageBackend, StorageCapabilities
+from magsag.storage.base import StorageBackend, StorageCapabilities
 
 class MyCustomBackend(StorageBackend):
     @property
@@ -260,7 +260,7 @@ class MyCustomBackend(StorageBackend):
 - Compatible with TimescaleDB compression/retention policies
 
 **Recommendations:**
-- Install the `asyncpg` extra (`pip install agdd[postgres]`)
+- Install the `asyncpg` extra (`pip install magsag[postgres]`)
 - Enable TimescaleDB extension for large-scale retention
 - Apply retention/compression policies for long-term storage
 
@@ -306,11 +306,11 @@ Configure automatic cleanup:
 
 ```bash
 # Keep hot data for 7 days, delete older
-export AGDD_STORAGE_HOT_DAYS=7
+export MAGSAG_STORAGE_HOT_DAYS=7
 
 # Enable archival to S3 before deletion
-export AGDD_STORAGE_ARCHIVE_ENABLED=true
-export AGDD_STORAGE_ARCHIVE_DESTINATION=s3://my-bucket/archive
+export MAGSAG_STORAGE_ARCHIVE_ENABLED=true
+export MAGSAG_STORAGE_ARCHIVE_DESTINATION=s3://my-bucket/archive
 ```
 
 ### TimescaleDB Policies (Optional)
@@ -329,8 +329,8 @@ SELECT add_retention_policy('events', INTERVAL '30 days');
 
 1. Use SQLite with default settings
 2. Enable FTS5 for local search
-3. Run `agdd data vacuum` periodically
-4. Keep database in `.agdd/` directory
+3. Run `magsag data vacuum` periodically
+4. Keep database in `.magsag/` directory
 
 ### Production
 
@@ -353,7 +353,7 @@ SELECT add_retention_policy('events', INTERVAL '30 days');
 ### "FTS5 not available"
 
 SQLite was compiled without FTS5 support. Options:
-1. Disable FTS: `agdd data init --no-fts`
+1. Disable FTS: `magsag data init --no-fts`
 2. Install SQLite with FTS5: `conda install sqlite` or rebuild from source
 
 ### "Database is locked"
@@ -366,7 +366,7 @@ SQLite is in use by another process. Solutions:
 ### "Too many events"
 
 Database is growing too large. Solutions:
-1. Run vacuum: `agdd data vacuum --hot-days 7`
+1. Run vacuum: `magsag data vacuum --hot-days 7`
 2. Enable archival to S3
 3. Migrate to PostgreSQL/TimescaleDB
 

@@ -11,7 +11,7 @@ change_log:
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within the AGDD framework, please report it responsibly:
+If you discover a security vulnerability within the MAGSAG framework, please report it responsibly:
 
 **DO NOT** open a public GitHub issue for security vulnerabilities.
 
@@ -20,7 +20,7 @@ Instead, please use one of the following methods:
 ### Option 1: GitHub Private Vulnerability Reporting (Recommended)
 
 Use GitHub's private vulnerability reporting feature:
-1. Go to the [Security tab](https://github.com/artificial-intelligence-first/agdd/security/advisories/new) of this repository
+1. Go to the [Security tab](https://github.com/artificial-intelligence-first/magsag/security/advisories/new) of this repository
 2. Click "Report a vulnerability"
 3. Fill in the details of the vulnerability
 
@@ -51,20 +51,20 @@ We recommend always using the latest release to ensure you have the most recent 
 
 ## Security Considerations
 
-When deploying the AGDD framework, please be aware of the following security considerations:
+When deploying the MAGSAG framework, please be aware of the following security considerations:
 
 ### API Key Authentication
 
 - **Development:** API key authentication is optional for local development
 - **Production:** API key authentication is **strongly recommended** for production deployments
-- Configure via `AGDD_API_KEY` environment variable
+- Configure via `MAGSAG_API_KEY` environment variable
 - Use strong, randomly-generated keys (minimum 32 characters)
 - Rotate keys periodically and whenever team membership changes
 
 ### GitHub Webhook Security
 
 - **Mandatory:** GitHub webhook secret verification is **required** for all webhook integrations
-- Configure via `AGDD_GITHUB_WEBHOOK_SECRET` environment variable
+- Configure via `MAGSAG_GITHUB_WEBHOOK_SECRET` environment variable
 - Use a strong, randomly-generated secret (minimum 32 characters)
 - Never commit secrets to version control
 - Verify webhook signatures before processing events
@@ -79,18 +79,18 @@ When deploying the AGDD framework, please be aware of the following security con
 ### Rate Limiting
 
 - **Production Recommended:** Enable rate limiting to prevent abuse
-- **Default:** Rate limiting is **disabled** (`AGDD_RATE_LIMIT_QPS=None`)
-- **To Enable:** Set `AGDD_RATE_LIMIT_QPS` environment variable (e.g., `10` for 10 queries per second)
-- For distributed deployments, use Redis-backed rate limiting via `AGDD_REDIS_URL`
+- **Default:** Rate limiting is **disabled** (`MAGSAG_RATE_LIMIT_QPS=None`)
+- **To Enable:** Set `MAGSAG_RATE_LIMIT_QPS` environment variable (e.g., `10` for 10 queries per second)
+- For distributed deployments, use Redis-backed rate limiting via `MAGSAG_REDIS_URL`
 - Monitor rate limit violations and adjust as needed
 
 **Example:**
 ```bash
 # Enable rate limiting at 10 QPS
-export AGDD_RATE_LIMIT_QPS=10
+export MAGSAG_RATE_LIMIT_QPS=10
 
 # For distributed deployments
-export AGDD_REDIS_URL=redis://localhost:6379
+export MAGSAG_REDIS_URL=redis://localhost:6379
 ```
 
 ### Data Security
@@ -110,21 +110,21 @@ export AGDD_REDIS_URL=redis://localhost:6379
 
 ## Production Deployment Checklist
 
-Before deploying AGDD to production, ensure the following security measures are in place:
+Before deploying MAGSAG to production, ensure the following security measures are in place:
 
 ### Required Environment Variables
 
-- [ ] **`AGDD_API_KEY`**: Set a strong API key (generate with `openssl rand -hex 32`)
-- [ ] **`AGDD_CORS_ORIGINS`**: Configure with your actual frontend/client domains (no wildcard `["*"]`)
-- [ ] **`AGDD_API_DEBUG`**: Set to `false` (disable debug mode and hot reload)
+- [ ] **`MAGSAG_API_KEY`**: Set a strong API key (generate with `openssl rand -hex 32`)
+- [ ] **`MAGSAG_CORS_ORIGINS`**: Configure with your actual frontend/client domains (no wildcard `["*"]`)
+- [ ] **`MAGSAG_API_DEBUG`**: Set to `false` (disable debug mode and hot reload)
 
 ### Recommended Environment Variables
 
-- [ ] **`AGDD_RATE_LIMIT_QPS`**: Enable rate limiting (recommended: `10`)
-- [ ] **`AGDD_REDIS_URL`**: Configure Redis for distributed rate limiting in multi-instance deployments
-- [ ] **`AGDD_GITHUB_WEBHOOK_SECRET`**: Set if using GitHub webhooks (generate with `openssl rand -hex 32`)
-- [ ] **`AGDD_OTEL_TRACING_ENABLED`**: Enable observability for production monitoring
-- [ ] **`AGDD_OTLP_ENDPOINT`**: Configure OpenTelemetry collector endpoint
+- [ ] **`MAGSAG_RATE_LIMIT_QPS`**: Enable rate limiting (recommended: `10`)
+- [ ] **`MAGSAG_REDIS_URL`**: Configure Redis for distributed rate limiting in multi-instance deployments
+- [ ] **`MAGSAG_GITHUB_WEBHOOK_SECRET`**: Set if using GitHub webhooks (generate with `openssl rand -hex 32`)
+- [ ] **`MAGSAG_OTEL_TRACING_ENABLED`**: Enable observability for production monitoring
+- [ ] **`MAGSAG_OTLP_ENDPOINT`**: Configure OpenTelemetry collector endpoint
 
 ### Infrastructure Requirements
 
@@ -151,11 +151,11 @@ Before deploying AGDD to production, ensure the following security measures are 
 **Configuration Example**:
 ```bash
 # Single-instance deployment (in-memory)
-export AGDD_RATE_LIMIT_QPS=10
+export MAGSAG_RATE_LIMIT_QPS=10
 
 # Multi-instance deployment (Redis-backed)
-export AGDD_RATE_LIMIT_QPS=10
-export AGDD_REDIS_URL=redis://localhost:6379
+export MAGSAG_RATE_LIMIT_QPS=10
+export MAGSAG_REDIS_URL=redis://localhost:6379
 ```
 
 ### Secret Management
@@ -195,9 +195,9 @@ After deployment, verify:
 ## Known Security Limitations
 
 - The framework stores execution artifacts on the filesystem without encryption by default
-- Rate limiting is **disabled by default** and must be explicitly enabled via `AGDD_RATE_LIMIT_QPS`
+- Rate limiting is **disabled by default** and must be explicitly enabled via `MAGSAG_RATE_LIMIT_QPS`
   - When enabled, token bucket rate limiting is in-memory by default
-  - Use Redis (`AGDD_REDIS_URL`) for distributed deployments
+  - Use Redis (`MAGSAG_REDIS_URL`) for distributed deployments
 - No built-in user authentication/authorization (relies on optional API key authentication)
 
 ## Disclosure Policy

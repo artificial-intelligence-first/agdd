@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from agdd.api.config import Settings, get_settings
-from agdd.api.server import app
+from magsag.api.config import Settings, get_settings
+from magsag.api.server import app
 
 
 pytestmark = pytest.mark.slow
@@ -192,7 +192,7 @@ class TestRunTrackerValidation:
 
     def test_validate_run_id_accepts_valid(self) -> None:
         """Test that validate_run_id accepts valid formats."""
-        from agdd.api.run_tracker import validate_run_id
+        from magsag.api.run_tracker import validate_run_id
 
         # Should not raise
         validate_run_id("mag-test-123")
@@ -201,7 +201,7 @@ class TestRunTrackerValidation:
 
     def test_validate_run_id_rejects_traversal(self) -> None:
         """Test that validate_run_id rejects directory traversal."""
-        from agdd.api.run_tracker import validate_run_id
+        from magsag.api.run_tracker import validate_run_id
 
         with pytest.raises(ValueError, match="Invalid run_id"):
             validate_run_id("../../../../etc")
@@ -214,7 +214,7 @@ class TestRunTrackerValidation:
 
     def test_validate_run_id_rejects_path_separators(self) -> None:
         """Test that validate_run_id rejects path separators."""
-        from agdd.api.run_tracker import validate_run_id
+        from magsag.api.run_tracker import validate_run_id
 
         # Path separators are rejected by the regex pattern check
         with pytest.raises(ValueError, match="Invalid run_id"):
@@ -225,7 +225,7 @@ class TestRunTrackerValidation:
 
     def test_safe_run_path_rejects_traversal(self, tmp_path: Path) -> None:
         """Test that _safe_run_path verifies resolved path is within base_dir."""
-        from agdd.api.run_tracker import _safe_run_path
+        from magsag.api.run_tracker import _safe_run_path
 
         base_dir = tmp_path / "runs"
         base_dir.mkdir()
@@ -236,7 +236,7 @@ class TestRunTrackerValidation:
 
     def test_safe_run_path_accepts_valid(self, tmp_path: Path) -> None:
         """Test that _safe_run_path accepts valid run_id."""
-        from agdd.api.run_tracker import _safe_run_path
+        from magsag.api.run_tracker import _safe_run_path
 
         base_dir = tmp_path / "runs"
         base_dir.mkdir()

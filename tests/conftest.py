@@ -43,19 +43,19 @@ def disable_mcp_for_tests() -> Iterator[None]:
     """Disable MCP integrations during tests unless explicitly re-enabled.
 
     Heavyweight MCP servers (e.g. npx-based helpers) slow down or hang
-    parallel test workers. Setting ``AGDD_ENABLE_MCP=0`` keeps the default
+    parallel test workers. Setting ``MAGSAG_ENABLE_MCP=0`` keeps the default
     agent runner lightweight while individual tests can override it.
     """
 
-    previous = os.getenv("AGDD_ENABLE_MCP")
-    os.environ["AGDD_ENABLE_MCP"] = "0"
+    previous = os.getenv("MAGSAG_ENABLE_MCP")
+    os.environ["MAGSAG_ENABLE_MCP"] = "0"
 
-    # Ensure agdd.mcp exports server provider helpers even with MCP disabled.
+    # Ensure magsag.mcp exports server provider helpers even with MCP disabled.
     try:
-        mcp_module = importlib.import_module("agdd.mcp")
+        mcp_module = importlib.import_module("magsag.mcp")
         if not getattr(mcp_module, "HAS_SERVER_PROVIDER", False):
-            server_provider = importlib.import_module("agdd.mcp.server_provider")
-            setattr(mcp_module, "AGDDMCPServer", getattr(server_provider, "AGDDMCPServer", None))
+            server_provider = importlib.import_module("magsag.mcp.server_provider")
+            setattr(mcp_module, "MAGSAGMCPServer", getattr(server_provider, "MAGSAGMCPServer", None))
             setattr(mcp_module, "create_server", getattr(server_provider, "create_server", None))
             setattr(
                 mcp_module,
@@ -69,6 +69,6 @@ def disable_mcp_for_tests() -> Iterator[None]:
         yield
     finally:
         if previous is None:
-            os.environ.pop("AGDD_ENABLE_MCP", None)
+            os.environ.pop("MAGSAG_ENABLE_MCP", None)
         else:
-            os.environ["AGDD_ENABLE_MCP"] = previous
+            os.environ["MAGSAG_ENABLE_MCP"] = previous

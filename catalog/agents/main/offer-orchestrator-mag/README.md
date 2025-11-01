@@ -173,12 +173,12 @@ cat > candidate.json <<EOF
 EOF
 
 # Run orchestrator
-uv run python -m agdd.cli agent run offer-orchestrator-mag --json candidate.json
+uv run python -m magsag.cli agent run offer-orchestrator-mag --json candidate.json
 ```
 
 ### Programmatic
 ```python
-from agdd.runners.agent_runner import invoke_mag
+from magsag.runners.agent_runner import invoke_mag
 
 payload = {
     "role": "Product Manager",

@@ -1,18 +1,18 @@
 ---
-title: AGDD Single Source of Truth
+title: MAGSAG Single Source of Truth
 slug: ssot
 status: living
 last_synced: 2025-10-30
-tags: [agdd, ssot, governance, contracts, terminology]
-description: "Canonical definitions, data contracts, policies, and interfaces for the AG-Driven Development framework."
-source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
+tags: [magsag, ssot, governance, contracts, terminology]
+description: "Canonical definitions, data contracts, policies, and interfaces for the MAGSAG framework."
+source_of_truth: "https://github.com/artificial-intelligence-first/magsag"
 sources:
-  - { id: R1, title: "AGDD Catalog", url: "catalog/", accessed: "2025-10-30" }
-  - { id: R2, title: "AGDD API Server", url: "src/agdd/api/server.py", accessed: "2025-10-30" }
-  - { id: R3, title: "Observability Logger", url: "src/agdd/observability/logger.py", accessed: "2025-10-30" }
+  - { id: R1, title: "MAGSAG Catalog", url: "catalog/", accessed: "2025-10-30" }
+  - { id: R2, title: "MAGSAG API Server", url: "src/magsag/api/server.py", accessed: "2025-10-30" }
+  - { id: R3, title: "Observability Logger", url: "src/magsag/observability/logger.py", accessed: "2025-10-30" }
 ---
 
-# AGDD Single Source of Truth (SSOT)
+# MAGSAG Single Source of Truth (SSOT)
 
 > **For Humans**: Treat this file as authoritative. Update it before changing terminology, contracts, or governance policies, then propagate changes elsewhere.
 >
@@ -20,9 +20,9 @@ sources:
 
 ## Scope
 
-AGDD provides:
-- Typer CLI (`agdd`) with flow, agent, data, and MCP commands.
-- FastAPI HTTP API (`agdd.api.server`) with governance-aware error handling.
+MAGSAG provides:
+- Typer CLI (`magsag`) with flow, agent, data, and MCP commands.
+- FastAPI HTTP API (`magsag.api.server`) with governance-aware error handling.
 - Agent Runner that orchestrates MAG/SAG lifecycles, skills, and evaluation hooks.
 - Catalog of declarative assets (agents, skills, routing, policies, evals).
 - Observability stack writing run artefacts to `.runs/` and optional Postgres/Redis backends.
@@ -36,9 +36,9 @@ AGDD provides:
 | **Skill** | Reusable capability invoked via `SkillRuntime`. Declared in registry with optional MCP permissions. | `catalog/registry/skills.yaml` |
 | **ExecPlan** | Structured plan document tracking multi-session initiatives. | `docs/development/plans/`, `PLANS.md` |
 | **Run Artefact** | Logs, metrics, and summaries generated per execution. | `.runs/agents/<run-id>/` |
-| **Governance Gate** | Policy evaluation executed via `agdd flow gate`. | `catalog/policies/` |
-| **Plan Router** | Provider/model selection logic for LLM calls. | `agdd.routing.router` |
-| **MCP** | Model Context Protocol integration exposing agents/skills as tools or consuming external systems. | `agdd.mcp.*`, `docs/guides/mcp-integration.md` |
+| **Governance Gate** | Policy evaluation executed via `magsag flow gate`. | `catalog/policies/` |
+| **Plan Router** | Provider/model selection logic for LLM calls. | `magsag.routing.router` |
+| **MCP** | Model Context Protocol integration exposing agents/skills as tools or consuming external systems. | `magsag.mcp.*`, `docs/guides/mcp-integration.md` |
 
 ## Data Contracts
 
@@ -56,14 +56,14 @@ AGDD provides:
 - Used by: `compensation-advisor-sag`
 - Contains `candidate_profile` object validated against candidate schema
 
-### Flow Summary (`src/agdd/assets/contracts/flow_summary.schema.json`)
+### Flow Summary (`src/magsag/assets/contracts/flow_summary.schema.json`)
 - Input for governance gate evaluations
 - Key metrics: `runs`, `success_rate`, `avg_latency_ms`, `steps[]`, `mcp.calls`
 
 ## API Surface
 
 - **Base prefix**: `/api/v1`
-- **Authentication**: Optional bearer token via `AGDD_API_KEY`
+- **Authentication**: Optional bearer token via `MAGSAG_API_KEY`
 - **Endpoints**:
   - `GET /health` – Liveness probe
   - `GET /api/v1/agents` – List registered agent descriptors
@@ -77,30 +77,30 @@ AGDD provides:
 
 | Setting | Description | Default | Location |
 |---------|-------------|---------|----------|
-| `AGDD_API_PREFIX` | HTTP API base path | `/api/v1` | `agdd.api.config.Settings` |
-| `AGDD_STORAGE_BACKEND` | `sqlite` or `postgres` | `sqlite` | `agdd.api.config.Settings` |
-| `AGDD_STORAGE_DB_PATH` | SQLite file path | `.agdd/storage.db` | `agdd.api.config.Settings` |
-| `AGDD_STORAGE_ENABLE_FTS` | Enable SQLite FTS5 | `true` | `agdd.api.config.Settings` |
-| `AGDD_MCP_SERVERS_DIR` | MCP server config directory | `.mcp/servers` | `agdd.mcp.registry` |
-| `AGDD_PROVIDER` | Default LLM provider hint | `local` | `agdd.router.Router` |
-| `AGDD_MODEL` | Default model override | `None` | `agdd.routing.router` |
-| `AGDD_RATE_LIMIT_QPS` | API rate limit | `None` | `agdd.api.rate_limit` |
+| `MAGSAG_API_PREFIX` | HTTP API base path | `/api/v1` | `magsag.api.config.Settings` |
+| `MAGSAG_STORAGE_BACKEND` | `sqlite` or `postgres` | `sqlite` | `magsag.api.config.Settings` |
+| `MAGSAG_STORAGE_DB_PATH` | SQLite file path | `.magsag/storage.db` | `magsag.api.config.Settings` |
+| `MAGSAG_STORAGE_ENABLE_FTS` | Enable SQLite FTS5 | `true` | `magsag.api.config.Settings` |
+| `MAGSAG_MCP_SERVERS_DIR` | MCP server config directory | `.mcp/servers` | `magsag.mcp.registry` |
+| `MAGSAG_PROVIDER` | Default LLM provider hint | `local` | `magsag.router.Router` |
+| `MAGSAG_MODEL` | Default model override | `None` | `magsag.routing.router` |
+| `MAGSAG_RATE_LIMIT_QPS` | API rate limit | `None` | `magsag.api.rate_limit` |
 
 ## Governance Policies
 
 - **Flow Runner Gate**: Policies in `catalog/policies/flow_governance.yaml` set thresholds for success rate, latency, required steps, and MCP error rates.
 - **Routing Policies**: `catalog/routing/` describes provider/model selection and fallback tiers.
-- **Moderation**: `agdd.moderation` integrates OpenAI omni-moderation; enable via plan metadata when required.
-- **Storage Retention**: `agdd.storage` supports vacuum policies (`hot_days`, `max_disk_mb`) invoked via `agdd data vacuum`.
+- **Moderation**: `magsag.moderation` integrates OpenAI omni-moderation; enable via plan metadata when required.
+- **Storage Retention**: `magsag.storage` supports vacuum policies (`hot_days`, `max_disk_mb`) invoked via `magsag data vacuum`.
 
 ## Observability
 
-- `ObservabilityLogger` (see `src/agdd/observability/logger.py`) writes:
+- `ObservabilityLogger` (see `src/magsag/observability/logger.py`) writes:
   - `logs.jsonl`: Event stream with span context
   - `metrics.json`: Aggregated metrics (latency, cost, tokens)
   - `summary.json`: Execution metadata (span ids, cost totals)
-- Cost tracking persists to JSONL and optional SQLite when `agdd.observability.cost_tracker` is configured.
-- Integrations with OpenTelemetry and Langfuse activate via `agdd[observability]` extra.
+- Cost tracking persists to JSONL and optional SQLite when `magsag.observability.cost_tracker` is configured.
+- Integrations with OpenTelemetry and Langfuse activate via `magsag[observability]` extra.
 
 ## Skill Lifecycle
 
@@ -122,10 +122,10 @@ AGDD provides:
 
 | Integration | Usage | Notes |
 |-------------|-------|-------|
-| Flow Runner CLI (`flowctl`) | Optional external orchestrator | Detected via `agdd flow available` |
+| Flow Runner CLI (`flowctl`) | Optional external orchestrator | Detected via `magsag flow available` |
 | OpenAI / Anthropic / Google | LLM providers | Selected via routing policy or environment overrides |
 | MCP Servers | Expose agents/skills or consume external tools | Configured in `.mcp/servers/*.yaml` |
-| Postgres / Redis | Storage & caching backends | Enabled via extras `agdd[postgres]`, `agdd[redis]` |
+| Postgres / Redis | Storage & caching backends | Enabled via extras `magsag[postgres]`, `magsag[redis]` |
 
 ## Related Documentation
 

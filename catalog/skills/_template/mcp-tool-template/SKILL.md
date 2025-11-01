@@ -17,7 +17,7 @@ limits:
 # <Skill Display Name> (<skill-name>)
 
 ## Purpose
-MCP Tool Template provides a standardized structure for creating skills that wrap Model Context Protocol (MCP) tools. This template demonstrates how to integrate external MCP servers into the AGDD framework while maintaining contract validation, error handling, and observability requirements.
+MCP Tool Template provides a standardized structure for creating skills that wrap Model Context Protocol (MCP) tools. This template demonstrates how to integrate external MCP servers into the MAGSAG framework while maintaining contract validation, error handling, and observability requirements.
 
 ## When to Use
 - You need to integrate an external MCP tool as a reusable skill

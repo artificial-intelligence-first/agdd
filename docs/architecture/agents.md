@@ -1,138 +1,113 @@
 ---
-title: AGDD Agents Playbook
+title: MAGSAG Agent Guidelines
 slug: agents
 status: living
 last_synced: 2025-10-30
-tags: [agdd, agents, automation, governance]
-description: "Machine-oriented operating manual for contributors and AI assistants working inside the AG-Driven Development framework."
-source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
-sources:
-  - { id: R1, title: "AGDD README", url: "README.md", accessed: "2025-10-30" }
-  - { id: R2, title: "Agent Runner Implementation", url: "src/agdd/runners/agent_runner.py", accessed: "2025-10-30" }
-  - { id: R3, title: "Single Source of Truth", url: "../architecture/ssot.md", accessed: "2025-10-30" }
+tags: [magsag, agents, workflow]
+description: "Concise operating rules for developers and AI assistants working on MAGSAG."
+source_of_truth: "https://github.com/artificial-intelligence-first/magsag"
 ---
 
-# AGDD Agents Playbook (AGENTS.md)
+# MAGSAG Agent Guidelines
 
-> **For Humans**: This document captures the canonical workflow AI assistants follow when touching the AGDD repository. Use it to understand which commands they run, how they validate work, and where they record changes.
->
-> **For AI Agents**: Obey every instruction in this playbook unless the user overrides it explicitly. When in doubt, stop and ask instead of guessing.
+The goal of this playbook is to keep human and AI contributors aligned on the
+minimum set of rules required to land safe changes quickly. Everything here is
+actionable; follow it unless the user or maintainer explicitly overrides it.
 
-## Dev Environment Tips
+## Environment Essentials
 
-- **Language & Runtime**: Python 3.12+. Use [`uv`](https://docs.astral.sh/uv/) for dependency management (`uv sync --extra dev`).
-- **Project layout**: Source lives under `src/agdd/`, catalog assets under `catalog/`, integration docs in `docs/`.
-- **CLI entry point**: `uv run agdd --help` for Typer-based commands (`flow`, `agent`, `data`, `mcp`).
-- **API server**: `uv run uvicorn agdd.api.server:app --reload` for local development.
-- **Environment variables**: All runtime configuration uses the `AGDD_` prefix. See `agdd.api.config.Settings` for defaults.
-- **Storage**: SQLite lives at `.agdd/storage.db`. Postgres and Redis extras activate when installed via `uv sync --extra production`.
-- **Observability artifacts**: Agent execution writes JSONL logs, metrics, and run summaries under `.runs/agents/<run-id>/`.
+- Use Python 3.12 with [`uv`](https://docs.astral.sh/uv/) for dependency
+  management: `uv sync --extra dev`.
+- Source code lives under `src/magsag/`, catalog assets under `catalog/`, docs in
+  `docs/`. Keep new modules inside `src/magsag/` unless instructed otherwise.
+- The Typer CLI is the primary entry point: `uv run magsag --help`.
+- Run the API server locally with `uv run python -m magsag.api.server`.
+- Configuration is namespaced by `MAGSAG_`; defaults are in
+  `magsag.api.config.Settings`.
 
-## Testing Instructions
+## Architecture Snapshot
 
-- One-time setup for development tools (enables parallel tests):
-  ```bash
-  uv sync --extra dev
-  ```
+```
+┌──────────────────────────────────────────────────────────────┐
+│                          Interfaces                          │
+│   Typer CLI (wt/agent/flow)  FastAPI API  GitHub Hooks & Jobs │
+└───────────────┬────────────────────┬──────────────────────────┘
+                │                    │
+                ▼                    ▼
+┌──────────────────────────────────────────────────────────────┐
+│                 Orchestration & Governance                    │
+│   Runner Hooks ─ Approvals ─ Policies ─ Worktree Manager     │
+│   Agent Runner ─ Skill Runtime ─ Flow Runner adapters        │
+└──────────────────────────┬────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────┐
+│                 Execution & Observability                     │
+│   Catalog (agents/skills/contracts)                           │
+│   Storage (SQLite, Postgres) + MCP Providers                   │
+│   Telemetry (OpenTelemetry, Langfuse)                          │
+└──────────────────────────────────────────────────────────────┘
+```
 
-- Run the fast suite before committing (default excludes slow, parallel on):
-  ```bash
-  uv run --no-sync -m pytest -q
-  ```
-- Execute slow or integration targets when touching runners, MCP, or catalog flows:
-  ```bash
-  uv run --no-sync -m pytest -m slow
-  uv run --no-sync -m pytest tests/integration/test_e2e_offer_flow.py
-  ```
-- Run MCP-focused tests with the full suite enabled:
-  ```bash
-  make test-mcp
-  ```
+- Interfaces feed the orchestration layer.
+- Governance enforces approvals and emits audit events.
+- Catalog assets, storage backends, and MCP providers execute the work.
 
-- Make shortcuts:
-  ```bash
-  make test        # fast suite (default, excludes slow)
-  make test-all    # fast + slow
-  make test-slow   # slow only
-  ```
-- Type checking is mandatory:
-  ```bash
-  uv run mypy src tests
-  ```
-- Linting and formatting:
-  ```bash
-  uv run ruff format .
-  uv run ruff check .
-  ```
-- Validate catalog schemas via pytest (covered in test suite)
-- Flow Runner governance checks:
-  ```bash
-  uv run agdd flow validate examples/flowrunner/prompt_flow.yaml
-  uv run agdd flow gate path/to/summary.json
-  ```
-- Record test results in your message; never claim success without running the commands above unless the user explicitly waives them.
+## Repository Layout
 
-## Build & Deployment
+```
+src/magsag/          → Core package code (api, runners, worktree, governance, observability)
+catalog/             → Agents, skills, schemas, policies
+docs/                → Architecture notes, guides, development docs
+ops/                 → Maintenance scripts and tooling
+benchmarks/          → Performance harnesses
+tests/               → Unit, integration, observability, MCP suites
+```
 
-- Package build: `uv build` (setuptools backend).
-- API launch (production-style): `uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000`.
-- Storage lifecycle: `uv run agdd data init`, `uv run agdd data vacuum --dry-run`, `uv run agdd data vacuum`.
-- MCP server: `uv run agdd mcp serve` exposes registered agents and skills to Model Context Protocol clients.
-- Always document deployment steps in the relevant ExecPlan and note outcomes in `docs/development/changelog.md`.
+## Required Checks Before Any PR
 
-## Linting & Code Quality
+```bash
+uv run ruff check
+uv run mypy src/magsag tests
+uv run pytest -q -m "not slow"
+uv run python ops/tools/check_docs.py
+```
 
-- Respect the 100-character line limit configured in `pyproject.toml`.
-- Use docstrings for public APIs and include type hints everywhere.
-- Run `uv run bandit -r src` when touching security-sensitive code.
-- Keep dependencies pinned through `pyproject.toml` + `uv.lock`; do not edit `requirements.txt` (not used).
+If a check is intentionally skipped, state the reason in the delivery message.
 
-## PR Instructions
+## Change Workflow
 
-1. Create a branch: `feature/<slug>` or `fix/<issue-id>`.
-2. Implement changes with accompanying tests and docs.
-3. Update documentation: `README.md`, `SSOT.md`, `SKILL.md`, and relevant guides under `docs/`.
-4. Update `CHANGELOG.md` (`## [Unreleased]`).
-5. Prepare PR description including:
-   - Summary of changes and impacted components.
-   - Commands executed with pass/fail outcome.
-   - Follow-up work, migration steps, or rollout concerns.
-6. Keep commits clean (rebase preferred). CI must be green before requesting review.
+1. Create an isolated worktree: `uv run magsag wt new <run> --task <slug> --base main`.
+2. Implement the change with type hints and focused tests.
+3. Update documentation or catalog entries impacted by the change.
+4. Record the commands you executed and their outcomes.
+5. Stage changes with `git add -u` (rename-aware) and avoid unrelated drive-by edits.
 
-## Security & Credentials
+## Governance Expectations
 
-- Never commit secrets or tokens. Use environment variables and secret managers.
-- Sanitize logs that might include user data or model outputs flagged by moderation.
-- Follow `SECURITY.md` for vulnerability disclosure and incident handling.
-- When storing artefacts externally, ensure the destination is approved and documented in `SSOT.md`.
-
-## Observability & Governance
-
-- Use `ObservabilityLogger` for new agent stages; ensure start/end events and placeholder cost metrics are recorded.
-- Update governance policies under `catalog/policies/` when creating new quality gates.
-- Summaries produced by Flow Runner must pass `agdd flow gate` before merging automation changes.
-
-## ExecPlan Workflow
-
-- Create ExecPlans for multi-session or high-risk work. Store them under `docs/development/plans/` and register them in `PLANS.md`.
-- Update Progress, Decision Log, and Surprises/Discoveries sections in real time with UTC timestamps.
-- Close plans by documenting outcomes, validation evidence, and follow-up tasks.
-
-## Reference Surfaces
-
-- **Canonical terminology**: `SSOT.md`.
-- **Agent orchestration**: `src/agdd/runners/agent_runner.py`.
-- **Skill runtime**: `catalog/registry/skills.yaml`, `catalog/skills/*/` directories.
-- **Governance configuration**: `catalog/policies/`, `catalog/routing/`.
-- **Integration guides**: `docs/guides/` (MCP integration, cost optimisation, semantic cache, etc.).
+- Never commit secrets. Use environment variables or the secret manager referenced
+  in `docs/policies/security.md`.
+- Keep naming consistent with the `magsag` package. Do not reintroduce legacy `agdd`
+  tokens or directories.
+- Update `CHANGELOG.md` under `## [Unreleased]` whenever public behaviour or docs shift.
+- Prefer incremental plans (`docs/development/plans/`) for multi-session work and
+  close them with validation notes once delivered.
 
 ## When to Pause and Ask
 
-- Requirements conflict with `SSOT.md` or governance policies.
-- User requests destructive actions (e.g., rewriting history, deleting data) without explicit approval.
-- Test commands fail or produce ambiguous output.
-- MCP servers or external dependencies are unavailable and no fallback exists.
+- Requirements conflict with `docs/architecture/ssot.md`.
+- A destructive action is requested without explicit approval (e.g., rewriting git
+  history, purging data).
+- External dependencies (OpenAI, Anthropic, Flow Runner) fail and no fallback
+  exists.
+- Governance policies or security guidelines seem ambiguous.
 
-## Update Log
+## Reference Surfaces
 
-- 2025-10-30: Rebuilt AGENTS.md to follow SSOT convention with AGDD-specific workflows.
+- `src/magsag/runners/agent_runner.py` – canonical executor.
+- `catalog/registry/` – agent and skill registry entries.
+- `docs/guides/` – integration-specific walkthroughs (MCP, moderation, GitHub).
+- `docs/development/worktrees.md` – detailed worktree automation.
+
+Keep this file concise. If you need deep details, link out to the dedicated guide
+instead of inlining them here.

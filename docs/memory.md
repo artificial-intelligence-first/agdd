@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Memory IR (Intermediate Representation) layer provides structured, persistent memory storage for AGDD agents. It enables agents to maintain context across runs, share information across agent boundaries, and implement sophisticated memory management strategies with built-in governance, TTL, and PII handling.
+The Memory IR (Intermediate Representation) layer provides structured, persistent memory storage for MAGSAG agents. It enables agents to maintain context across runs, share information across agent boundaries, and implement sophisticated memory management strategies with built-in governance, TTL, and PII handling.
 
 ## Architecture
 
@@ -40,24 +40,24 @@ Memory entries are organized by scope, which determines their lifetime and visib
 
 ### Feature Flag
 
-Memory IR is controlled by the `AGDD_MEMORY_ENABLED` feature flag:
+Memory IR is controlled by the `MAGSAG_MEMORY_ENABLED` feature flag:
 
 ```bash
 # Enable memory IR
-export AGDD_MEMORY_ENABLED=true
+export MAGSAG_MEMORY_ENABLED=true
 
 # Disable memory IR (default, maintains backward compatibility)
-export AGDD_MEMORY_ENABLED=false
+export MAGSAG_MEMORY_ENABLED=false
 ```
 
 ### Runner Integration
 
-When `AGDD_MEMORY_ENABLED` is active (or `enable_memory=True` is passed to `AgentRunner`), MAG and SAG executions automatically persist session-scoped `input` and `output` memories. Use `await runner.load_memories(...)` inside agents to retrieve recent context or `await runner.save_memory(...)` for durable entries.
+When `MAGSAG_MEMORY_ENABLED` is active (or `enable_memory=True` is passed to `AgentRunner`), MAG and SAG executions automatically persist session-scoped `input` and `output` memories. Use `await runner.load_memories(...)` inside agents to retrieve recent context or `await runner.save_memory(...)` for durable entries.
 
 ### Creating Memory Entries
 
 ```python
-from agdd.core.memory import create_memory, MemoryScope
+from magsag.core.memory import create_memory, MemoryScope
 
 # Create a session-scoped memory
 session_memory = create_memory(
@@ -103,11 +103,11 @@ org_config = create_memory(
 ### Working with Storage Backends
 
 ```python
-from agdd.storage.memory_store import SQLiteMemoryStore
+from magsag.storage.memory_store import SQLiteMemoryStore
 
 # Initialize SQLite store (development)
 store = SQLiteMemoryStore(
-    db_path=".agdd/memory.db",
+    db_path=".magsag/memory.db",
     enable_fts=True  # Enable full-text search
 )
 await store.initialize()
@@ -142,11 +142,11 @@ await store.close()
 ### PostgreSQL Backend (Production)
 
 ```python
-from agdd.storage.memory_store import PostgresMemoryStore
+from magsag.storage.memory_store import PostgresMemoryStore
 
 # Initialize PostgreSQL store
 store = PostgresMemoryStore(
-    dsn="postgresql://user:pass@localhost/agdd"
+    dsn="postgresql://user:pass@localhost/magsag"
 )
 await store.initialize()
 
@@ -242,7 +242,7 @@ if memory.is_expired():
     print("Memory has expired")
 
 # Apply default TTL for scope
-from agdd.core.memory import apply_default_ttl
+from magsag.core.memory import apply_default_ttl
 
 ttl = apply_default_ttl(MemoryScope.SESSION)  # 3600 seconds
 ```
@@ -485,7 +485,7 @@ Memory stores support encryption at rest:
 
 ```bash
 # SQLite: Use encrypted filesystem or SQLite encryption extension
-export AGDD_MEMORY_DB_PATH="/encrypted/volume/memory.db"
+export MAGSAG_MEMORY_DB_PATH="/encrypted/volume/memory.db"
 
 # PostgreSQL: Enable pgcrypto extension
 # Encrypt sensitive columns: value, metadata

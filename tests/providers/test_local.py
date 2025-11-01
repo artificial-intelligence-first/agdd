@@ -7,8 +7,8 @@ from unittest.mock import ANY, Mock, patch
 import httpx
 import pytest
 
-from agdd.providers.base import LLMResponse
-from agdd.providers.local import LocalLLMProvider, LocalProviderConfig, ResponsesNotSupportedError
+from magsag.providers.base import LLMResponse
+from magsag.providers.local import LocalLLMProvider, LocalProviderConfig, ResponsesNotSupportedError
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def test_responses_success_returns_llmresponse(local_config: LocalProviderConfig
     compat_provider.generate.side_effect = AssertionError("Should not fall back")
     compat_provider.close = Mock()
 
-    with patch("agdd.providers.local.httpx.Client", return_value=mock_client):
+    with patch("magsag.providers.local.httpx.Client", return_value=mock_client):
         provider = LocalLLMProvider(config=local_config, compat_provider=compat_provider)
         result = provider.generate("Hello!", model="llama-local")
         provider.close()
@@ -82,7 +82,7 @@ def test_responses_unavailable_falls_back_to_chat(
     compat_provider.generate.return_value = _make_llm_response()
     compat_provider.close = Mock()
 
-    with patch("agdd.providers.local.httpx.Client", return_value=mock_client):
+    with patch("magsag.providers.local.httpx.Client", return_value=mock_client):
         provider = LocalLLMProvider(config=local_config, compat_provider=compat_provider)
         with caplog.at_level("WARNING"):
             result = provider.generate(
@@ -106,7 +106,7 @@ def test_responses_not_supported_error_triggers_fallback(
     compat_provider.generate.return_value = _make_llm_response()
     compat_provider.close = Mock()
 
-    with patch("agdd.providers.local.httpx.Client"):
+    with patch("magsag.providers.local.httpx.Client"):
         provider = LocalLLMProvider(config=local_config, compat_provider=compat_provider)
         with patch.object(
             provider,

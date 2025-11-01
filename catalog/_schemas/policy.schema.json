@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agdd.ai/schemas/policy.schema.json",
-  "title": "AGDD Policy Schema",
-  "description": "Schema for AGDD flow governance policies",
+  "$id": "https://magsag.ai/schemas/policy.schema.json",
+  "title": "MAGSAG Policy Schema",
+  "description": "Schema for MAGSAG flow governance policies",
   "type": "object",
   "properties": {
     "$schema": {

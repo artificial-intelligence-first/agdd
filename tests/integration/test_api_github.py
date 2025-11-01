@@ -13,8 +13,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from agdd.api.config import Settings, get_settings
-from agdd.api.server import app
+from magsag.api.config import Settings, get_settings
+from magsag.api.server import app
 
 
 pytestmark = pytest.mark.slow
@@ -104,8 +104,8 @@ def test_webhook_signature_verification_succeeds(client_with_github: TestClient)
     assert data["status"] == "ok"
 
 
-@patch("agdd.integrations.github.webhook.post_comment", new_callable=AsyncMock)
-@patch("agdd.integrations.github.webhook.invoke_mag")
+@patch("magsag.integrations.github.webhook.post_comment", new_callable=AsyncMock)
+@patch("magsag.integrations.github.webhook.invoke_mag")
 def test_webhook_issue_comment_with_command(
     mock_invoke: Any,
     mock_post: AsyncMock,
@@ -157,8 +157,8 @@ def test_webhook_issue_comment_with_command(
     assert "test-agent" in post_args[2]
 
 
-@patch("agdd.integrations.github.webhook.post_comment", new_callable=AsyncMock)
-@patch("agdd.integrations.github.webhook.invoke_mag")
+@patch("magsag.integrations.github.webhook.post_comment", new_callable=AsyncMock)
+@patch("magsag.integrations.github.webhook.invoke_mag")
 def test_webhook_agent_execution_failure(
     mock_invoke: Any,
     mock_post: AsyncMock,

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 import yaml
 
-from agdd.mcp import (
+from magsag.mcp import (
     MCPRegistry,
     MCPRegistryError,
     MCPRuntime,
@@ -16,7 +16,7 @@ from agdd.mcp import (
     MCPServerConfig,
     MCPServerError,
 )
-from agdd.mcp.config import PostgresConnection
+from magsag.mcp.config import PostgresConnection
 
 
 pytestmark = pytest.mark.slow

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 """
 Task Decomposition Skill

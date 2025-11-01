@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.observability.summarize_runs import summarize
+from magsag.observability.summarize_runs import summarize
 
 
 def test_summarize_handles_missing_directory(tmp_path: Path) -> None:
@@ -133,7 +133,7 @@ def test_flow_summarize_cli_outputs_json(tmp_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "agdd.cli",
+            "magsag.cli",
             "flow",
             "summarize",
             "--base",

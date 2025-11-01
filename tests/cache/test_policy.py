@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agdd.cache.policy import (
+from magsag.cache.policy import (
     CachePolicyConfig,
     get_cache_policy_config,
     get_ttl,

@@ -9,13 +9,13 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client() -> TestClient:
     """Create a test client for the API."""
-    from agdd.api.server import app
+    from magsag.api.server import app
     return TestClient(app)
 
 @pytest.fixture
 def mock_invoke_mag() -> Iterator[MagicMock]:
     """Mock the invoke_mag function to avoid actual agent execution."""
-    with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+    with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
 
         def _mock_invoke(slug: str, payload: Dict[str, Any], base_dir: Any, context: Dict[str, Any]) -> Dict[str, Any]:
             context['run_id'] = f'mag-test-{slug}'
@@ -60,7 +60,7 @@ class TestPostRunsEndpoint:
 
     def test_create_run_agent_not_found(self, client: TestClient) -> None:
         """Test run creation fails when agent is not found."""
-        with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+        with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
             mock.side_effect = FileNotFoundError('Agent not found')
             response = client.post('/api/v1/runs', json={'agent': 'nonexistent-agent', 'payload': {'input': 'test'}})
             assert response.status_code == 404
@@ -69,7 +69,7 @@ class TestPostRunsEndpoint:
 
     def test_create_run_invalid_payload(self, client: TestClient) -> None:
         """Test run creation fails with invalid payload."""
-        with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+        with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
             mock.side_effect = ValueError('Invalid payload format')
             response = client.post('/api/v1/runs', json={'agent': 'test-agent', 'payload': {'invalid': 'data'}})
             assert response.status_code == 400
@@ -78,7 +78,7 @@ class TestPostRunsEndpoint:
 
     def test_create_run_execution_failed(self, client: TestClient) -> None:
         """Test run creation fails when execution fails."""
-        with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+        with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
             mock.side_effect = RuntimeError('Execution failed')
             response = client.post('/api/v1/runs', json={'agent': 'test-agent', 'payload': {'input': 'test'}})
             assert response.status_code == 400
@@ -87,7 +87,7 @@ class TestPostRunsEndpoint:
 
     def test_create_run_internal_error(self, client: TestClient) -> None:
         """Test run creation returns 500 on unexpected errors."""
-        with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+        with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
             mock.side_effect = Exception('Unexpected error')
             response = client.post('/api/v1/runs', json={'agent': 'test-agent', 'payload': {'input': 'test'}})
             assert response.status_code == 500
@@ -186,7 +186,7 @@ class TestIdempotencyMiddleware:
         """Test that background tasks run on first request but not on replayed requests."""
         from fastapi import FastAPI, Response
         from fastapi.testclient import TestClient
-        from agdd.api.middleware import IdempotencyMiddleware
+        from magsag.api.middleware import IdempotencyMiddleware
         task_counter: Dict[str, int] = {'count': 0}
 
         def background_task() -> None:
@@ -213,7 +213,7 @@ class TestIdempotencyMiddleware:
         """Test that responses without Content-Length are treated as streaming."""
         from fastapi import FastAPI, Response
         from fastapi.testclient import TestClient
-        from agdd.api.middleware import IdempotencyMiddleware
+        from magsag.api.middleware import IdempotencyMiddleware
         call_counter: Dict[str, int] = {'count': 0}
         test_app = FastAPI()
         test_app.add_middleware(IdempotencyMiddleware)
@@ -237,9 +237,9 @@ class TestIdempotencyMiddleware:
     async def test_idempotency_concurrent_requests(self) -> None:
         """Test that concurrent requests with same idempotency key execute only once."""
         from httpx import ASGITransport, AsyncClient
-        from agdd.api.server import app
+        from magsag.api.server import app
         call_counter: Dict[str, int] = {'count': 0}
-        with patch('agdd.api.routes.runs_create.invoke_mag') as mock:
+        with patch('magsag.api.routes.runs_create.invoke_mag') as mock:
 
             def _mock_invoke(slug: str, payload: Dict[str, Any], base_dir: Any, context: Dict[str, Any]) -> Dict[str, Any]:
                 call_counter['count'] += 1
@@ -266,7 +266,7 @@ class TestIdempotencyMiddleware:
         """Test that locks are cleaned up to prevent memory leaks."""
         from fastapi import FastAPI
         from httpx import ASGITransport, AsyncClient
-        from agdd.api.middleware.idempotency import IdempotencyStore, IdempotencyMiddleware
+        from magsag.api.middleware.idempotency import IdempotencyStore, IdempotencyMiddleware
         test_store = IdempotencyStore(ttl_seconds=10)
         middleware_instance: IdempotencyMiddleware | None = None
 
@@ -301,7 +301,7 @@ class TestIdempotencyMiddleware:
         """Test that multi-value headers like Set-Cookie are preserved in cached responses."""
         from fastapi import FastAPI, Response
         from fastapi.testclient import TestClient
-        from agdd.api.middleware import IdempotencyMiddleware
+        from magsag.api.middleware import IdempotencyMiddleware
         test_app = FastAPI()
         test_app.add_middleware(IdempotencyMiddleware)
 
@@ -331,7 +331,7 @@ class TestIdempotencyMiddleware:
         """Test that idempotency keys are scoped per endpoint to prevent cross-endpoint collisions."""
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
-        from agdd.api.middleware import IdempotencyMiddleware
+        from magsag.api.middleware import IdempotencyMiddleware
         test_app = FastAPI()
         test_app.add_middleware(IdempotencyMiddleware)
 

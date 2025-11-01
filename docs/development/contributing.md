@@ -1,14 +1,14 @@
 ---
-title: Contributing to AGDD
+title: Contributing to MAGSAG
 last_synced: 2025-10-24
 description: Contribution guidelines, development setup, and PR process
 change_log:
   - 2025-10-24: Added front-matter and structured contribution guidelines
 ---
 
-# Contributing to AGDD
+# Contributing to MAGSAG
 
-Thank you for your interest in contributing to the AG-Driven Development (AGDD) framework!
+Thank you for your interest in contributing to the MAGSAG framework!
 
 ## Project Status
 
@@ -27,8 +27,8 @@ While the core development roadmap is driven by internal needs, we value communi
 
 ```bash
 # Clone the repository
-git clone https://github.com/artificial-intelligence-first/agdd.git
-cd agdd
+git clone https://github.com/artificial-intelligence-first/magsag.git
+cd magsag
 
 # Copy environment template
 cp .env.example .env
@@ -50,9 +50,9 @@ uv run -m pytest -q
 
 ```bash
 # Fork the repository on GitHub first, then:
-git clone https://github.com/YOUR_USERNAME/agdd.git
-cd agdd
-git remote add upstream https://github.com/artificial-intelligence-first/agdd.git
+git clone https://github.com/YOUR_USERNAME/magsag.git
+cd magsag
+git remote add upstream https://github.com/artificial-intelligence-first/magsag.git
 
 # Create a feature branch
 git checkout -b feature/your-feature-name
@@ -74,7 +74,7 @@ All contributions must include appropriate tests and maintain existing test cove
 uv run -m pytest
 
 # Run with coverage report
-uv run -m pytest --cov=agdd --cov-report=term-missing
+uv run -m pytest --cov=magsag --cov-report=term-missing
 
 # Run specific test categories
 uv run -m pytest tests/unit/           # Unit tests only
@@ -278,7 +278,7 @@ See [CODE_OF_CONDUCT.md](../policies/code-of-conduct.md) for details.
 
 ## License
 
-By contributing to AGDD, you agree that your contributions will be licensed under the MIT License.
+By contributing to MAGSAG, you agree that your contributions will be licensed under the MIT License.
 
 ## Recognition
 
@@ -287,4 +287,4 @@ Contributors will be recognized in:
 - GitHub contributors page
 - Release notes for significant contributions
 
-Thank you for contributing to AGDD!
+Thank you for contributing to MAGSAG!

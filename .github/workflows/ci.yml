@@ -43,8 +43,8 @@ jobs:
           uv pip install --python .venv_build/bin/python dist/*.whl
           .venv_build/bin/python - <<'PY'
           from importlib.resources import files
-          assert (files('agdd.assets.contracts') / 'agent.schema.json').is_file(), 'missing agent schema'
-          assert (files('agdd.assets.policies') / 'flow_governance.yaml').is_file(), 'missing governance policy'
+          assert (files('magsag.assets.contracts') / 'agent.schema.json').is_file(), 'missing agent schema'
+          assert (files('magsag.assets.policies') / 'flow_governance.yaml').is_file(), 'missing governance policy'
           print('package assets accessible')
           PY
 
@@ -88,11 +88,11 @@ jobs:
 
       - name: Execute sample flow
         run: |
-          uv run python -m agdd.cli flow run examples/flowrunner/prompt_flow.yaml
-          uv run python -m agdd.cli flow summarize --output flow_summary.json
+          uv run python -m magsag.cli flow run examples/flowrunner/prompt_flow.yaml
+          uv run python -m magsag.cli flow summarize --output flow_summary.json
 
       - name: Governance gate
-        run: uv run python -m agdd.cli flow gate flow_summary.json --policy src/agdd/assets/policies/flow_governance.yaml
+        run: uv run python -m magsag.cli flow gate flow_summary.json --policy src/magsag/assets/policies/flow_governance.yaml
 
       - name: Upload flow summary
         uses: actions/upload-artifact@v4
@@ -154,8 +154,8 @@ jobs:
       - name: Security scanning with bandit
         run: |
           uv pip install bandit[toml]
-          uv run bandit -r src/agdd/ -f json -o bandit-report.json || true
-          uv run bandit -r src/agdd/ -ll -f screen
+          uv run bandit -r src/magsag/ -f json -o bandit-report.json || true
+          uv run bandit -r src/magsag/ -ll -f screen
         continue-on-error: true
 
       - name: Dependency audit

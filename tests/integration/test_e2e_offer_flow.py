@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.runners.agent_runner import invoke_mag
+from magsag.runners.agent_runner import invoke_mag
 
 
 @pytest.mark.slow

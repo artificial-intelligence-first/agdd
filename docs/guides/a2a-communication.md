@@ -12,11 +12,11 @@ change_log:
 
 **Note:** For canonical A2A patterns and agent architecture principles, refer to [AGENTS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md).
 
-This guide covers the Agent-to-Agent (A2A) communication patterns in AGDD, focusing on the MAG (Main Agent) and SAG (Sub-Agent) orchestration architecture.
+This guide covers the Agent-to-Agent (A2A) communication patterns in MAGSAG, focusing on the MAG (Main Agent) and SAG (Sub-Agent) orchestration architecture.
 
 ## Overview
 
-AGDD implements a hierarchical agent architecture where Main Agents (MAGs) orchestrate work by delegating tasks to specialized Sub-Agents (SAGs). This pattern enables:
+MAGSAG implements a hierarchical agent architecture where Main Agents (MAGs) orchestrate work by delegating tasks to specialized Sub-Agents (SAGs). This pattern enables:
 
 - **Task decomposition**: Breaking complex requests into manageable subtasks
 - **Specialization**: Dedicated agents for specific domains
@@ -124,7 +124,7 @@ All A2A protocol types (AgentCard, JSON-RPC messages, etc.) include versioning i
 AgentCard includes a `schema_version` field (default: current version):
 
 ```python
-from agdd.protocols.a2a import AgentCard, AgentIdentity
+from magsag.protocols.a2a import AgentCard, AgentIdentity
 
 card = AgentCard(
     schema_version="1.0.0",  # Optional, defaults to current version
@@ -195,7 +195,7 @@ When the protocol version changes:
 ### Example: Version-Aware Client
 
 ```python
-from agdd.protocols.a2a import AgentCard
+from magsag.protocols.a2a import AgentCard
 
 def can_interact(card: AgentCard) -> bool:
     """Check if client can interact with agent based on protocol version."""
@@ -224,7 +224,7 @@ else:
 ```python
 # catalog/agents/main/my-orchestrator-mag/code/orchestrator.py
 
-from agdd.runners.agent_runner import Delegation, Result
+from magsag.runners.agent_runner import Delegation, Result
 
 def run(payload: dict, *, registry=None, skills=None, runner=None, obs=None) -> dict:
     """
@@ -837,7 +837,7 @@ def test_end_to_end_delegation(tmp_path):
 
     # Execute MAG
     result = subprocess.run(
-        ["uv", "run", "agdd", "agent", "run", "my-orchestrator-mag"],
+        ["uv", "run", "magsag", "agent", "run", "my-orchestrator-mag"],
         input='{"data": [1,2,3]}',
         capture_output=True,
         text=True
@@ -955,7 +955,7 @@ obs.log("delegation_complete", {...}) # When delegation completes
 obs.log("delegation_error", {...})    # On delegation error
 
 # Query delegation history
-uv run agdd data search "delegation" --agent my-mag --limit 100
+uv run magsag data search "delegation" --agent my-mag --limit 100
 ```
 
 ## Troubleshooting

@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 import yaml
 
-from agdd.routing.policy import Route, RoutingPolicy
+from magsag.routing.policy import Route, RoutingPolicy
 
 
 @pytest.fixture

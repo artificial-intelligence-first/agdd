@@ -1,4 +1,4 @@
-"""Unit tests for agdd.runners.agent_runner module"""
+"""Unit tests for magsag.runners.agent_runner module"""
 
 import asyncio
 import json
@@ -8,11 +8,11 @@ from typing import Any, Dict, cast
 
 import pytest
 
-import agdd.observability.cost_tracker as cost_tracker
-from agdd.core.memory import MemoryEntry, MemoryScope
-from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
-from agdd.storage.memory_store import SQLiteMemoryStore
-from agdd.routing.handoff_tool import HandoffTool
+import magsag.observability.cost_tracker as cost_tracker
+from magsag.core.memory import MemoryEntry, MemoryScope
+from magsag.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
+from magsag.storage.memory_store import SQLiteMemoryStore
+from magsag.routing.handoff_tool import HandoffTool
 
 pytestmark = pytest.mark.slow
 

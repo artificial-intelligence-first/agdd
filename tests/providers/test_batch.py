@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.optimization.batch import (
+from magsag.optimization.batch import (
     BatchAPIClient,
     BatchEndpoint,
     BatchRequest,

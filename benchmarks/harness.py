@@ -1,4 +1,4 @@
-"""Minimal benchmark harness for AGDD agents.
+"""Minimal benchmark harness for MAGSAG agents.
 
 This module provides a simple benchmark runner for evaluating agent performance
 across quality, cost, and latency dimensions. It supports running golden tests
@@ -103,7 +103,7 @@ class BenchResult:
 
 
 class BenchRunner:
-    """Minimal benchmark runner for AGDD agents.
+    """Minimal benchmark runner for MAGSAG agents.
 
     This runner executes benchmark tests against agents and collects performance
     metrics. Currently uses dummy measurements without real LLM calls.
@@ -427,7 +427,7 @@ def run_golden_tests(golden_dir: Path = Path("tests/golden")) -> list[BenchResul
 
 def main() -> None:
     """Main entry point for the benchmark harness."""
-    print("AGDD Benchmark Harness")
+    print("MAGSAG Benchmark Harness")
     print("=" * 50)
     print()
 

@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "agdd"
+name = "magsag"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
@@ -106,9 +106,9 @@ redis = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agdd", extras = ["dev", "production"], marker = "extra == 'all'" },
-    { name = "agdd", extras = ["mcp", "postgres", "redis", "observability"], marker = "extra == 'production'" },
-    { name = "agdd", extras = ["mcp-client", "mcp-server"], marker = "extra == 'mcp'" },
+    { name = "magsag", extras = ["dev", "production"], marker = "extra == 'all'" },
+    { name = "magsag", extras = ["mcp", "postgres", "redis", "observability"], marker = "extra == 'production'" },
+    { name = "magsag", extras = ["mcp-client", "mcp-server"], marker = "extra == 'mcp'" },
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "anyio", specifier = ">=4.0.0" },
     { name = "asyncpg", marker = "extra == 'mcp-client'", specifier = ">=0.29.0" },

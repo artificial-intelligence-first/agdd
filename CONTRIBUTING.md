@@ -1,19 +1,19 @@
 ---
-title: Contributing to AGDD
+title: Contributing to MAGSAG
 slug: contributing
 status: living
 last_updated: 2025-10-30
-tags: [agdd, contributing, governance, collaboration]
-summary: "Guidelines for contributing to the AG-Driven Development framework and keeping documentation, tests, and governance in sync."
+tags: [magsag, contributing, governance, collaboration]
+summary: "Guidelines for contributing to the MAGSAG framework and keeping documentation, tests, and governance in sync."
 sources:
-  - { id: R1, title: "AGDD README", url: "README.md", accessed: "2025-10-30" }
+  - { id: R1, title: "MAGSAG README", url: "README.md", accessed: "2025-10-30" }
   - { id: R2, title: "Agent Development Guide", url: "docs/guides/agent-development.md", accessed: "2025-10-30" }
   - { id: R3, title: "Single Source of Truth", url: "docs/architecture/ssot.md", accessed: "2025-10-30" }
 ---
 
-# Contributing to AGDD
+# Contributing to MAGSAG
 
-> **For Humans**: Thank you for improving AGDD. This guide explains our expectations, branching model, and validation steps so your work lands smoothly.
+> **For Humans**: Thank you for improving MAGSAG. This guide explains our expectations, branching model, and validation steps so your work lands smoothly.
 >
 > **For AI Agents**: Follow every checklist exactly. Keep docs/architecture/agents.md and docs/architecture/ssot.md in sync, document changes, and never skip validations unless the user waives them.
 
@@ -71,8 +71,8 @@ sources:
 | `uv run ruff check .` | Lint enforcement. |
 | `uv run bandit -r src` | Security scanning for Python code. |
 | Catalog validation | Covered by pytest (catalog tests validate schemas). |
-| `uv run agdd flow validate <flow>` | Ensure Flow Runner configs remain valid. |
-| `uv run agdd flow gate <summary.json>` | Apply governance thresholds to flow summaries. |
+| `uv run magsag flow validate <flow>` | Ensure Flow Runner configs remain valid. |
+| `uv run magsag flow gate <summary.json>` | Apply governance thresholds to flow summaries. |
 
 Record pass/fail results for each command in the PR description.
 
@@ -98,11 +98,11 @@ Record pass/fail results for each command in the PR description.
 
 ## Support Channels
 
-- **Issues**: https://github.com/artificial-intelligence-first/agdd/issues
+- **Issues**: https://github.com/artificial-intelligence-first/magsag/issues
 - **Docs**: `docs/guides/` for deep dives (agent dev, API usage, MCP integration, semantic cache, moderation, cost optimisation).
 - **Roadmap**: `docs/development/roadmap.md`
 - **Changelog**: `CHANGELOG.md` and `docs/development/changelog.md`
 
 ## Update Log
 
-- 2025-10-30: Rebuilt CONTRIBUTING guide with governance, validation, and documentation requirements aligned to AGDD.
+- 2025-10-30: Rebuilt CONTRIBUTING guide with governance, validation, and documentation requirements aligned to MAGSAG.

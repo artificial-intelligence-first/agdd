@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from agdd.providers.base import LLMResponse
-from agdd.providers.openai_compat import (
+from magsag.providers.base import LLMResponse
+from magsag.providers.openai_compat import (
     ChatCompletionRequest,
     ChatCompletionResponse,
     OpenAICompatProvider,

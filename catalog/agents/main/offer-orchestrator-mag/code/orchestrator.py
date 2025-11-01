@@ -18,7 +18,7 @@ from typing import Any, Dict
 # Import shared dataclasses from agent_runner
 # Note: These will be injected via the runner parameter, but we need them for type hints
 try:
-    from agdd.runners.agent_runner import Delegation, Result
+    from magsag.runners.agent_runner import Delegation, Result
 except ImportError:
     # Fallback for when running outside package context
     from dataclasses import dataclass
@@ -53,9 +53,9 @@ async def run(
 
     Args:
         payload: Candidate profile conforming to candidate_profile schema
-        registry: Agent/skill resolution interface (agdd.registry)
-        skills: Skill execution runtime (agdd.skills.runtime)
-        runner: Sub-agent invocation interface (agdd.runners.agent_runner)
+        registry: Agent/skill resolution interface (magsag.registry)
+        skills: Skill execution runtime (magsag.skills.runtime)
+        runner: Sub-agent invocation interface (magsag.runners.agent_runner)
         obs: Observability interface (logging/metrics)
 
     Returns:

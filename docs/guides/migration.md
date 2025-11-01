@@ -1,16 +1,16 @@
 ---
-title: AGDD Migration Guide
+title: MAGSAG Migration Guide
 last_synced: 2025-10-30
-description: "Guide for migrating from legacy features to current AGDD implementation."
+description: "Guide for migrating from legacy features to current MAGSAG implementation."
 ---
 
-# AGDD Migration Guide
+# MAGSAG Migration Guide
 
 This guide helps you migrate from legacy features to the current implementation.
 
 ## Breaking Changes Summary
 
-As of October 2025, AGDD has made significant simplifications:
+As of October 2025, MAGSAG has made significant simplifications:
 - **All skills must be async** - Synchronous skills are no longer supported
 - **All agents must be async** - Synchronous agents are no longer supported  
 - **Google SDK consolidated** - Only `google-genai` SDK is supported
@@ -20,7 +20,7 @@ As of October 2025, AGDD has made significant simplifications:
 
 ### Before (Synchronous - No longer supported)
 ```python
-from agdd.skills.base import Skill
+from magsag.skills.base import Skill
 
 class MySkill:
     def __call__(self, text: str) -> str:
@@ -30,7 +30,7 @@ class MySkill:
 
 ### After (Asynchronous - Required)
 ```python
-from agdd.skills.base import MCPSkill
+from magsag.skills.base import MCPSkill
 from typing import Any, Dict
 
 class MySkill:
@@ -133,7 +133,7 @@ pip uninstall google-generativeai
 pip install google-genai
 ```
 
-### Issue: "No module named 'agdd.skills.echo'"
+### Issue: "No module named 'magsag.skills.echo'"
 **Solution:** The example echo skill has been removed. Create your own async skill instead.
 
 ## Testing Your Migration
@@ -151,7 +151,7 @@ uv run python ops/tools/check_docs.py
 uv run pytest tests/
 
 # Test a specific agent
-echo '{"role":"Engineer","level":"Senior"}' | uv run agdd agent run your-agent
+echo '{"role":"Engineer","level":"Senior"}' | uv run magsag agent run your-agent
 ```
 
 ## Need Help?

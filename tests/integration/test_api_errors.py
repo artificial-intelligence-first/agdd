@@ -8,7 +8,7 @@ import anyio
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
-from agdd.api.server import app, http_exception_handler
+from magsag.api.server import app, http_exception_handler
 
 import pytest
 

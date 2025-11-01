@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from agdd.api.config import Settings
+from magsag.api.config import Settings
 
 
 def test_default_settings() -> None:

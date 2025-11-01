@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from agdd.governance.gate import evaluate
+from magsag.governance.gate import evaluate
 
 
 @pytest.fixture()

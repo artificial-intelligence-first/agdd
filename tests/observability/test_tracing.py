@@ -6,7 +6,7 @@ from typing import Any, Callable, Iterator, TypeVar, cast
 
 import pytest
 
-from agdd.observability.tracing import (
+from magsag.observability.tracing import (
     ObservabilityConfig,
     ObservabilityManager,
     initialize_observability,
@@ -53,11 +53,11 @@ def tracing_only_config() -> ObservabilityConfig:
 
 def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test configuration loading from environment variables."""
-    monkeypatch.setenv("AGDD_OTEL_TRACING_ENABLED", "true")
-    monkeypatch.setenv("AGDD_OTEL_METRICS_ENABLED", "true")
-    monkeypatch.setenv("AGDD_LANGFUSE_ENABLED", "false")
-    monkeypatch.setenv("AGDD_SERVICE_NAME", "my-service")
-    monkeypatch.setenv("AGDD_OTLP_ENDPOINT", "http://localhost:4318")
+    monkeypatch.setenv("MAGSAG_OTEL_TRACING_ENABLED", "true")
+    monkeypatch.setenv("MAGSAG_OTEL_METRICS_ENABLED", "true")
+    monkeypatch.setenv("MAGSAG_LANGFUSE_ENABLED", "false")
+    monkeypatch.setenv("MAGSAG_SERVICE_NAME", "my-service")
+    monkeypatch.setenv("MAGSAG_OTLP_ENDPOINT", "http://localhost:4318")
 
     config = ObservabilityConfig.from_env()
 
@@ -75,7 +75,7 @@ def test_config_defaults() -> None:
     assert config.enable_tracing is True
     assert config.enable_metrics is True
     assert config.enable_langfuse is False
-    assert config.service_name == "agdd"
+    assert config.service_name == "magsag"
     assert config.otlp_endpoint is None
     assert config.langfuse_host == "https://cloud.langfuse.com"
 
@@ -104,7 +104,7 @@ def test_initialize_tracing_without_packages(
 ) -> None:
     """Test initialization when OpenTelemetry packages are not installed."""
     # Mock OTEL_AVAILABLE as False
-    import agdd.observability.tracing as tracing_module
+    import magsag.observability.tracing as tracing_module
 
     monkeypatch.setattr(tracing_module, "OTEL_AVAILABLE", False)
 
@@ -234,7 +234,7 @@ def test_multiple_initializations_are_idempotent(disabled_config: ObservabilityC
 
 def test_observe_decorator_available() -> None:
     """Test that observe decorator is available."""
-    from agdd.observability.tracing import observe
+    from magsag.observability.tracing import observe
 
     # Should be importable
     assert observe is not None
@@ -264,7 +264,7 @@ def test_langfuse_config_with_custom_host() -> None:
 
 def test_config_from_env_with_langfuse(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test configuration from env with Langfuse variables."""
-    monkeypatch.setenv("AGDD_LANGFUSE_ENABLED", "true")
+    monkeypatch.setenv("MAGSAG_LANGFUSE_ENABLED", "true")
     monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", "pk_env_test")
     monkeypatch.setenv("LANGFUSE_SECRET_KEY", "sk_env_test")
     monkeypatch.setenv("LANGFUSE_HOST", "https://env.langfuse.host")

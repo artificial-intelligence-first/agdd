@@ -1,123 +1,68 @@
 ---
-title: AGDD ExecPlan Registry
+title: ExecPlan Quick Reference
 slug: plans
 status: living
 last_synced: 2025-10-30
-tags: [agdd, execplan, roadmap, workflow]
-description: "Execution-plan convention for coordinating multi-session initiatives across the AG-Driven Development framework."
-source_of_truth: "https://github.com/artificial-intelligence-first/agdd"
-sources:
-  - { id: R1, title: "OpenAI Cookbook – Exec Plans", url: "https://cookbook.openai.com/articles/codex_exec_plans", accessed: "2025-10-30" }
-  - { id: R2, title: "AGDD Roadmap", url: "../development/roadmap.md", accessed: "2025-10-30" }
-  - { id: R3, title: "Single Source of Truth", url: "./ssot.md", accessed: "2025-10-30" }
+tags: [magsag, execplan]
+description: "How to create, maintain, and close ExecPlans without unnecessary overhead."
+source_of_truth: "https://github.com/artificial-intelligence-first/magsag"
 ---
 
-# AGDD ExecPlans (PLANS.md)
+# ExecPlan Quick Reference
 
-> **For Humans**: ExecPlans turn complex work into resumable, auditable tasks. Use this document to structure plans and keep the roadmap current.
->
-> **For AI Agents**: Do not start multi-session or high-risk work without an ExecPlan. Update timestamps, decisions, and discoveries in real time so another contributor can resume safely.
+ExecPlans are lightweight documents that capture intent, validation, and
+handoff notes for work that spans multiple sessions or contributors. Keep them
+short, link to relevant assets, and update them while you work.
+
+## When to Create One
+
+- Feature work that spans CLI, API, and catalog changes.
+- Infrastructure migrations (storage engines, observability backends).
+- Governance or policy changes that affect more than one surface.
+- Incident response efforts that require traceable decisions.
+
+## Minimal Template
+
+Store plans in `docs/development/plans/<slug>.md` and follow this structure:
+
+```markdown
+# <Action title>
 
 ## Purpose
+- Why this is needed, success in one sentence.
 
-ExecPlans capture the intent, steps, and validation for initiatives such as:
-
-- New MAG/SAG agent families or major skill migrations
-- Storage backend changes (SQLite → Postgres, enabling Redis cache, etc.)
-- Governance or routing overhauls across multiple catalog assets
-- Framework releases involving CLI, API, documentation, and observability updates
-- Incident investigations that span discovery → mitigation → retro
-
-## Canonical Structure
-
-Create each plan under `docs/development/plans/<kebab-slug>.md` using the structure below:
-
-```markdown
-# <Action-oriented title>
-
-## Purpose / Big Picture
-- Why the work matters and success criteria.
-
-## Context and Orientation
-- Links to issues, SSOT entries, catalog files, diagrams.
+## Context
+- Links to issues, SSOT entries, diagrams, docs.
 
 ## Plan of Work
-- Phases, dependencies, risk notes.
+1. Ordered steps with owners.
+2. Risks or dependencies.
 
-## To-do
-- [ ] Checklist grouped by phase/owner.
+## Validation
+- Commands with expected outcomes.
+- Rollback or recovery notes if something fails.
 
-## Progress
-- [YYYY-MM-DD HH:MM UTC] Timestamped updates.
+## Status
+- [YYYY-MM-DD HH:MM UTC] Progress updates.
+- Decision log with rationale.
 
-## Decision Log
-- [YYYY-MM-DD HH:MM UTC] Decision with rationale and alternatives.
-
-## Surprises & Discoveries
-- [YYYY-MM-DD HH:MM UTC] Unexpected findings, blockers, coping strategies.
-
-## Concrete Steps
-- Ordered implementation notes and commands.
-
-## Validation and Acceptance
-- Tests, scripts, manual checks and expected outputs.
-
-## Idempotence and Recovery
-- Rollback instructions, backup locations, how to retry safely.
-
-## Outcomes & Retrospective
-- Final state, follow-ups, lessons learned.
-
-## Artifacts and Notes
-- PRs, run IDs, dashboards, documents.
-
-## Interfaces and Dependencies
-- Services, APIs, schemas, or teams impacted.
+## Follow-up
+- Remaining tasks or references (PRs, dashboards).
 ```
 
-## Workflow
+## Workflow Checklist
 
-1. **Initiate**: Draft the file, link it in the “Active Plans” list, and tag owners.
-2. **Operate**: Update To-do, Progress, Decision Log, and Surprises sections as work advances. Use UTC timestamps.
-3. **Validate**: Record the exact commands executed (pytest, mypy, agdd flow gate, storage migrations) with outcomes.
-4. **Close**: Complete To-do boxes, fill Outcomes & Retrospective, move entry to “Completed Plans,” and note follow-up tasks.
-5. **Cross-link**: Reference the plan in `CHANGELOG.md`, `SSOT.md`, or relevant docs when definitions or behaviour change.
-
-## Active Plans
-
-_None. Add entries in the format below when initiatives start._
-
-```markdown
-- [YYYY-MM-DD] Title – Link – Owner(s) – Status (in-progress/blocking/paused)
-```
-
-## Completed Plans
-
-- [2025-10-15] `bootstrap-initial-agdd-release.md` – Initial release packaging and documentation alignment.
+1. Draft the file and add it to the “Active Plans” list in `PLANS.md`.
+2. Update the `Status` and `Decision` sections in real time using UTC.
+3. Record the exact validation commands you ran, including failures.
+4. Close the plan once the work ships (checklist complete, outcomes noted).
+5. Move the entry to “Completed Plans” and cross-link changelog or docs.
 
 ## Best Practices
 
-- Keep language actionable and concise.
-- Prefer small, linked plans over monolithic documents.
-- Store supporting assets (diagrams, SQL snippets, scripts) next to the plan or in `docs/assets/`.
-- When coordination spans multiple teams, name responsible owners in the plan header.
+- Keep language direct; use links instead of lengthy quotes.
+- Prefer multiple small plans over one bloated document.
+- Attach supporting scripts or diagrams next to the plan under the same slug.
+- Reflect key learnings in `docs/architecture/ssot.md` or other canonical surfaces.
 
-## Example Snippets
-
-### Storage Migration Checklist
-```markdown
-## Validation and Acceptance
-- [ ] `uv run agdd data init --backend postgres`
-- [ ] `uv run -m pytest tests/storage/test_postgres_backend.py`
-- [ ] Manual smoke test for `uv run agdd data vacuum --dry-run`
-```
-
-### Incident Log Entry
-```markdown
-## Surprises & Discoveries
-- [2025-10-30 11:42 UTC] Flow Runner returned 403 because `AGDD_API_KEY` rotated without redeploy. Added key refresh to plan.
-```
-
-## Update Log
-
-- 2025-10-30: Established AGDD ExecPlan registry and workflow overview.
+That’s all—ExecPlans should guide action, not become another maintenance burden.

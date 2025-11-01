@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agdd.ai/schemas/candidate_profile.schema.json",
+  "$id": "https://magsag.ai/schemas/candidate_profile.schema.json",
   "title": "CandidateProfile",
   "description": "Profile of a job candidate for offer generation",
   "type": "object",

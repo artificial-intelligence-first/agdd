@@ -27,15 +27,15 @@ class VendoredFile:
 ROOT = Path(__file__).resolve().parents[2]
 VENDORED_FILES = (
     VendoredFile(
-        path=ROOT / "src" / "agdd" / "assets" / "contracts" / "agent.schema.json",
+        path=ROOT / "src" / "magsag" / "assets" / "contracts" / "agent.schema.json",
         digest="52ffe35c1e09cd9d698770cfe17615caf4589333cc48f9ad296aeb1d8e697636",
     ),
     VendoredFile(
-        path=ROOT / "src" / "agdd" / "assets" / "contracts" / "flow_summary.schema.json",
+        path=ROOT / "src" / "magsag" / "assets" / "contracts" / "flow_summary.schema.json",
         digest="c4b339e16065caa21e4be2bf672cade426b42a9bb5ef6cb4dfc7ee4b0c5ff8aa",
     ),
     VendoredFile(
-        path=ROOT / "src" / "agdd" / "assets" / "policies" / "flow_governance.yaml",
+        path=ROOT / "src" / "magsag" / "assets" / "policies" / "flow_governance.yaml",
         digest="07c59641c256e2e9c149d604d1ee4a37747b735b332f573b72b4d01645a471a3",
     ),
     VendoredFile(

@@ -2,7 +2,7 @@
 title: Agent Development Guide
 last_synced: 2025-10-25
 source_of_truth: https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md
-description: Operational guidance for AGDD agent development, testing, and deployment
+description: Operational guidance for MAGSAG agent development, testing, and deployment
 change_log:
   - 2025-10-25: Phase 3 - Added complete CLI reference (flow validate/run, data management commands)
   - 2025-10-24: Added SSOT reference and front-matter
@@ -10,9 +10,9 @@ change_log:
 
 # Agent Development Guide
 
-**Note:** For canonical agent design principles and patterns, refer to [AGENTS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md). This guide focuses on AGDD-specific implementation details.
+**Note:** For canonical agent design principles and patterns, refer to [AGENTS.md in SSOT](https://github.com/artificial-intelligence-first/ssot/blob/main/topics/AGENTS.md). This guide focuses on MAGSAG-specific implementation details.
 
-Operational guidance for the AG-Driven Development (AGDD) repository. The
+Operational guidance for the MAGSAG repository. The
 instructions below supersede general documentation when you are running or
 modifying code.
 
@@ -21,7 +21,7 @@ modifying code.
   Install or refresh dependencies with `uv sync`, and include development tools
   when needed via `uv sync --extra dev`.
 - Test the agent orchestration system early:
-  `echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag`
+  `echo '{"role":"Engineer","level":"Mid"}' | uv run magsag agent run offer-orchestrator-mag`
   ensures the registry, agent runner, contracts, and skills integrate correctly.
 - Flow Runner integration is optional but recommended when working on runner
   boundaries. Use the automated setup script:
@@ -34,7 +34,7 @@ modifying code.
   2. Source `ops/scripts/flowrunner-env.sh` to configure environment variables
 - Verify vendored Flow Runner assets with
   `uv run python ops/tools/verify_vendor.py` whenever files under
-  `src/agdd/assets/` or `examples/flowrunner/` change.
+  `src/magsag/assets/` or `examples/flowrunner/` change.
 - Keep new skills stateless under `catalog/skills/`,
   register agents in `catalog/agents/{main,sub}/<agent-slug>/agent.yaml`,
   and define contracts with JSON Schemas under `catalog/contracts/`. Prefer Typer-based CLIs that
@@ -50,7 +50,7 @@ modifying code.
 
 ### Test Layers
 
-AGDD uses a three-layer testing strategy:
+MAGSAG uses a three-layer testing strategy:
 
 #### 1. Unit Tests (`tests/unit/`)
 Test individual components in isolation:
@@ -78,7 +78,7 @@ uv run -m pytest tests/agents/ -v
 Test end-to-end workflows via CLI:
 - **E2E Flow:** Full MAG→SAG orchestration
 - **Observability Artifacts:** Check `.runs/agents/<RUN_ID>/` contents
-- **CLI Interface:** Test `agdd agent run` command
+- **CLI Interface:** Test `magsag agent run` command
 
 Example:
 ```bash
@@ -94,7 +94,7 @@ uv run -m pytest tests/integration/ -v
 
 - **With coverage:**
   ```bash
-  uv run -m pytest --cov=agdd --cov-report=term-missing
+  uv run -m pytest --cov=magsag --cov-report=term-missing
   ```
 
 - **Documentation checks:**
@@ -106,7 +106,7 @@ uv run -m pytest tests/integration/ -v
 
 - Test agent orchestration after changes:
   ```bash
-  echo '{"role":"Engineer","level":"Mid"}' | uv run agdd agent run offer-orchestrator-mag
+  echo '{"role":"Engineer","level":"Mid"}' | uv run magsag agent run offer-orchestrator-mag
   ```
 
 - Check observability artifacts:
@@ -118,37 +118,37 @@ uv run -m pytest tests/integration/ -v
 - When Flow Runner is installed:
   ```bash
   # List available flow commands
-  uv run agdd flow available
+  uv run magsag flow available
 
   # Validate flow definition
-  uv run agdd flow validate <flow.yaml> [--schema <schema-path>]
+  uv run magsag flow validate <flow.yaml> [--schema <schema-path>]
 
   # Execute flow (with optional dry-run, step selection, or resume)
-  uv run agdd flow run <flow.yaml> [--dry-run] [--only <step>] [--continue-from <step>]
+  uv run magsag flow run <flow.yaml> [--dry-run] [--only <step>] [--continue-from <step>]
 
   # Summarize flow execution results
-  uv run agdd flow summarize [--base .runs] [--output <path>]
+  uv run magsag flow summarize [--base .runs] [--output <path>]
 
   # Apply governance policy to flow summary
-  uv run agdd flow gate <summary.json> --policy catalog/policies/flow_governance.yaml
+  uv run magsag flow gate <summary.json> --policy catalog/policies/flow_governance.yaml
   ```
 
 - Data management and observability:
   ```bash
   # Initialize storage backend (SQLite or PostgreSQL)
-  uv run agdd data init [--backend sqlite|postgres] [--db-path .agdd/storage.db] [--fts/--no-fts]
+  uv run magsag data init [--backend sqlite|postgres] [--db-path .magsag/storage.db] [--fts/--no-fts]
 
   # Query run data with filters
-  uv run agdd data query [--run-id <id>] [--agent <slug>] [--status <status>] [--limit 10]
+  uv run magsag data query [--run-id <id>] [--agent <slug>] [--status <status>] [--limit 10]
 
   # Full-text search across run data (requires FTS5)
-  uv run agdd data search "<query>" [--agent <slug>] [--limit 100]
+  uv run magsag data search "<query>" [--agent <slug>] [--limit 100]
 
   # Vacuum old run data (with dry-run preview)
-  uv run agdd data vacuum [--hot-days 7] [--max-disk <mb>] [--dry-run]
+  uv run magsag data vacuum [--hot-days 7] [--max-disk <mb>] [--dry-run]
 
   # Archive run data to cold storage
-  uv run agdd data archive <s3://bucket/prefix> [--since 7] [--format parquet|ndjson]
+  uv run magsag data archive <s3://bucket/prefix> [--since 7] [--format parquet|ndjson]
   ```
 
 ## Running Agents via HTTP API
@@ -157,23 +157,23 @@ The FastAPI service mirrors CLI execution with API-key or bearer-token authentic
 
 1. **Start the server**
    ```bash
-   uv run uvicorn agdd.api.server:app --host 0.0.0.0 --port 8000
+   uv run uvicorn magsag.api.server:app --host 0.0.0.0 --port 8000
 
-   AGDD_API_KEY="local-dev-key" \
-   AGDD_RATE_LIMIT_QPS=5 \
-   uv run uvicorn agdd.api.server:app
+   MAGSAG_API_KEY="local-dev-key" \
+   MAGSAG_RATE_LIMIT_QPS=5 \
+   uv run uvicorn magsag.api.server:app
    ```
 
 2. **List available agents**
    ```bash
-   curl -H "Authorization: Bearer $AGDD_API_KEY" \
+   curl -H "Authorization: Bearer $MAGSAG_API_KEY" \
      http://localhost:8000/api/v1/agents | jq
    ```
 
 3. **Execute a MAG**
    ```bash
    curl -X POST \
-     -H "Authorization: Bearer $AGDD_API_KEY" \
+     -H "Authorization: Bearer $MAGSAG_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{
        "payload": {
@@ -190,20 +190,20 @@ The FastAPI service mirrors CLI execution with API-key or bearer-token authentic
 4. **Retrieve run results**
    ```bash
    RUN_ID="mag-20240101-abcdef"
-   curl -H "Authorization: Bearer $AGDD_API_KEY" \
+   curl -H "Authorization: Bearer $MAGSAG_API_KEY" \
      http://localhost:8000/api/v1/runs/$RUN_ID | jq
    ```
 
 5. **Stream logs with SSE**
    ```bash
-   curl -N -H "Authorization: Bearer $AGDD_API_KEY" \
+   curl -N -H "Authorization: Bearer $MAGSAG_API_KEY" \
      "http://localhost:8000/api/v1/runs/$RUN_ID/logs?follow=true&tail=25"
    ```
 
 ### Troubleshooting (API)
 
-- `401 Unauthorized`: confirm `AGDD_API_KEY` matches the server configuration or unset the key when auth is disabled.
-- `429 Too Many Requests`: adjust `AGDD_RATE_LIMIT_QPS` or stagger requests; rate limiting is keyed by the presented credential.
+- `401 Unauthorized`: confirm `MAGSAG_API_KEY` matches the server configuration or unset the key when auth is disabled.
+- `429 Too Many Requests`: adjust `MAGSAG_RATE_LIMIT_QPS` or stagger requests; rate limiting is keyed by the presented credential.
 - `404 Not Found`: verify the agent slug exists and that run artifacts were written to `.runs/agents/`.
 - `502/504 from proxies`: prefer polling summaries if SSE connections are terminated upstream.
 
@@ -218,17 +218,17 @@ All tests must pass before a pull request is opened.
 
 ## Build & Deployment
 - Build distributable artifacts with `uv build`. Run this whenever bundled
-  resources in `agdd/assets/` or packaging configuration changes to confirm the
+  resources in `magsag/assets/` or packaging configuration changes to confirm the
   wheel contains the required data files.
 - Spot-check the wheel by installing it into a disposable environment (e.g.,
-  `uv venv --seed .venv-build && uv pip install dist/agdd-*.whl`) when packaging
+  `uv venv --seed .venv-build && uv pip install dist/magsag-*.whl`) when packaging
   logic or bundled assets change materially.
 
 ## Linting & Code Quality
 - Run `uv run ruff check .` to enforce formatting and linting rules (configured
   in `pyproject.toml`). Use `uv run ruff check . --fix` for safe autofixes.
 - Enforce typing guarantees with `uv run mypy src tests`.
-- Maintain observability instrumentation under `src/agdd/observability/` so generated
+- Maintain observability instrumentation under `src/magsag/observability/` so generated
   summaries expose `runs`, `success_rate`, latency metrics, and MCP statistics.
 - Cost tracking artifacts are persisted under `.runs/costs/` for downstream governance.
 
@@ -239,7 +239,7 @@ All tests must pass before a pull request is opened.
   from other documentation instead of duplicating definitions.
 - A pull request must document the Flow Runner or governance impact for changes
   touching runners, policies, or observability. Capture expected
-  `agdd.cli flow ...` behaviors in the description when applicable.
+  `magsag.cli flow ...` behaviors in the description when applicable.
 - Only open a PR after all required commands succeed locally:
   `uv run -m pytest -q`, `uv run python tools/check_docs.py`, and the walking
   skeleton CLI checks listed above.
@@ -272,7 +272,7 @@ catalog/agents/{role}/{slug}/
 Agents receive `registry` as a parameter and can access persona content:
 
 ```python
-from agdd.persona import build_system_prompt_with_persona, get_agent_persona
+from magsag.persona import build_system_prompt_with_persona, get_agent_persona
 
 def run(payload, *, registry, skills, runner, obs):
     """Agent implementation with persona"""
@@ -297,7 +297,7 @@ def run(payload, *, registry, skills, runner, obs):
 
 ### Persona Utility Functions
 
-The `agdd.persona` module provides helper functions:
+The `magsag.persona` module provides helper functions:
 
 - **`build_system_prompt_with_persona(base_prompt, persona_content, separator="\\n\\n---\\n\\n")`**
   - Combines persona with task-specific instructions
@@ -320,7 +320,7 @@ The `agdd.persona` module provides helper functions:
 For LLM-based agents that only need specific guidance:
 
 ```python
-from agdd.persona import extract_persona_section
+from magsag.persona import extract_persona_section
 
 def run(payload, *, registry, skills, runner, obs):
     agent = registry.load_agent("my-agent-slug")
@@ -357,7 +357,7 @@ def test_agent_uses_persona():
     assert "Behavioral Guidelines" in agent.persona_content
 
     # Test persona utility functions
-    from agdd.persona import build_system_prompt_with_persona
+    from magsag.persona import build_system_prompt_with_persona
 
     prompt = build_system_prompt_with_persona(
         "Task instructions",

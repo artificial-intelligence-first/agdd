@@ -5,7 +5,7 @@ role: sub
 entrypoint: catalog/agents/sub/compensation-advisor-sag/code/advisor.py:run
 depends_on:
   skills:
-    - agdd://skill.salary-band-lookup@>=0.1.0
+    - magsag://skill.salary-band-lookup@>=0.1.0
 contracts:
   input_schema: catalog/contracts/comp_advisor_input.schema.json
   output_schema: catalog/contracts/comp_advisor_output.schema.json

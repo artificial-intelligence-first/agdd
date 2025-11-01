@@ -8,11 +8,11 @@ change_log:
 
 # Cost Optimization Guide
 
-This guide covers strategies and best practices for optimizing LLM costs in the AGDD framework, from model selection to token management and usage tracking.
+This guide covers strategies and best practices for optimizing LLM costs in the MAGSAG framework, from model selection to token management and usage tracking.
 
 ## Overview
 
-The AGDD framework provides comprehensive cost tracking and optimization capabilities:
+The MAGSAG framework provides comprehensive cost tracking and optimization capabilities:
 
 - **Token usage monitoring**: Track input/output tokens per model and agent
 - **Cost attribution**: Calculate costs per run, agent, and model
@@ -23,7 +23,7 @@ The AGDD framework provides comprehensive cost tracking and optimization capabil
 
 ### Automatic Cost Calculation
 
-AGDD automatically tracks costs for all LLM invocations:
+MAGSAG automatically tracks costs for all LLM invocations:
 
 ```python
 # Cost data structure (per model)
@@ -70,10 +70,10 @@ Cost data is captured in multiple observability artifacts:
 .runs/costs.db
 
 # Storage layer (queryable)
-uv run agdd data query --run-id <RUN_ID>
+uv run magsag data query --run-id <RUN_ID>
 ```
 
-The JSONL ledger and SQLite database are maintained by `agdd.observability.cost_tracker` and initialize automatically on first use.
+The JSONL ledger and SQLite database are maintained by `magsag.observability.cost_tracker` and initialize automatically on first use.
 
 ## Viewing Cost Data
 
@@ -81,23 +81,23 @@ The JSONL ledger and SQLite database are maintained by `agdd.observability.cost_
 
 ```bash
 # Summarize costs for recent runs
-uv run agdd flow summarize --output summary.json
+uv run magsag flow summarize --output summary.json
 cat summary.json | jq '.model_stats'
 
 # Query specific run costs
-uv run agdd data query --run-id mag-abc123
+uv run magsag data query --run-id mag-abc123
 
 # Query runs by agent
-uv run agdd data query --agent my-mag --limit 100
+uv run magsag data query --agent my-mag --limit 100
 
 # Search for cost-related events
-uv run agdd data search "cost_usd" --limit 50
+uv run magsag data search "cost_usd" --limit 50
 ```
 
 ### Programmatic Access
 
 ```python
-from agdd.storage import get_storage_backend
+from magsag.storage import get_storage_backend
 
 async def calculate_daily_cost(agent_slug: str) -> float:
     storage = await get_storage_backend()
@@ -128,7 +128,7 @@ async def calculate_daily_cost(agent_slug: str) -> float:
 Reduce costs by caching similar queries using vector similarity search:
 
 ```python
-from agdd.optimization.cache import create_cache, CacheConfig
+from magsag.optimization.cache import create_cache, CacheConfig
 
 # Enable semantic cache
 config = CacheConfig(backend="faiss", dimension=768)
@@ -150,7 +150,7 @@ if matches:
 For non-realtime workloads, use OpenAI Batch API:
 
 ```python
-from agdd.optimization.batch import BatchAPIClient, BatchRequest
+from magsag.optimization.batch import BatchAPIClient, BatchRequest
 
 client = BatchAPIClient()
 
@@ -170,7 +170,7 @@ batch = client.submit_batch(requests)
 
 **Cost Impact:** 50% reduction on all batched requests
 
-**See:** `src/agdd/optimization/batch.py` for implementation
+**See:** `src/magsag/optimization/batch.py` for implementation
 
 ### 3. Model Selection
 
@@ -422,7 +422,7 @@ def run(payload: dict, **deps) -> dict:
 
 ```bash
 # Gate on cost thresholds
-uv run agdd flow gate summary.json \
+uv run magsag flow gate summary.json \
   --policy catalog/policies/cost_governance.yaml
 
 # Fail CI if costs exceed limits
@@ -527,7 +527,7 @@ uv run python -c "
 import asyncio
 import json
 from datetime import datetime, timedelta
-from agdd.storage import get_storage_backend
+from magsag.storage import get_storage_backend
 
 async def daily_report():
     storage = await get_storage_backend()
@@ -661,7 +661,7 @@ python ops/scripts/analyze_cost_trends.py --weeks 4
 # Or manually review recent run costs
 for agent in offer-orchestrator-mag compensation-advisor-sag; do
   echo "Agent: $agent"
-  uv run agdd data query --agent "$agent" --limit 100 | \
+  uv run magsag data query --agent "$agent" --limit 100 | \
     jq -r '.[] | "\(.run_id): \(.total_cost_usd // 0)"'
 done
 ```
@@ -693,10 +693,10 @@ jobs:
       - name: Run test suite
         run: uv run -m pytest
       - name: Generate cost summary
-        run: uv run agdd flow summarize --output summary.json
+        run: uv run magsag flow summarize --output summary.json
       - name: Check cost governance
         run: |
-          uv run agdd flow gate summary.json \
+          uv run magsag flow gate summary.json \
             --policy catalog/policies/cost_governance.yaml
       - name: Compare with baseline
         run: |
@@ -715,13 +715,13 @@ jobs:
 
 ```bash
 # Query recent runs to find expensive ones
-uv run agdd data query --limit 100
+uv run magsag data query --limit 100
 
 # Search for cost metrics
-uv run agdd data search "cost_usd" --limit 100
+uv run magsag data search "cost_usd" --limit 100
 
 # Analyze specific agent's cost patterns
-uv run agdd data query --agent my-mag --limit 50
+uv run magsag data query --agent my-mag --limit 50
 
 # Use custom script for detailed analysis
 uv run python ops/scripts/analyze_token_usage.py --agent my-mag
@@ -731,17 +731,17 @@ uv run python ops/scripts/analyze_token_usage.py --agent my-mag
 
 ```bash
 # Review recent spending
-uv run agdd data query --agent my-mag --limit 50
+uv run magsag data query --agent my-mag --limit 50
 
 # Analyze cost trends in summaries
-uv run agdd flow summarize --output summary.json
+uv run magsag flow summarize --output summary.json
 cat summary.json | jq '.model_stats'
 
 # Adjust budget limits
 vim catalog/policies/cost_governance.yaml
 
 # Test with dry-run
-uv run agdd flow gate summary.json --dry-run
+uv run magsag flow gate summary.json --dry-run
 ```
 
 ## Related Documentation

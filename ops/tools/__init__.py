@@ -1,1 +1,1 @@
-"""Utility entry points for AGDD tooling."""
+"""Utility entry points for MAGSAG tooling."""

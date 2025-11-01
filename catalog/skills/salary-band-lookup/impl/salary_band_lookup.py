@@ -17,7 +17,7 @@ MCP Integration:
 import logging
 from typing import Any, Dict, Optional
 
-from agdd.mcp.runtime import MCPRuntime
+from magsag.mcp.runtime import MCPRuntime
 
 logger = logging.getLogger(__name__)
 

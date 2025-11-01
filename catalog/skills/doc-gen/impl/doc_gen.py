@@ -16,7 +16,7 @@ from typing import Any, Optional
 import jsonschema
 import yaml
 
-from agdd.mcp import MCPRuntime
+from magsag.mcp import MCPRuntime
 
 ROOT = Path(__file__).resolve().parents[4]  # Point to repo root
 INPUT_CONTRACT = ROOT / "catalog" / "contracts" / "candidate_profile.schema.json"

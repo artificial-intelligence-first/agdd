@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agdd.ai/schemas/routing.schema.json",
-  "title": "AGDD Routing Policy Schema",
-  "description": "Schema for AGDD routing and optimization policies",
+  "$id": "https://magsag.ai/schemas/routing.schema.json",
+  "title": "MAGSAG Routing Policy Schema",
+  "description": "Schema for MAGSAG routing and optimization policies",
   "type": "object",
   "properties": {
     "$schema": {

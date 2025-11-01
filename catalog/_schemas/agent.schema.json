@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agdd.ai/schemas/agent.schema.json",
-  "title": "AGDD Agent Schema",
-  "description": "Schema for AGDD agent definitions (MAG/SAG)",
+  "$id": "https://magsag.ai/schemas/agent.schema.json",
+  "title": "MAGSAG Agent Schema",
+  "description": "Schema for MAGSAG agent definitions (MAG/SAG)",
   "type": "object",
   "required": ["version", "slug", "name", "role", "entrypoint"],
   "properties": {
@@ -47,14 +47,14 @@
           "items": {
             "type": "string"
           },
-          "description": "List of sub-agent dependencies (agdd:// URIs or slugs)"
+          "description": "List of sub-agent dependencies (magsag:// URIs or slugs)"
         },
         "skills": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "List of skill dependencies (agdd:// URIs or slugs)"
+          "description": "List of skill dependencies (magsag:// URIs or slugs)"
         }
       },
       "additionalProperties": false

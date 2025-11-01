@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agdd.cache.key import compute_key, hash_stable, normalize_input
+from magsag.cache.key import compute_key, hash_stable, normalize_input
 
 
 class TestNormalizeInput:

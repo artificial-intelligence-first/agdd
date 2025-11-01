@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from agdd.runners.flowrunner import FlowRunner
+from magsag.runners.flowrunner import FlowRunner
 
 
 def test_flowrunner_unavailable() -> None:

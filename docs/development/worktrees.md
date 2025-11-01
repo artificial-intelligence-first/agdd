@@ -1,38 +1,38 @@
 # Git Worktree Operations
 
-AGDD provisions one Git worktree per agent run to isolate file changes and reduce merge conflicts. The implementation introduced in `feat/git-worktree` surfaces consistent tooling across the CLI, API, and observability stack.
+MAGSAG provisions one Git worktree per agent run to isolate file changes and reduce merge conflicts. The implementation introduced in `feat/git-worktree` surfaces consistent tooling across the CLI, API, and observability stack.
 
 ## Directory Layout
 
-- Worktrees live outside the main checkout at `../.worktrees/` (override with `AGDD_WORKTREES_ROOT`).
+- Worktrees live outside the main checkout at `../.worktrees/` (override with `MAGSAG_WORKTREES_ROOT`).
 - Each tree is created inside `wt-<runId>-<task>-<shortSHA>` and checks out branch `wt/<runId>/<task>` unless `--detach` is used.
-- The metadata file `.agdd-worktree.json` persists run metadata and is removed automatically during `git worktree remove`.
+- The metadata file `.magsag-worktree.json` persists run metadata and is removed automatically during `git worktree remove`.
 
 ## Environment Configuration
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `AGDD_WORKTREES_ROOT` | `../.worktrees` | Location where managed worktrees are created. |
-| `AGDD_WT_MAX_CONCURRENCY` | `8` | Maximum number of active managed worktrees. |
-| `AGDD_WT_TTL` | `14d` | Default expiry horizon passed to `git worktree prune`. |
-| `AGDD_WT_ALLOW_FORCE` | unset | Set to `1`/`true` in CI maintenance jobs to allow forced removals. |
+| `MAGSAG_WORKTREES_ROOT` | `../.worktrees` | Location where managed worktrees are created. |
+| `MAGSAG_WT_MAX_CONCURRENCY` | `8` | Maximum number of active managed worktrees. |
+| `MAGSAG_WT_TTL` | `14d` | Default expiry horizon passed to `git worktree prune`. |
+| `MAGSAG_WT_ALLOW_FORCE` | unset | Set to `1`/`true` in CI maintenance jobs to allow forced removals. |
 
 Protected bases (`main`, `release/*`) and `--force` removals are guarded by policy.
 
 ## CLI Usage
 
 ```
-uv run agdd wt new <runId> --task <slug> --base <branch|sha> [--detach] [--no-checkout] [--lock] [--lock-reason]
-uv run agdd wt ls [--json]
-uv run agdd wt rm <runId> [--force]
-uv run agdd wt lock <runId> [--reason]
-uv run agdd wt unlock <runId>
-uv run agdd wt gc [--expire <duration>]
-uv run agdd wt repair
+uv run magsag wt new <runId> --task <slug> --base <branch|sha> [--detach] [--no-checkout] [--lock] [--lock-reason]
+uv run magsag wt ls [--json]
+uv run magsag wt rm <runId> [--force]
+uv run magsag wt lock <runId> [--reason]
+uv run magsag wt unlock <runId>
+uv run magsag wt gc [--expire <duration>]
+uv run magsag wt repair
 ```
 
 The CLI surfaces structured errors for conflicts, dirty trees, or policy violations.
-`agdd wt rm` automatically runs `git worktree prune --expire=<AGDD_WT_TTL>` to garbage-collect
+`magsag wt rm` automatically runs `git worktree prune --expire=<MAGSAG_WT_TTL>` to garbage-collect
 stale administrative entries after a successful removal.
 
 ## HTTP API

@@ -1,6 +1,6 @@
 """Tests for MockLLMProvider."""
 
-from agdd.providers.mock import MockLLMProvider
+from magsag.providers.mock import MockLLMProvider
 
 
 def test_mock_provider_basic() -> None:

@@ -1,10 +1,10 @@
-# Example GitHub Actions workflow for AGDD agent execution
+# Example GitHub Actions workflow for MAGSAG agent execution
 #
-# This workflow demonstrates two approaches to running AGDD agents:
+# This workflow demonstrates two approaches to running MAGSAG agents:
 # 1. Direct CLI execution (requires checked out code)
 # 2. HTTP API execution (requires deployed API server)
 
-name: AGDD Agent Execution
+name: MAGSAG Agent Execution
 
 on:
   workflow_dispatch:
@@ -51,7 +51,7 @@ jobs:
 
       - name: Run agent
         run: |
-          echo '${{ inputs.payload }}' | uv run agdd agent run '${{ inputs.agent_slug }}'
+          echo '${{ inputs.payload }}' | uv run magsag agent run '${{ inputs.agent_slug }}'
 
       - name: Upload run artifacts
         uses: actions/upload-artifact@v4
@@ -70,8 +70,8 @@ jobs:
       - name: Execute agent via API
         id: api_call
         env:
-          API_URL: ${{ secrets.AGDD_API_URL }}
-          API_KEY: ${{ secrets.AGDD_API_KEY }}
+          API_URL: ${{ secrets.MAGSAG_API_URL }}
+          API_KEY: ${{ secrets.MAGSAG_API_KEY }}
         run: |
           response=$(curl -sS -w "\n%{http_code}" \
             -H "Authorization: Bearer ${API_KEY}" \
@@ -100,8 +100,8 @@ jobs:
       - name: Fetch run summary
         if: steps.api_call.outputs.run_id
         env:
-          API_URL: ${{ secrets.AGDD_API_URL }}
-          API_KEY: ${{ secrets.AGDD_API_KEY }}
+          API_URL: ${{ secrets.MAGSAG_API_URL }}
+          API_KEY: ${{ secrets.MAGSAG_API_KEY }}
         run: |
           run_id="${{ steps.api_call.outputs.run_id }}"
           curl -sS \
@@ -111,8 +111,8 @@ jobs:
       - name: Fetch run logs (last 50 lines)
         if: steps.api_call.outputs.run_id
         env:
-          API_URL: ${{ secrets.AGDD_API_URL }}
-          API_KEY: ${{ secrets.AGDD_API_KEY }}
+          API_URL: ${{ secrets.MAGSAG_API_URL }}
+          API_KEY: ${{ secrets.MAGSAG_API_KEY }}
         run: |
           run_id="${{ steps.api_call.outputs.run_id }}"
           curl -sS \
@@ -135,7 +135,7 @@ jobs:
 #       - run: uv python install 3.12
 #       - run: uv sync
 #       - run: |
-#           echo '{"scheduled": true}' | uv run agdd agent run daily-report-mag
+#           echo '{"scheduled": true}' | uv run magsag agent run daily-report-mag
 
 # Example: PR comment trigger
 #
@@ -159,5 +159,5 @@ jobs:
 #           comment="${{ github.event.comment.body }}"
 #           if echo "$comment" | grep -q "/run-agent"; then
 #             agent_slug=$(echo "$comment" | sed -n 's#/run-agent \([a-z0-9-]*\).*#\1#p')
-#             echo '{"triggered_by": "comment"}' | uv run agdd agent run "$agent_slug"
+#             echo '{"triggered_by": "comment"}' | uv run magsag agent run "$agent_slug"
 #           fi

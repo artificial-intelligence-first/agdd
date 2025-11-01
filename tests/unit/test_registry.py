@@ -1,7 +1,7 @@
-"""Unit tests for agdd.registry module"""
+"""Unit tests for magsag.registry module"""
 
 import pytest
-from agdd.registry import Registry
+from magsag.registry import Registry
 
 
 class TestRegistry:

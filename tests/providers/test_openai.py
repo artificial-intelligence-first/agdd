@@ -18,7 +18,7 @@ from typing import Iterator
 
 import pytest
 
-from agdd.providers.openai import (
+from magsag.providers.openai import (
     APIEndpoint,
     CompletionRequest,
     CompletionResponse,

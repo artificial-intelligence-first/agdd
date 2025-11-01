@@ -61,14 +61,14 @@ Approval-as-a-Policy is a governance feature that enables human oversight for cr
 Set the feature flag in your environment:
 
 ```bash
-export AGDD_APPROVALS_ENABLED=true
-export AGDD_APPROVAL_TTL_MIN=30  # Ticket timeout in minutes
+export MAGSAG_APPROVALS_ENABLED=true
+export MAGSAG_APPROVAL_TTL_MIN=30  # Ticket timeout in minutes
 ```
 
 Or in your API config:
 
 ```python
-from agdd.api.config import Settings
+from magsag.api.config import Settings
 
 settings = Settings(
     APPROVALS_ENABLED=True,
@@ -126,8 +126,8 @@ Approval tickets emitted by the API and storage layer conform to [`catalog/contr
 ### Programmatic Usage
 
 ```python
-from agdd.governance.approval_gate import ApprovalGate
-from agdd.governance.permission_evaluator import PermissionEvaluator
+from magsag.governance.approval_gate import ApprovalGate
+from magsag.governance.permission_evaluator import PermissionEvaluator
 
 # Initialize components
 permission_evaluator = PermissionEvaluator()
@@ -267,7 +267,7 @@ Approval tickets automatically expire after the configured timeout (default 30 m
 ## Error Handling
 
 ```python
-from agdd.governance.approval_gate import (
+from magsag.governance.approval_gate import (
     ApprovalDeniedError,
     ApprovalTimeoutError,
     ApprovalGateError,
@@ -341,9 +341,9 @@ Approval tickets can be stored in:
 Configure storage backend:
 
 ```python
-from agdd.storage.backends.sqlite import SQLiteStorageBackend
+from magsag.storage.backends.sqlite import SQLiteStorageBackend
 
-storage = SQLiteStorageBackend(db_path=".agdd/storage.db")
+storage = SQLiteStorageBackend(db_path=".magsag/storage.db")
 await storage.initialize()
 
 approval_gate = ApprovalGate(

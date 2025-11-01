@@ -4,16 +4,16 @@ last_synced: 2025-10-24
 description: Multiple LLM provider support with flexible configuration and model selection strategies
 change_log:
   - 2025-10-24: Added front-matter and provider configuration overview
-  - 2025-10-24: Added unified provider selection via AGDD_PROVIDER environment variable
+  - 2025-10-24: Added unified provider selection via MAGSAG_PROVIDER environment variable
 ---
 
 # Multi-Provider LLM Support
 
-AGDD supports multiple LLM providers through flexible configuration and runtime model selection. This guide covers provider integration, model selection strategies, and best practices.
+MAGSAG supports multiple LLM providers through flexible configuration and runtime model selection. This guide covers provider integration, model selection strategies, and best practices.
 
 ## Overview
 
-The AGDD framework tracks model usage across different providers through observability instrumentation, enabling:
+The MAGSAG framework tracks model usage across different providers through observability instrumentation, enabling:
 
 - **Provider diversity**: Use multiple LLM providers (OpenAI, Anthropic, local models) within the same workflow
 - **Fallback strategies**: Automatic failover when primary provider is unavailable
@@ -42,24 +42,24 @@ export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
 export OLLAMA_BASE_URL="http://localhost:11434"
 ```
 
-AGDD's local provider (`src/agdd/providers/local.py`) prefers the OpenAI Responses API. If the endpoint rejects Responses or returns a legacy status code, the provider automatically falls back to chat completions while recording a warning in the response metadata.
+MAGSAG's local provider (`src/magsag/providers/local.py`) prefers the OpenAI Responses API. If the endpoint rejects Responses or returns a legacy status code, the provider automatically falls back to chat completions while recording a warning in the response metadata.
 
 ### Unified Provider Selection
 
-AGDD supports unified provider selection through environment variables, allowing you to switch providers globally without modifying routing policies or agent code:
+MAGSAG supports unified provider selection through environment variables, allowing you to switch providers globally without modifying routing policies or agent code:
 
 ```bash
 # Override provider for all tasks
-export AGDD_PROVIDER=openai           # Use OpenAI for all tasks
-export AGDD_PROVIDER=anthropic        # Use Anthropic (Claude) for all tasks
-export AGDD_PROVIDER=google           # Use Google (Gemini) for all tasks
-export AGDD_PROVIDER=local            # Use local LLM server
-export AGDD_PROVIDER=compat           # Use OpenAI-compatible provider
+export MAGSAG_PROVIDER=openai           # Use OpenAI for all tasks
+export MAGSAG_PROVIDER=anthropic        # Use Anthropic (Claude) for all tasks
+export MAGSAG_PROVIDER=google           # Use Google (Gemini) for all tasks
+export MAGSAG_PROVIDER=local            # Use local LLM server
+export MAGSAG_PROVIDER=compat           # Use OpenAI-compatible provider
 
 # Optional: Override model for all tasks
-export AGDD_MODEL=gpt-4               # Use GPT-4 (OpenAI)
-export AGDD_MODEL=claude-3-5-sonnet-20241022  # Use Claude Sonnet (Anthropic)
-export AGDD_MODEL=gemini-1.5-pro      # Use Gemini Pro (Google)
+export MAGSAG_MODEL=gpt-4               # Use GPT-4 (OpenAI)
+export MAGSAG_MODEL=claude-3-5-sonnet-20241022  # Use Claude Sonnet (Anthropic)
+export MAGSAG_MODEL=gemini-1.5-pro      # Use Gemini Pro (Google)
 ```
 
 **Supported Provider Values:**
@@ -70,8 +70,8 @@ export AGDD_MODEL=gemini-1.5-pro      # Use Gemini Pro (Google)
 - `compat` - OpenAI-compatible providers
 
 **How It Works:**
-1. If `AGDD_PROVIDER` is set, it overrides the provider specified in routing policies for all tasks
-2. If `AGDD_MODEL` is set, it overrides the model specified in routing policies for all tasks
+1. If `MAGSAG_PROVIDER` is set, it overrides the provider specified in routing policies for all tasks
+2. If `MAGSAG_MODEL` is set, it overrides the model specified in routing policies for all tasks
 3. Explicit overrides in agent code take precedence over environment variables
 4. If neither environment variable is set, routing policies are used as defined
 
@@ -85,26 +85,26 @@ export AGDD_MODEL=gemini-1.5-pro      # Use Gemini Pro (Google)
 
 ```bash
 # Development: Use fast, cheap models
-export AGDD_PROVIDER=openai
-export AGDD_MODEL=gpt-4o-mini
+export MAGSAG_PROVIDER=openai
+export MAGSAG_MODEL=gpt-4o-mini
 
 # Production: Use high-quality models
-export AGDD_PROVIDER=anthropic
-export AGDD_MODEL=claude-3-5-sonnet-20241022
+export MAGSAG_PROVIDER=anthropic
+export MAGSAG_MODEL=claude-3-5-sonnet-20241022
 
 # Local/Offline: Use self-hosted models
-export AGDD_PROVIDER=local
-export AGDD_MODEL=llama3.1:70b
-export AGDD_LOCAL_LLM_BASE_URL=http://localhost:8000/v1/
+export MAGSAG_PROVIDER=local
+export MAGSAG_MODEL=llama3.1:70b
+export MAGSAG_LOCAL_LLM_BASE_URL=http://localhost:8000/v1/
 
 # Testing: Override just the provider, keep policy-defined models
-export AGDD_PROVIDER=openai
-# AGDD_MODEL not set - uses models from routing policy
+export MAGSAG_PROVIDER=openai
+# MAGSAG_MODEL not set - uses models from routing policy
 ```
 
 **Priority Order (highest to lowest):**
 1. Explicit overrides in agent code (e.g., `llm_overrides` in context)
-2. Environment variables (`AGDD_PROVIDER`, `AGDD_MODEL`)
+2. Environment variables (`MAGSAG_PROVIDER`, `MAGSAG_MODEL`)
 3. Routing policy configuration (YAML files)
 4. Default fallback (if routing policy has no matching route)
 
@@ -230,7 +230,7 @@ The observability layer automatically tracks model usage:
 
 ```bash
 # View model usage in run summary
-uv run agdd flow summarize --output summary.json
+uv run magsag flow summarize --output summary.json
 cat summary.json | jq '.model_stats'
 
 # Example output:
@@ -258,10 +258,10 @@ cat summary.json | jq '.model_stats'
 
 ```bash
 # Query runs by model usage
-uv run agdd data query --agent my-mag --limit 20
+uv run magsag data query --agent my-mag --limit 20
 
 # Search for specific model errors
-uv run agdd data search "claude.*error" --limit 50
+uv run magsag data search "claude.*error" --limit 50
 ```
 
 ## Best Practices
@@ -428,10 +428,10 @@ All model invocations are logged for compliance:
 
 ```bash
 # Query model usage audit trail
-uv run agdd data query --run-id mag-abc123
+uv run magsag data query --run-id mag-abc123
 
 # Export for compliance review
-uv run agdd data query --agent sensitive-data-mag --format csv > audit.csv
+uv run magsag data query --agent sensitive-data-mag --format csv > audit.csv
 ```
 
 ## Migration Guide
@@ -488,7 +488,7 @@ Monitor rate limit headers and implement backoff:
 
 ```python
 # Check observability logs for rate limit errors
-uv run agdd data search "rate_limit" --limit 100
+uv run magsag data search "rate_limit" --limit 100
 
 # Implement request throttling in high-volume scenarios
 ```
@@ -497,10 +497,10 @@ uv run agdd data search "rate_limit" --limit 100
 
 ```bash
 # Monitor daily costs
-uv run agdd flow summarize | jq '.model_stats[].cost_usd' | awk '{s+=$1} END {print s}'
+uv run magsag flow summarize | jq '.model_stats[].cost_usd' | awk '{s+=$1} END {print s}'
 
 # Set up alerts in governance policies
-uv run agdd flow gate summary.json --policy catalog/policies/model_governance.yaml
+uv run magsag flow gate summary.json --policy catalog/policies/model_governance.yaml
 ```
 
 ## Related Documentation

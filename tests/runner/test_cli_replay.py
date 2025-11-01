@@ -53,7 +53,7 @@ class TestCLIReplay:
             "timestamp": 9876543210.0,
             "seed": 100,
             "deterministic_mode": True,
-            "env_vars": {"AGDD_DETERMINISTIC_SEED": "100"},
+            "env_vars": {"MAGSAG_DETERMINISTIC_SEED": "100"},
         }
         snapshot_file.write_text(json.dumps(snapshot_data, indent=2))
 
@@ -75,7 +75,7 @@ class TestCLIReplay:
         self, tmp_path: Path
     ) -> None:
         """Test end-to-end replay from summary.json restores deterministic state."""
-        from agdd.runner_determinism import (
+        from magsag.runner_determinism import (
             create_replay_context,
             get_deterministic_mode,
             get_deterministic_seed,
@@ -116,7 +116,7 @@ class TestCLIReplay:
 
     def test_replay_from_nondeterministic_summary_json(self, tmp_path: Path) -> None:
         """Test replay from non-deterministic summary.json clears deterministic mode."""
-        from agdd.runner_determinism import (
+        from magsag.runner_determinism import (
             create_replay_context,
             get_deterministic_mode,
             set_deterministic_mode,

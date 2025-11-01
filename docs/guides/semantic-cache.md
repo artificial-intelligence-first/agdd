@@ -8,7 +8,7 @@ change_log:
 
 # Semantic Cache Guide
 
-AGDD provides semantic caching using vector similarity search to reduce costs and latency by reusing responses for similar prompts.
+MAGSAG provides semantic caching using vector similarity search to reduce costs and latency by reusing responses for similar prompts.
 
 ## Overview
 
@@ -31,7 +31,7 @@ The semantic cache system offers:
 
 ### No O(N) Scans
 
-Unlike naive caching that scans all entries, AGDD uses:
+Unlike naive caching that scans all entries, MAGSAG uses:
 
 - **FAISS**: Approximate Nearest Neighbor (ANN) with IndexIVFFlat or IndexFlat
 - **Redis**: RediSearch vector similarity with HNSW indexing
@@ -44,16 +44,16 @@ Both provide sub-linear search time, making cache lookups efficient even with mi
 
 ```bash
 # FAISS backend (default)
-pip install 'agdd[faiss]'
+pip install 'magsag[faiss]'
 
 # Redis backend (production)
-pip install 'agdd[redis]'
+pip install 'magsag[redis]'
 ```
 
 ### Basic Usage
 
 ```python
-from agdd.optimization.cache import create_cache, CacheConfig
+from magsag.optimization.cache import create_cache, CacheConfig
 import numpy as np
 
 # Create cache with FAISS backend
@@ -92,7 +92,7 @@ for match in matches:
 **Best for**: Development, single-node deployments, offline caching
 
 ```python
-from agdd.optimization.cache import CacheConfig, create_cache
+from magsag.optimization.cache import CacheConfig, create_cache
 
 # Exact search (slower, 100% accuracy)
 config_flat = CacheConfig(
@@ -122,13 +122,13 @@ cache_ivf = create_cache(config_ivf)
 **Best for**: Production, multi-node deployments, shared cache
 
 ```python
-from agdd.optimization.cache import CacheConfig, create_cache
+from magsag.optimization.cache import CacheConfig, create_cache
 
 config = CacheConfig(
     backend="redis",
     dimension=768,
     redis_url="redis://localhost:6379",
-    redis_index_name="agdd_cache"
+    redis_index_name="magsag_cache"
 )
 cache = create_cache(config)
 
@@ -145,16 +145,16 @@ cache = create_cache(config)
 
 ```bash
 # Backend selection
-export AGDD_CACHE_BACKEND="faiss"  # or "redis"
-export AGDD_CACHE_DIMENSION=768
+export MAGSAG_CACHE_BACKEND="faiss"  # or "redis"
+export MAGSAG_CACHE_DIMENSION=768
 
 # Redis configuration
-export AGDD_CACHE_REDIS_URL="redis://localhost:6379"
-export AGDD_CACHE_REDIS_INDEX_NAME="agdd_cache"
+export MAGSAG_CACHE_REDIS_URL="redis://localhost:6379"
+export MAGSAG_CACHE_REDIS_INDEX_NAME="magsag_cache"
 
 # FAISS configuration
-export AGDD_CACHE_FAISS_INDEX_TYPE="IVFFlat"
-export AGDD_CACHE_FAISS_NLIST=100
+export MAGSAG_CACHE_FAISS_INDEX_TYPE="IVFFlat"
+export MAGSAG_CACHE_FAISS_NLIST=100
 ```
 
 ## Integration with Agent Code
@@ -188,7 +188,7 @@ def get_embedding(text: str, model: str = "text-embedding-3-small") -> np.ndarra
 ### Cache-Aware Agent
 
 ```python
-from agdd.optimization.cache import get_cache, CacheConfig
+from magsag.optimization.cache import get_cache, CacheConfig
 import hashlib
 import json
 
@@ -265,7 +265,7 @@ defaults:
 
 ```python
 from functools import wraps
-from agdd.optimization.cache import get_cache
+from magsag.optimization.cache import get_cache
 
 def with_semantic_cache(threshold: float = 0.9):
     """Decorator to add semantic caching to functions."""
@@ -309,7 +309,7 @@ def generate_summary(prompt: str) -> dict:
 Pre-populate cache with common queries:
 
 ```python
-from agdd.optimization.cache import get_cache
+from magsag.optimization.cache import get_cache
 
 cache = get_cache()
 
@@ -333,7 +333,7 @@ print(f"Cache warmed up with {cache.size()} entries")
 ### Cache Statistics
 
 ```python
-from agdd.optimization.cache import get_cache
+from magsag.optimization.cache import get_cache
 
 cache = get_cache()
 
@@ -354,7 +354,7 @@ import redis
 r = redis.from_url("redis://localhost:6379")
 
 # Set TTL on cached keys
-cache_key = "agdd_cache:query_123"
+cache_key = "magsag_cache:query_123"
 r.expire(cache_key, 3600)  # Expire after 1 hour
 ```
 
@@ -468,5 +468,5 @@ r = redis.Redis(connection_pool=pool)
 - [FAISS Documentation](https://github.com/facebookresearch/faiss/wiki)
 - [Redis Vector Similarity](https://redis.io/docs/stack/search/reference/vectors/)
 - [OpenAI Embeddings Guide](https://platform.openai.com/docs/guides/embeddings)
-- [AGDD Cost Optimization](./cost-optimization.md)
-- [AGDD Routing Guide](./multi-provider.md)
+- [MAGSAG Cost Optimization](./cost-optimization.md)
+- [MAGSAG Routing Guide](./multi-provider.md)

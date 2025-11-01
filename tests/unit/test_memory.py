@@ -9,13 +9,13 @@ from typing import AsyncGenerator
 
 import pytest
 
-from agdd.core.memory import (
+from magsag.core.memory import (
     MemoryEntry,
     MemoryScope,
     apply_default_ttl,
     create_memory,
 )
-from agdd.storage.memory_store import SQLiteMemoryStore
+from magsag.storage.memory_store import SQLiteMemoryStore
 
 
 class TestMemoryEntry:

@@ -6,14 +6,14 @@ import pytest
 from pathlib import Path
 from typing import Any
 
-from agdd.evaluation.runtime import EvalRuntime
-from agdd.registry import Registry
+from magsag.evaluation.runtime import EvalRuntime
+from magsag.registry import Registry
 
 
 @pytest.fixture
 def eval_runtime() -> EvalRuntime:
     """Create EvalRuntime with test registry"""
-    base_path = Path(__file__).parents[2]  # tests/ -> agdd/
+    base_path = Path(__file__).parents[2]  # tests/ -> magsag/
     registry = Registry(base_path=base_path)
     return EvalRuntime(registry=registry)
 

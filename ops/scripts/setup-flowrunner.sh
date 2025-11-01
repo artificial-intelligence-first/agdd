@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup Flow Runner for AGDD development
+# Setup Flow Runner for MAGSAG development
 # This script automates the 6-step manual process from README.md
 
 set -e  # Exit on error
@@ -59,6 +59,6 @@ echo "To activate Flow Runner environment:"
 echo "  source ops/scripts/flowrunner-env.sh"
 echo ""
 echo "Test commands:"
-echo "  uv run agdd flow available"
-echo "  uv run agdd flow validate examples/flowrunner/prompt_flow.yaml"
+echo "  uv run magsag flow available"
+echo "  uv run magsag flow validate examples/flowrunner/prompt_flow.yaml"
 echo ""

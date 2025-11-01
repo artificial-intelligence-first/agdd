@@ -9,9 +9,9 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from agdd.api.config import Settings, get_settings
-from agdd.api.security import get_scopes_for_key, require_scope
-from agdd.api.server import app
+from magsag.api.config import Settings, get_settings
+from magsag.api.security import get_scopes_for_key, require_scope
+from magsag.api.server import app
 
 
 class TestGetScopesForKey:
@@ -63,7 +63,7 @@ class TestRequireScopeFunction:
     async def test_scope_check_blocks_access_with_missing_scopes(self) -> None:
         """Test that scope check fails when required scopes are missing."""
         # Mock get_scopes_for_key to return limited scopes
-        with patch("agdd.api.security.get_scopes_for_key") as mock_get_scopes:
+        with patch("magsag.api.security.get_scopes_for_key") as mock_get_scopes:
             mock_get_scopes.return_value = ["runs:read"]  # Missing agents:run
 
             mock_settings = Settings()
@@ -134,7 +134,7 @@ def client_with_limited_scopes() -> Iterator[TestClient]:
     app.dependency_overrides[get_settings] = override_settings
 
     # Mock get_scopes_for_key to return limited scopes
-    with patch("agdd.api.security.get_scopes_for_key") as mock_get_scopes:
+    with patch("magsag.api.security.get_scopes_for_key") as mock_get_scopes:
         mock_get_scopes.return_value = ["runs:read"]  # Only runs:read scope
 
         client = TestClient(app)
@@ -230,7 +230,7 @@ class TestRunEndpointsRBACScopes:
 
         app.dependency_overrides[get_settings] = override_settings
 
-        with patch("agdd.api.security.get_scopes_for_key") as mock_get_scopes:
+        with patch("magsag.api.security.get_scopes_for_key") as mock_get_scopes:
             mock_get_scopes.return_value = ["runs:read"]  # Missing runs:logs
 
             client = TestClient(app)

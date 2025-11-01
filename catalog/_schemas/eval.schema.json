@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agdd.ai/schemas/eval.schema.json",
-  "title": "AGDD Evaluation Schema",
-  "description": "Schema for AGDD evaluator definitions",
+  "$id": "https://magsag.ai/schemas/eval.schema.json",
+  "title": "MAGSAG Evaluation Schema",
+  "description": "Schema for MAGSAG evaluator definitions",
   "type": "object",
   "required": ["version", "slug", "name", "hook_type", "target_agents", "metrics"],
   "properties": {

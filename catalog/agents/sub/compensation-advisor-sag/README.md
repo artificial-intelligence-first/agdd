@@ -79,7 +79,7 @@ CompensationAdvisorSAG is a specialized sub-agent responsible for generating com
 ```bash
 # Via agent runner
 python -c "
-from agdd.runners.agent_runner import invoke_sag, Delegation
+from magsag.runners.agent_runner import invoke_sag, Delegation
 result = invoke_sag(Delegation(
     task_id='test-001',
     sag_id='compensation-advisor-sag',
@@ -92,7 +92,7 @@ print(result.output)
 
 ### Invocation from MAG
 ```python
-from agdd.runners.agent_runner import invoke_sag, Delegation
+from magsag.runners.agent_runner import invoke_sag, Delegation
 
 delegation = Delegation(
     task_id="comp-task-001",

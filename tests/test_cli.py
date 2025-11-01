@@ -4,7 +4,7 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from agdd.cli import app
+from magsag.cli import app
 
 runner = CliRunner()
 
