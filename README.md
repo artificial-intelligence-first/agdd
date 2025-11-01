@@ -1,8 +1,10 @@
 # MAGSAG Framework
 
+**This repository has been migrated to [artificial-intelligence-first/magsag](https://github.com/artificial-intelligence-first/magsag). Please use the new repository for all updates, issues, and pull requests.**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![CI Status](https://img.shields.io/github/actions/workflow/status/artificial-intelligence-first/magsag/ci.yml?branch=main&label=CI)](https://github.com/artificial-intelligence-first/magsag/actions)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/artificial-intelligence-first/magsag/ci.yml?branch=main&label=CI)](https://github.com/artificial-intelligence-first/magsag/actions/workflows/ci.yml?branch=main)
 
 MAGSAG is a governance-first framework for building and operating AI agent workflows.
 It provides a single runtime that spans CLI tools, FastAPI endpoints, GitHub
@@ -37,8 +39,8 @@ automation, and observability features backed by OpenTelemetry and Langfuse.
 │   ┌──────────┐   ┌──────────────┐   ┌──────────────────────┐ │
 │   │ Catalog  │   │ Storage APIs │   │  Telemetry (OTel,    │ │
 │   │ (agents, │   │ (SQLite,     │   │  Langfuse)           │ │
-│   │ skills,  │   │ Postgres)    │   │                      │ │
-│   │ schemas) │   └──────┬───────┘   └───────────┬──────────┘ │
+│   │ skills,  │   └──────┬───────┘   └───────────┬──────────┘ │
+│   │ schemas) │          │                       │            │
 │   └─────┬────┘          │                       │            │
 │         │        ┌──────▼──────────┐    ┌───────▼──────────┐ │
 │         └──────▶ │ Providers &     │    │  Event Storage   │ │
@@ -216,7 +218,7 @@ to the relevant guide.
 
 - Use `magsag wt` to keep branches isolated and reproducible.
 - Run the validation suite (`ruff`, `mypy`, `pytest`, `check_docs`) before sending
-  a pull request.
+a pull request.
 - Keep naming aligned with the `magsag` package and `MAGSAG_` environment prefixes.
 
 See `CONTRIBUTING.md` for review conventions and release automation.
