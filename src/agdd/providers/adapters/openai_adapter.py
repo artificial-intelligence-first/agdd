@@ -7,19 +7,19 @@ to the Provider SPI protocol.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast
 
 if TYPE_CHECKING:
-    try:
-        from agdd.core.spi.provider import Provider, CapabilityMatrix
-    except ImportError:
-        Provider = Any  # type: ignore
-        CapabilityMatrix = Any  # type: ignore
+    from agdd.core.spi.provider import Provider
 else:
     Provider = Any
-    CapabilityMatrix = Any
 
-from agdd.providers.openai import OpenAIProvider, CompletionRequest, ProviderConfig
+from agdd.providers.openai import (
+    CompletionRequest,
+    OpenAIProvider,
+    ProviderConfig,
+)
 
 
 class OpenAIAdapter:
@@ -89,12 +89,13 @@ class OpenAIAdapter:
             - finish_reason: Completion finish reason
         """
         # Convert prompt to messages format
+        messages: list[dict[str, Any]]
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
         elif isinstance(prompt, dict):
             # Assume it's already in messages format or a structured prompt
             if "messages" in prompt:
-                messages = prompt["messages"]
+                messages = cast(list[dict[str, Any]], prompt["messages"])
             else:
                 messages = [{"role": "user", "content": str(prompt)}]
         else:
@@ -110,7 +111,6 @@ class OpenAIAdapter:
 
         # Add tools if provided
         if tools:
-            from openai import NOT_GIVEN
             request.tools = tools
 
         # Add response format if schema provided
@@ -119,6 +119,10 @@ class OpenAIAdapter:
 
         # Execute the request (non-streaming) in thread pool to avoid blocking event loop
         response = await asyncio.to_thread(self._legacy.complete, request)
+        if isinstance(response, Iterator):
+            raise RuntimeError(
+                "OpenAIProvider returned streaming iterator for non-streaming request"
+            )
 
         # Convert to SPI format
         return {

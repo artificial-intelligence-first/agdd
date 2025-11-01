@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import pathlib
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import typer
 
@@ -160,7 +160,7 @@ def agent_run(
         data = json.loads(json_input.read_text(encoding="utf-8"))
 
     # Prepare execution context
-    context: dict = {}
+    context: dict[str, Any] = {}
 
     # Handle replay mode
     if replay is not None:

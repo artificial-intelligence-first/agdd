@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncIterator, Literal, Optional
+from typing import Any, AsyncIterator, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from agdd.core.permissions import ApprovalTicket
 from agdd.governance.approval_gate import ApprovalGate
+from agdd.storage import get_storage_backend
 
 from ..config import Settings, get_settings
 from ..rate_limit import rate_limit_dependency
@@ -27,8 +28,10 @@ class ApprovalDecisionRequest(BaseModel):
         ..., description="Action to take on the approval ticket"
     )
     resolved_by: str = Field(..., description="User or system that resolved the approval")
-    reason: Optional[str] = Field(None, description="Reason for denial (for deny action)")
-    response: Optional[dict] = Field(None, description="Additional response data (for approve action)")
+    reason: Optional[str] = Field(None, description="Reason provided for the decision")
+    response: Optional[dict[str, Any]] = Field(
+        None, description="Optional response payload to persist"
+    )
 
 
 class ApprovalTicketResponse(BaseModel):
@@ -38,13 +41,23 @@ class ApprovalTicketResponse(BaseModel):
     run_id: str
     agent_slug: str
     tool_name: str
-    tool_args: dict
+    tool_args: dict[str, Any] = Field(
+        ..., description="Masked tool arguments safe for display"
+    )
+    args_hash: str = Field(..., description="Deterministic hash of original tool arguments")
+    step_id: Optional[str] = Field(default=None, description="Execution step identifier if provided")
     status: Literal["pending", "approved", "denied", "expired"]
     requested_at: str
     expires_at: str
     resolved_at: Optional[str] = None
     resolved_by: Optional[str] = None
-    response: Optional[dict] = None
+    decision_reason: Optional[str] = Field(default=None, description="Reason recorded for the decision")
+    response: Optional[dict[str, Any]] = Field(
+        default=None, description="Response payload saved with the decision"
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional approval metadata"
+    )
 
     @classmethod
     def from_ticket(cls, ticket: ApprovalTicket) -> ApprovalTicketResponse:
@@ -54,13 +67,17 @@ class ApprovalTicketResponse(BaseModel):
             run_id=ticket.run_id,
             agent_slug=ticket.agent_slug,
             tool_name=ticket.tool_name,
-            tool_args=ticket.tool_args,
+            tool_args=dict(ticket.masked_args),
+            args_hash=ticket.args_hash,
+            step_id=ticket.step_id,
             status=ticket.status,
             requested_at=ticket.requested_at.isoformat(),
             expires_at=ticket.expires_at.isoformat(),
             resolved_at=ticket.resolved_at.isoformat() if ticket.resolved_at else None,
             resolved_by=ticket.resolved_by,
+            decision_reason=ticket.decision_reason,
             response=ticket.response,
+            metadata=dict(ticket.metadata),
         )
 
 
@@ -76,7 +93,7 @@ class ApprovalListResponse(BaseModel):
 _approval_gate: Optional[ApprovalGate] = None
 
 
-def get_approval_gate(settings: Settings = Depends(get_settings)) -> ApprovalGate:
+async def get_approval_gate(settings: Settings = Depends(get_settings)) -> ApprovalGate:
     """
     Get or create approval gate instance.
 
@@ -101,10 +118,11 @@ def get_approval_gate(settings: Settings = Depends(get_settings)) -> ApprovalGat
         # Create permission evaluator (loads policies from catalog)
         permission_evaluator = PermissionEvaluator()
 
-        # Create approval gate with in-memory storage
+        # Create approval gate with persistent storage backend
+        storage_backend = await get_storage_backend(settings)
         _approval_gate = ApprovalGate(
             permission_evaluator=permission_evaluator,
-            ticket_store=None,  # TODO: Wire up persistent storage
+            ticket_store=storage_backend,
             default_timeout_minutes=settings.APPROVAL_TTL_MIN,
         )
 
@@ -133,7 +151,7 @@ async def list_approvals(
     Raises:
         HTTPException: 503 if approvals feature is disabled
     """
-    tickets = approval_gate.list_pending_tickets(run_id=run_id)
+    tickets = await approval_gate.list_pending_tickets(run_id=run_id)
 
     return ApprovalListResponse(
         tickets=[ApprovalTicketResponse.from_ticket(t) for t in tickets],
@@ -165,7 +183,7 @@ async def get_approval(
     Raises:
         HTTPException: 404 if ticket not found, 503 if feature disabled
     """
-    ticket = approval_gate.get_ticket(approval_id)
+    ticket = await approval_gate.get_ticket(approval_id)
 
     if ticket is None:
         raise HTTPException(
@@ -216,7 +234,7 @@ async def update_approval(
         HTTPException: 404 if ticket not found, 400 if already resolved,
                       503 if feature disabled
     """
-    ticket = approval_gate.get_ticket(approval_id)
+    ticket = await approval_gate.get_ticket(approval_id)
 
     if ticket is None:
         raise HTTPException(
@@ -250,16 +268,18 @@ async def update_approval(
     # Execute decision
     try:
         if request.action == "approve":
-            updated_ticket = approval_gate.approve_ticket(
+            updated_ticket = await approval_gate.approve_ticket(
                 ticket_id=approval_id,
                 approved_by=request.resolved_by,
                 response=request.response,
+                reason=request.reason,
             )
         elif request.action == "deny":
-            updated_ticket = approval_gate.deny_ticket(
+            updated_ticket = await approval_gate.deny_ticket(
                 ticket_id=approval_id,
                 denied_by=request.resolved_by,
                 reason=request.reason,
+                response=request.response,
             )
         else:
             raise HTTPException(
@@ -309,7 +329,7 @@ async def stream_approval_events(
         HTTPException: 404 if ticket not found, 503 if feature disabled
     """
     # Verify ticket exists
-    ticket = approval_gate.get_ticket(approval_id)
+    ticket = await approval_gate.get_ticket(approval_id)
 
     if ticket is None:
         raise HTTPException(
@@ -341,10 +361,10 @@ async def stream_approval_events(
         import json
 
         # Send initial state
-        current_ticket = approval_gate.get_ticket(approval_id)
+        current_ticket = await approval_gate.get_ticket(approval_id)
         if current_ticket:
             event_data = ApprovalTicketResponse.from_ticket(current_ticket).model_dump()
-            yield f"event: approval.required\n".encode("utf-8")
+            yield "event: approval.required\n".encode("utf-8")
             yield f"data: {json.dumps(event_data)}\n\n".encode("utf-8")
 
         # Poll for updates
@@ -354,7 +374,7 @@ async def stream_approval_events(
         while True:
             await asyncio.sleep(poll_interval)
 
-            current_ticket = approval_gate.get_ticket(approval_id)
+            current_ticket = await approval_gate.get_ticket(approval_id)
             if current_ticket is None:
                 # Ticket was deleted
                 break
@@ -362,7 +382,7 @@ async def stream_approval_events(
             # Check if status changed
             if current_ticket.status != last_status:
                 event_data = ApprovalTicketResponse.from_ticket(current_ticket).model_dump()
-                yield f"event: approval.updated\n".encode("utf-8")
+                yield "event: approval.updated\n".encode("utf-8")
                 yield f"data: {json.dumps(event_data)}\n\n".encode("utf-8")
 
                 last_status = current_ticket.status

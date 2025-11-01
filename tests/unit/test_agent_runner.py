@@ -1,13 +1,18 @@
 """Unit tests for agdd.runners.agent_runner module"""
 
+import asyncio
 import json
 import tempfile
 from pathlib import Path
+from typing import Any, Dict, cast
 
 import pytest
 
 import agdd.observability.cost_tracker as cost_tracker
+from agdd.core.memory import MemoryEntry, MemoryScope
 from agdd.runners.agent_runner import AgentRunner, Delegation, ObservabilityLogger, SkillRuntime
+from agdd.storage.memory_store import SQLiteMemoryStore
+from agdd.routing.handoff_tool import HandoffTool
 
 pytestmark = pytest.mark.slow
 
@@ -210,3 +215,79 @@ class TestAgentRunner:
         if cost_tracker._tracker is not None:
             cost_tracker._tracker.close()
             cost_tracker._tracker = None
+
+    def test_memory_capture_for_mag(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """MAG execution should persist session memories when enabled."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cost_tracker, "_tracker", None)
+
+        async def run_test() -> list[MemoryEntry]:
+            store = SQLiteMemoryStore(db_path=tmp_path / "memory.db", enable_fts=False)
+            await store.initialize()
+            try:
+                runner = AgentRunner(
+                    base_dir=tmp_path,
+                    enable_memory=True,
+                    memory_store=store,
+                )
+                payload = {
+                    "role": "Staff Engineer",
+                    "level": "Staff",
+                    "location": "Remote",
+                    "experience_years": 10,
+                }
+                runner.invoke_mag("offer-orchestrator-mag", payload)
+                memories = await store.list_memories(
+                    scope=MemoryScope.SESSION,
+                    agent_slug="offer-orchestrator-mag",
+                )
+            finally:
+                await store.close()
+            return memories
+
+        memories = asyncio.run(run_test())
+        keys = {entry.key for entry in memories}
+        assert "input" in keys
+        assert "output" in keys
+
+    @pytest.mark.asyncio
+    async def test_runner_handoff_wrapper(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """runner.handoff should delegate to configured handoff tool."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(cost_tracker, "_tracker", None)
+
+        class DummyHandoffTool:
+            def __init__(self) -> None:
+                self.calls: list[dict[str, Any]] = []
+
+            async def handoff(self, **kwargs: Any) -> Dict[str, Any]:
+                self.calls.append(kwargs)
+                return {
+                    "handoff_id": "dummy-handoff",
+                    "status": "completed",
+                    "result": {"status": "success"},
+                }
+
+        tool = DummyHandoffTool()
+        runner = AgentRunner(base_dir=tmp_path, handoff_tool=cast(HandoffTool, tool))
+
+        result = await runner.handoff(
+            source_agent="alpha-mag",
+            target_agent="beta-mag",
+            task="Process escalation",
+            context={"run_id": "run-alpha"},
+        )
+
+        assert result["status"] == "completed"
+        assert tool.calls
+        call_args = tool.calls[0]
+        assert call_args["source_agent"] == "alpha-mag"
+        assert call_args["target_agent"] == "beta-mag"

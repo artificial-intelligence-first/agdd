@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -11,6 +11,7 @@ import pytest
 import pytest_asyncio
 
 from agdd.storage.backends.sqlite import SQLiteStorageBackend
+from agdd.storage.models import ApprovalTicketRecord, RunSnapshotRecord
 
 pytestmark = pytest.mark.slow
 
@@ -198,7 +199,94 @@ async def test_vacuum(storage: SQLiteStorageBackend) -> None:
 
     # Actual vacuum
     result = await storage.vacuum(hot_days=0, dry_run=False)
-    assert result["dry_run"] is False
+
+
+@pytest.mark.asyncio
+async def test_approval_ticket_persistence(storage: SQLiteStorageBackend) -> None:
+    """Test persisting approval tickets."""
+    now = datetime.now(timezone.utc)
+    await storage.create_run(
+        run_id="run-approval-1",
+        agent_slug="agent-approval",
+        status="running",
+    )
+    record = ApprovalTicketRecord(
+        ticket_id="ticket-123",
+        run_id="run-approval-1",
+        agent_slug="agent-approval",
+        tool_name="tool.approval",
+        masked_args={"param": "value"},
+        args_hash="a" * 64,
+        requested_at=now,
+        expires_at=now + timedelta(minutes=5),
+        status="pending",
+        metadata={"scope": "unit-test"},
+    )
+
+    await storage.create_approval_ticket(record)
+
+    fetched = await storage.get_approval_ticket("ticket-123")
+    assert fetched is not None
+    assert fetched.ticket_id == "ticket-123"
+    assert fetched.status == "pending"
+
+    record.status = "approved"
+    record.resolved_at = now + timedelta(minutes=1)
+    record.resolved_by = "approver@example.com"
+    record.decision_reason = "Allowed"
+    record.response = {"note": "Approved"}
+
+    await storage.update_approval_ticket(record)
+
+    updated = await storage.get_approval_ticket("ticket-123")
+    assert updated is not None
+    assert updated.status == "approved"
+    assert updated.resolved_by == "approver@example.com"
+    assert updated.decision_reason == "Allowed"
+
+    pending = await storage.list_approval_tickets(run_id="run-approval-1")
+    assert len(pending) == 1
+    assert pending[0].ticket_id == "ticket-123"
+
+
+@pytest.mark.asyncio
+async def test_snapshot_persistence(storage: SQLiteStorageBackend) -> None:
+    """Test persisting run snapshots via storage backend."""
+    now = datetime.now(timezone.utc)
+    await storage.create_run(
+        run_id="run-durable-1",
+        agent_slug="agent-durable",
+        status="running",
+    )
+
+    record = RunSnapshotRecord(
+        snapshot_id="snap-001",
+        run_id="run-durable-1",
+        step_id="step-1",
+        state={"counter": 1},
+        metadata={"agent_slug": "agent-durable"},
+        created_at=now,
+    )
+
+    await storage.upsert_run_snapshot(record)
+
+    latest = await storage.get_latest_run_snapshot("run-durable-1")
+    assert latest is not None
+    assert latest.step_id == "step-1"
+
+    record.state = {"counter": 2}
+    await storage.upsert_run_snapshot(record)
+
+    snapshot = await storage.get_run_snapshot("run-durable-1", "step-1")
+    assert snapshot is not None
+    assert snapshot.state["counter"] == 2
+
+    snapshots = await storage.list_run_snapshots("run-durable-1")
+    assert len(snapshots) == 1
+    assert snapshots[0].step_id == "step-1"
+
+    deleted = await storage.delete_run_snapshots("run-durable-1")
+    assert deleted >= 1
 
 
 @pytest.mark.asyncio

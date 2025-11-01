@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from agdd.api.config import Settings, get_settings
@@ -80,8 +80,11 @@ class TestRequireScopeFunction:
 
             assert exc_info.value.status_code == 403
             detail = exc_info.value.detail
+            assert isinstance(detail, dict)
             assert detail["code"] == "insufficient_permissions"
-            assert "agents:run" in detail["missing_scopes"]
+            missing_scopes = detail.get("missing_scopes")
+            assert isinstance(missing_scopes, list)
+            assert "agents:run" in missing_scopes
 
     @pytest.mark.asyncio
     async def test_scope_check_validates_api_key_first(self) -> None:
@@ -100,6 +103,7 @@ class TestRequireScopeFunction:
 
         assert exc_info.value.status_code == 401
         detail = exc_info.value.detail
+        assert isinstance(detail, dict)
         assert detail["code"] == "unauthorized"
 
 

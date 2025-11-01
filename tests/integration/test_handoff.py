@@ -1,3 +1,4 @@
+# mypy: disable-error-code=no-untyped-def
 """
 Integration tests for Handoff-as-a-Tool.
 
@@ -8,6 +9,10 @@ Tests the complete handoff lifecycle including:
 - Multi-platform support
 """
 
+from types import SimpleNamespace
+from typing import Any, Dict, Optional
+from unittest.mock import AsyncMock
+
 import pytest
 
 from agdd.core.permissions import ToolPermission
@@ -16,7 +21,6 @@ from agdd.routing.handoff_tool import (
     AGDDHandoffAdapter,
     ADKHandoffAdapter,
     AnthropicHandoffAdapter,
-    HandoffRequest,
     HandoffTool,
     OpenAIHandoffAdapter,
 )
@@ -201,6 +205,47 @@ class TestHandoffTool:
         assert request.status == "completed"
 
     @pytest.mark.asyncio
+    async def test_handoff_agdd_runner_integration(self):
+        """AGDD adapter should delegate via provided runner instance."""
+
+        class DummyRunner:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, Dict[str, Any], Optional[Dict[str, Any]]]] = []
+
+            def invoke_mag(
+                self,
+                slug: str,
+                payload: Dict[str, Any],
+                context: Optional[Dict[str, Any]] = None,
+            ) -> Dict[str, Any]:
+                self.calls.append((slug, payload, context))
+                return {"delegated": slug, "payload": payload, "context": context}
+
+        runner = DummyRunner()
+        handoff_tool = HandoffTool(agent_runner=runner)
+
+        result = await handoff_tool.handoff(
+            source_agent="primary-agent",
+            target_agent="secondary-agent",
+            task="Review application",
+            payload={"application_id": "app-42"},
+            context={"trace_id": "trace-123"},
+            run_id="run-mag-1",
+        )
+
+        assert result["status"] == "completed"
+        assert result["result"]["agent"] == "secondary-agent"
+        assert runner.calls, "Runner should be invoked"
+
+        delegated_slug, delegated_payload, delegated_context = runner.calls[0]
+        assert delegated_slug == "secondary-agent"
+        assert delegated_payload == {"application_id": "app-42"}
+        assert delegated_context is not None
+        assert delegated_context.get("handoff_id") == result["handoff_id"]
+        assert delegated_context.get("handoff_source_agent") == "primary-agent"
+        assert delegated_context.get("parent_run_id") == "run-mag-1"
+
+    @pytest.mark.asyncio
     async def test_list_handoffs(self, handoff_tool):
         """Test listing handoff requests."""
         # Execute multiple handoffs
@@ -236,6 +281,32 @@ class TestHandoffTool:
         # Filter by status
         completed_handoffs = handoff_tool.list_handoffs(status="completed")
         assert len(completed_handoffs) == 3
+
+    @pytest.mark.asyncio
+    async def test_handoff_records_events(self, monkeypatch: pytest.MonkeyPatch):
+        """Ensure handoff tool emits storage events when run_id is provided."""
+
+        storage_mock = SimpleNamespace(
+            append_event=AsyncMock(return_value=None),
+        )
+        monkeypatch.setattr(
+            "agdd.routing.handoff_tool.get_storage_backend",
+            AsyncMock(return_value=storage_mock),
+        )
+
+        handoff_tool = HandoffTool()
+
+        await handoff_tool.handoff(
+            source_agent="event-agent",
+            target_agent="receiver",
+            task="Collect metrics",
+            platform="agdd",
+            run_id="run-events-1",
+        )
+
+        event_types = [call.kwargs["event_type"] for call in storage_mock.append_event.await_args_list]
+        assert event_types.count("handoff.requested") == 1
+        assert event_types.count("handoff.completed") == 1
 
     @pytest.mark.asyncio
     async def test_handoff_with_permissions_allowed(self, handoff_tool_with_permissions):
@@ -281,10 +352,10 @@ class TestHandoffTool:
         evaluator.evaluate.return_value = ToolPermission.REQUIRE_APPROVAL
 
         # Create mock approval gate that denies
-        approval_gate = MagicMock()
         mock_ticket = MagicMock()
         mock_ticket.ticket_id = "test-ticket-123"
-        approval_gate.create_ticket.return_value = mock_ticket
+        approval_gate = MagicMock()
+        approval_gate.create_ticket = AsyncMock(return_value=mock_ticket)
         approval_gate.wait_for_decision = AsyncMock(
             side_effect=ApprovalDeniedError("Denied by admin")
         )

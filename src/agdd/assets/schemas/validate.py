@@ -22,11 +22,10 @@ Dependencies:
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, cast
 
 try:
-    import jsonschema
-    from jsonschema import Draft7Validator, ValidationError
+    from jsonschema import Draft7Validator
 except ImportError:
     print("Error: jsonschema package not found.", file=sys.stderr)
     print("Install it with: pip install jsonschema", file=sys.stderr)
@@ -34,21 +33,24 @@ except ImportError:
 
 
 SCHEMA_DIR = Path(__file__).parent
-SCHEMAS = {
+JSONDict = Dict[str, Any]
+
+
+SCHEMAS: Dict[str, Path] = {
     "event": SCHEMA_DIR / "event.schema.json",
     "error": SCHEMA_DIR / "error.schema.json",
     "artifacts": SCHEMA_DIR / "artifacts.schema.json",
 }
 
 
-def load_json(path: Path) -> Dict[str, Any]:
+def load_json(path: Path) -> JSONDict:
     """Load JSON from file."""
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        return cast(JSONDict, json.load(f))
 
 
 def validate_instance(
-    schema_name: str, instance: Dict[str, Any]
+    schema_name: str, instance: JSONDict
 ) -> Tuple[bool, List[str]]:
     """
     Validate a JSON instance against a schema.
@@ -162,7 +164,7 @@ def self_test() -> bool:
     return all_valid
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     if len(sys.argv) < 2:
         print(__doc__)

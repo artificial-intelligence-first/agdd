@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
+from agdd.storage.models import ApprovalTicketRecord, RunSnapshotRecord
+from agdd.storage.serialization import json_safe
 
 
 class SQLiteStorageBackend(StorageBackend):
@@ -221,12 +223,16 @@ class SQLiteStorageBackend(StorageBackend):
                 agent_slug TEXT NOT NULL,
                 tool_name TEXT NOT NULL,
                 tool_args TEXT NOT NULL DEFAULT '{}',
+                args_hash TEXT NOT NULL DEFAULT '',
+                step_id TEXT,
                 requested_at TEXT NOT NULL,
                 expires_at TEXT NOT NULL,
                 status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
                 resolved_at TEXT,
                 resolved_by TEXT,
+                decision_reason TEXT,
                 response TEXT,
+                metadata TEXT NOT NULL DEFAULT '{}',
                 FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
             )
             """
@@ -238,6 +244,19 @@ class SQLiteStorageBackend(StorageBackend):
             "CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, expires_at)"
         )
 
+        # Schema patching for new columns (idempotent ALTER TABLE operations)
+        for ddl in (
+            "ALTER TABLE approvals ADD COLUMN args_hash TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE approvals ADD COLUMN step_id TEXT",
+            "ALTER TABLE approvals ADD COLUMN decision_reason TEXT",
+            "ALTER TABLE approvals ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
+        ):
+            try:
+                conn.execute(ddl)
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
         # Snapshots table for durable run checkpoint/resume
         conn.execute(
             """
@@ -247,6 +266,7 @@ class SQLiteStorageBackend(StorageBackend):
                 step_id TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 state TEXT NOT NULL DEFAULT '{}',
+                metadata TEXT NOT NULL DEFAULT '{}',
                 UNIQUE(run_id, step_id),
                 FOREIGN KEY (run_id) REFERENCES runs(run_id) ON DELETE CASCADE
             )
@@ -255,6 +275,14 @@ class SQLiteStorageBackend(StorageBackend):
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_snapshots_run ON snapshots(run_id, created_at DESC)"
         )
+
+        for ddl in (
+            "ALTER TABLE snapshots ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'",
+        ):
+            try:
+                conn.execute(ddl)
+            except sqlite3.OperationalError:
+                pass
 
         # Memory entries table for memory IR layer
         conn.execute(
@@ -530,6 +558,272 @@ class SQLiteStorageBackend(StorageBackend):
                 "contract_version": row["contract_version"],
                 "artifact_uri": row["artifact_uri"],
             }
+
+    def _row_to_approval_record(self, row: sqlite3.Row) -> ApprovalTicketRecord:
+        """Convert SQLite row into ApprovalTicketRecord."""
+        return ApprovalTicketRecord(
+            ticket_id=row["ticket_id"],
+            run_id=row["run_id"],
+            agent_slug=row["agent_slug"],
+            tool_name=row["tool_name"],
+            masked_args=json.loads(row["tool_args"]) if row["tool_args"] else {},
+            args_hash=row["args_hash"],
+            step_id=row["step_id"],
+            metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+            requested_at=datetime.fromisoformat(row["requested_at"]),
+            expires_at=datetime.fromisoformat(row["expires_at"]),
+            status=row["status"],
+            resolved_at=datetime.fromisoformat(row["resolved_at"])
+            if row["resolved_at"]
+            else None,
+            resolved_by=row["resolved_by"],
+            decision_reason=row["decision_reason"],
+            response=json.loads(row["response"]) if row["response"] else None,
+        )
+
+    def _row_to_snapshot_record(self, row: sqlite3.Row) -> RunSnapshotRecord:
+        """Convert SQLite row into RunSnapshotRecord."""
+        return RunSnapshotRecord(
+            snapshot_id=row["snapshot_id"],
+            run_id=row["run_id"],
+            step_id=row["step_id"],
+            state=json.loads(row["state"]) if row["state"] else {},
+            metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+            created_at=datetime.fromisoformat(row["created_at"]),
+        )
+
+    async def create_approval_ticket(self, record: ApprovalTicketRecord) -> None:
+        """Persist a new approval ticket (idempotent by ticket_id)."""
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        masked_args_json = json.dumps(json_safe(record.masked_args), ensure_ascii=False)
+        response_payload = (
+            json_safe(record.response) if record.response is not None else None
+        )
+        response_json = (
+            json.dumps(response_payload, ensure_ascii=False)
+            if response_payload is not None
+            else None
+        )
+        metadata_json = json.dumps(json_safe(record.metadata), ensure_ascii=False)
+
+        conn.execute(
+            """
+            INSERT INTO approvals (
+                ticket_id,
+                run_id,
+                agent_slug,
+                tool_name,
+                tool_args,
+                args_hash,
+                step_id,
+                requested_at,
+                expires_at,
+                status,
+                resolved_at,
+                resolved_by,
+                decision_reason,
+                response,
+                metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(ticket_id) DO UPDATE SET
+                run_id=excluded.run_id,
+                agent_slug=excluded.agent_slug,
+                tool_name=excluded.tool_name,
+                tool_args=excluded.tool_args,
+                args_hash=excluded.args_hash,
+                step_id=excluded.step_id,
+                requested_at=excluded.requested_at,
+                expires_at=excluded.expires_at,
+                status=excluded.status,
+                resolved_at=excluded.resolved_at,
+                resolved_by=excluded.resolved_by,
+                decision_reason=excluded.decision_reason,
+                response=excluded.response,
+                metadata=excluded.metadata
+            """,
+            (
+                record.ticket_id,
+                record.run_id,
+                record.agent_slug,
+                record.tool_name,
+                masked_args_json,
+                record.args_hash,
+                record.step_id,
+                record.requested_at.astimezone(timezone.utc).isoformat(),
+                record.expires_at.astimezone(timezone.utc).isoformat(),
+                record.status,
+                record.resolved_at.astimezone(timezone.utc).isoformat()
+                if record.resolved_at
+                else None,
+                record.resolved_by,
+                record.decision_reason,
+                response_json,
+                metadata_json,
+            ),
+        )
+
+    async def update_approval_ticket(self, record: ApprovalTicketRecord) -> None:
+        """Update an existing approval ticket."""
+        await self.create_approval_ticket(record)
+
+    async def get_approval_ticket(self, ticket_id: str) -> Optional[ApprovalTicketRecord]:
+        """Retrieve an approval ticket by ID."""
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        cursor = conn.execute(
+            """
+            SELECT *
+            FROM approvals
+            WHERE ticket_id = ?
+            """,
+            (ticket_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return self._row_to_approval_record(row)
+
+    async def list_approval_tickets(
+        self,
+        run_id: Optional[str] = None,
+        agent_slug: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[ApprovalTicketRecord]:
+        """List approval tickets with optional filters."""
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        query = "SELECT * FROM approvals WHERE 1=1"
+        params: List[Any] = []
+
+        if run_id:
+            query += " AND run_id = ?"
+            params.append(run_id)
+
+        if agent_slug:
+            query += " AND agent_slug = ?"
+            params.append(agent_slug)
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        query += " ORDER BY requested_at ASC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor = conn.execute(query, params)
+        rows = cursor.fetchall()
+        return [self._row_to_approval_record(row) for row in rows]
+
+    async def upsert_run_snapshot(self, record: RunSnapshotRecord) -> None:
+        """Persist a run snapshot (idempotent by run_id + step_id)."""
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        state_json = json.dumps(json_safe(record.state), ensure_ascii=False)
+        metadata_json = json.dumps(json_safe(record.metadata), ensure_ascii=False)
+
+        conn.execute(
+            """
+            INSERT INTO snapshots (
+                snapshot_id,
+                run_id,
+                step_id,
+                created_at,
+                state,
+                metadata
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_id, step_id) DO UPDATE SET
+                snapshot_id=excluded.snapshot_id,
+                created_at=excluded.created_at,
+                state=excluded.state,
+                metadata=excluded.metadata
+            """,
+            (
+                record.snapshot_id,
+                record.run_id,
+                record.step_id,
+                record.created_at.astimezone(timezone.utc).isoformat(),
+                state_json,
+                metadata_json,
+            ),
+        )
+
+    async def get_latest_run_snapshot(self, run_id: str) -> Optional[RunSnapshotRecord]:
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        cursor = conn.execute(
+            """
+            SELECT *
+            FROM snapshots
+            WHERE run_id = ?
+            ORDER BY datetime(created_at) DESC
+            LIMIT 1
+            """,
+            (run_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_snapshot_record(row)
+
+    async def get_run_snapshot(self, run_id: str, step_id: str) -> Optional[RunSnapshotRecord]:
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        cursor = conn.execute(
+            """
+            SELECT * FROM snapshots
+            WHERE run_id = ? AND step_id = ?
+            LIMIT 1
+            """,
+            (run_id, step_id),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_snapshot_record(row)
+
+    async def list_run_snapshots(self, run_id: str) -> List[RunSnapshotRecord]:
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        cursor = conn.execute(
+            """
+            SELECT *
+            FROM snapshots
+            WHERE run_id = ?
+            ORDER BY datetime(created_at) ASC
+            """,
+            (run_id,),
+        )
+        rows = cursor.fetchall()
+        return [self._row_to_snapshot_record(row) for row in rows]
+
+    async def delete_run_snapshots(self, run_id: str) -> int:
+        conn = self._conn
+        if conn is None:
+            raise RuntimeError("SQLite connection has not been initialized")
+
+        cursor = conn.execute(
+            "DELETE FROM snapshots WHERE run_id = ?",
+            (run_id,),
+        )
+        return cursor.rowcount if cursor.rowcount is not None else 0
 
     async def search_text(
         self,

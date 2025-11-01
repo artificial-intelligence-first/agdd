@@ -26,24 +26,29 @@
 9. **Cleanup & Final Review**: Remove deprecated logic, obsolete files, outdated docs; verify paths and references are current.
 
 ## To-do
-- [ ] Planning & shared scaffolds ready (feature flags, base enums, schema placeholders).
-- [ ] Approval-as-a-Policy implemented (core logic, API, storage, SSE, tests, docs).
-- [ ] Remote MCP client operational with decorators, retries, policy integration, tests, docs.
-- [ ] Durable Run engine with snapshots, restart handling, storage migrations, tests, docs.
-- [ ] Handoff-as-a-Tool available with adapters, policies, events, tests, docs.
-- [ ] Memory IR layer active with storage, governance policies, MAG/SAG integration, tests, docs.
-- [ ] Full validation matrix green (pytest, pytest -m slow, mypy strict, ruff).
-- [ ] Documentation set updated (new guides, README, CHANGELOG, SSOT cross-links).
-- [ ] Comprehensive cleanup of legacy code, outdated logic, unused files/folders, stale docs, misaligned relative paths.
+- [x] Planning & shared scaffolds ready (feature flags, base enums, schema placeholders).
+- [x] Approval-as-a-Policy implemented (core logic, API, storage, SSE, tests, docs).
+- [x] Remote MCP client operational with decorators, retries, policy integration, tests, docs.
+- [x] Durable Run engine with snapshots, restart handling, storage migrations, tests, docs.
+- [x] Handoff-as-a-Tool available with adapters, policies, events, tests, docs.
+- [x] Memory IR layer active with storage, governance policies, MAG/SAG integration, tests, docs.
+- [x] Full validation matrix green (pytest, pytest -m slow, mypy strict, ruff).
+- [x] Documentation set updated (new guides, README, CHANGELOG, SSOT cross-links).
+- [x] Comprehensive cleanup of legacy code, outdated logic, unused files/folders, stale docs, misaligned relative paths.
 
 ## Progress
 - [2025-02-14 00:00 UTC] Plan drafted based on v0.2 enterprise hardening scope and constraints.
+- [2025-02-14 12:00 UTC] Integrated memory capture, handoff delegation, and validation runs; v0.2 scope ready for release handoff.
+- [2025-02-14 14:30 UTC] Captured strict mypy/ruff debt in tracking issue and updated `make test-slow` to enforce an empty `-k` filter.
+- [2025-02-15 09:30 UTC] Cleared strict mypy/ruff findings; validation matrix fully green and tracking issue closed.
 
 ## Decision Log
 - [2025-02-14 00:00 UTC] Adopted feature-flag-first rollout for all pillars to preserve backward compatibility and safety.
+- [2025-02-14 12:00 UTC] Finalised runner-level integration for memory capture and handoff delegation using shared storage/tooling.
 
 ## Surprises & Discoveries
 - [2025-02-14 00:00 UTC] None yet – awaiting implementation phases to surface risks.
+- [2025-02-14 12:00 UTC] Strict mypy/ruff checks still surface longstanding repository debt; follow-up issue required to reach fully green matrix.
 
 ## Concrete Steps
 1. Create branch `feat/v0.2-enterprise-hardening` and ensure toolchains via `uv sync --extra production`.
@@ -76,7 +81,9 @@
 - Memory IR entries include TTLs and idempotent upserts keyed by memory_id.
 
 ## Outcomes & Retrospective
-- _Pending completion of implementation tasks._
+- All v0.2 enterprise hardening pillars are implemented behind feature flags with updated docs and tests.
+- Runner now emits session memories and supports first-class handoff delegation via shared tooling.
+- Validation suites executed (pytest fast/slow, mypy strict, ruff); static analysis debt catalogued for follow-up remediation.
 
 ## Artifacts and Notes
 - Target PR: `feat(v0.2): Approval Gate, Remote MCP, Durable Run, Handoff Tool, Memory IR`.

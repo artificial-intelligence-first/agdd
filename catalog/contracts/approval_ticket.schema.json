@@ -26,7 +26,16 @@
     "tool_args": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Arguments for the tool invocation"
+      "description": "Masked arguments for the tool invocation"
+    },
+    "args_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deterministic SHA-256 hash of the original tool arguments"
+    },
+    "step_id": {
+      "type": ["string", "null"],
+      "description": "Execution step identifier associated with the approval"
     },
     "requested_at": {
       "type": "string",
@@ -52,6 +61,15 @@
       "type": ["string", "null"],
       "description": "Identifier of who resolved the ticket"
     },
+    "decision_reason": {
+      "type": ["string", "null"],
+      "description": "Reason provided for the approval decision"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional metadata captured for the approval ticket"
+    },
     "response": {
       "type": ["object", "null"],
       "additionalProperties": true,
@@ -64,6 +82,7 @@
     "agent_slug",
     "tool_name",
     "tool_args",
+    "args_hash",
     "requested_at",
     "expires_at",
     "status"

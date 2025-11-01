@@ -11,7 +11,7 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 from agdd.observability.cost_tracker import record_llm_cost
 from agdd.observability.tracing import initialize_observability
@@ -181,7 +181,7 @@ class ObservabilityLogger:
             self.record_cost(0.0, 0, step="finalize", metadata={"auto_recorded": True})
 
         summary_file = self.run_dir / "summary.json"
-        summary = {
+        summary: dict[str, Any] = {
             "run_id": self.run_id,
             "total_logs": len(self.logs),
             "metrics": self.metrics,
@@ -207,17 +207,17 @@ class ObservabilityLogger:
             summary["environment_snapshot"] = self._environment_snapshot
         self._write_json(summary_file, summary)
 
-    def write_plan(self, plan: dict) -> None:
+    def write_plan(self, plan: Mapping[str, Any]) -> None:
         """Write plan.json to run directory."""
         if not self.run_dir:
             return
         plan_path = self.run_dir / "plan.json"
         with open(plan_path, "w", encoding="utf-8") as f:
-            json.dump(plan, f, indent=2)
+            json.dump(dict(plan), f, indent=2)
 
-    def log_event_envelope(self, event: dict) -> None:
+    def log_event_envelope(self, event: Mapping[str, Any]) -> None:
         """Log event in EventEnvelope v1 format."""
-        envelope = {
+        envelope: dict[str, Any] = {
             "ts": datetime.utcnow().isoformat(),
             "run_id": self.run_id,
             "span_id": self.span_id,
@@ -228,11 +228,11 @@ class ObservabilityLogger:
         }
         self._write_event(envelope)
 
-    def _write_event(self, envelope: dict) -> None:
+    def _write_event(self, envelope: Mapping[str, Any]) -> None:
         """Write event envelope to events.jsonl."""
         events_file = self.run_dir / "events.jsonl"
         with open(events_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(envelope, ensure_ascii=False) + "\n")
+            f.write(json.dumps(dict(envelope), ensure_ascii=False) + "\n")
 
     def snapshot_env_hash(self) -> str:
         """Create hash of current environment for determinism tracking."""

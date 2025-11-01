@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+from typing import Awaitable, Callable
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -80,10 +81,17 @@ def get_scopes_for_key(api_key: str) -> list[str]:
     """
     # Mock implementation: return all scopes for now
     # TODO: Replace with actual scope lookup from database/config
-    return ["agents:run", "agents:read", "runs:read", "runs:logs"]
+    return [
+        "agents:run",
+        "agents:read",
+        "runs:read",
+        "runs:logs",
+        "approvals:read",
+        "approvals:write",
+    ]
 
 
-def require_scope(required_scopes: list[str]):
+def require_scope(required_scopes: list[str]) -> Callable[..., Awaitable[str]]:
     """
     Create a FastAPI dependency that enforces RBAC scope requirements.
 

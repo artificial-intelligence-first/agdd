@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agdd"
-version = "0.1.0"
+version = "0.2.0"
 description = "Framework for AG-Driven Development (AGDD) systems"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,6 +20,8 @@ dependencies = [
     "httpx>=0.27.0",
     "anyio>=4.0.0",
     "openai>=1.59.5",
+    "pytest-timeout>=2.4.0",
+    "websockets>=12.0",
 ]
 
 [project.optional-dependencies]
@@ -109,6 +111,13 @@ warn_unused_ignores = true
 strict = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_incomplete_defs = false
+strict = false
+
 [tool.pytest.ini_options]
 addopts = "-q -n auto -k 'not slow'"
 pythonpath = [
@@ -117,12 +126,13 @@ pythonpath = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration-level (deselect with '-m \"not integration\"')",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-timeout = 30
 # Timeout for individual tests (prevents hanging). Override with --timeout=N
 # Slow tests that require more time should explicitly skip timeout or increase it
+timeout = 30
 
 [tool.bandit]
 exclude_dirs = ["tests", ".venv", "venv", "build", "dist"]

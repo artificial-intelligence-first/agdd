@@ -9,6 +9,8 @@ Tests the complete approval lifecycle including:
 - Timeout handling
 """
 
+from __future__ import annotations
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -24,7 +26,7 @@ from agdd.governance.permission_evaluator import PermissionEvaluator
 
 
 @pytest.fixture
-def permission_evaluator():
+def permission_evaluator() -> PermissionEvaluator:
     """Create permission evaluator with test policy."""
     evaluator = PermissionEvaluator()
     # Use default policy or test-specific policy
@@ -32,7 +34,7 @@ def permission_evaluator():
 
 
 @pytest.fixture
-def approval_gate(permission_evaluator):
+def approval_gate(permission_evaluator: PermissionEvaluator) -> ApprovalGate:
     """Create approval gate for testing."""
     return ApprovalGate(
         permission_evaluator=permission_evaluator,
@@ -44,7 +46,7 @@ def approval_gate(permission_evaluator):
 class TestApprovalFlow:
     """End-to-end approval flow tests."""
 
-    def test_permission_evaluation(self, approval_gate):
+    def test_permission_evaluation(self, approval_gate: ApprovalGate) -> None:
         """Test permission evaluation for tools."""
         # Test ALWAYS permission
         context = {
@@ -56,9 +58,10 @@ class TestApprovalFlow:
         permission = approval_gate.evaluate("unknown_tool", context)
         assert permission in (ToolPermission.ALWAYS, ToolPermission.REQUIRE_APPROVAL)
 
-    def test_ticket_creation(self, approval_gate):
+    @pytest.mark.asyncio
+    async def test_ticket_creation(self, approval_gate: ApprovalGate) -> None:
         """Test approval ticket creation."""
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -73,10 +76,11 @@ class TestApprovalFlow:
         assert ticket.status == "pending"
         assert ticket.expires_at > datetime.now(UTC)
 
-    def test_approve_ticket(self, approval_gate):
+    @pytest.mark.asyncio
+    async def test_approve_ticket(self, approval_gate: ApprovalGate) -> None:
         """Test approving a ticket."""
         # Create ticket
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -84,7 +88,7 @@ class TestApprovalFlow:
         )
 
         # Approve ticket
-        updated_ticket = approval_gate.approve_ticket(
+        updated_ticket = await approval_gate.approve_ticket(
             ticket_id=ticket.ticket_id,
             approved_by="test-user",
             response={"note": "Approved for testing"},
@@ -95,10 +99,11 @@ class TestApprovalFlow:
         assert updated_ticket.resolved_at is not None
         assert updated_ticket.response == {"note": "Approved for testing"}
 
-    def test_deny_ticket(self, approval_gate):
+    @pytest.mark.asyncio
+    async def test_deny_ticket(self, approval_gate: ApprovalGate) -> None:
         """Test denying a ticket."""
         # Create ticket
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -106,7 +111,7 @@ class TestApprovalFlow:
         )
 
         # Deny ticket
-        updated_ticket = approval_gate.deny_ticket(
+        updated_ticket = await approval_gate.deny_ticket(
             ticket_id=ticket.ticket_id,
             denied_by="test-user",
             reason="Security concern",
@@ -118,10 +123,10 @@ class TestApprovalFlow:
         assert updated_ticket.response == {"reason": "Security concern"}
 
     @pytest.mark.asyncio
-    async def test_wait_for_approval(self, approval_gate):
+    async def test_wait_for_approval(self, approval_gate: ApprovalGate) -> None:
         """Test waiting for approval decision."""
         # Create ticket
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -129,9 +134,9 @@ class TestApprovalFlow:
         )
 
         # Approve ticket after short delay (simulating async approval)
-        async def approve_after_delay():
+        async def approve_after_delay() -> None:
             await asyncio.sleep(0.5)
-            approval_gate.approve_ticket(
+            await approval_gate.approve_ticket(
                 ticket_id=ticket.ticket_id,
                 approved_by="test-user",
             )
@@ -148,10 +153,10 @@ class TestApprovalFlow:
         await approval_task  # Clean up
 
     @pytest.mark.asyncio
-    async def test_wait_for_denial(self, approval_gate):
+    async def test_wait_for_denial(self, approval_gate: ApprovalGate) -> None:
         """Test waiting for denial decision."""
         # Create ticket
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -159,9 +164,9 @@ class TestApprovalFlow:
         )
 
         # Deny ticket after short delay
-        async def deny_after_delay():
+        async def deny_after_delay() -> None:
             await asyncio.sleep(0.5)
-            approval_gate.deny_ticket(
+            await approval_gate.deny_ticket(
                 ticket_id=ticket.ticket_id,
                 denied_by="test-user",
                 reason="Test denial",
@@ -177,10 +182,10 @@ class TestApprovalFlow:
         await denial_task  # Clean up
 
     @pytest.mark.asyncio
-    async def test_approval_timeout(self, approval_gate):
+    async def test_approval_timeout(self, approval_gate: ApprovalGate) -> None:
         """Test approval timeout."""
         # Create ticket with very short timeout
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -190,23 +195,25 @@ class TestApprovalFlow:
 
         # Force expiration
         ticket.expires_at = datetime.now(UTC) - timedelta(seconds=1)
-        approval_gate._tickets[ticket.ticket_id] = ticket
+        async with approval_gate._lock:
+            approval_gate._tickets[ticket.ticket_id] = ticket
 
         # Wait should timeout immediately
         with pytest.raises(ApprovalTimeoutError):
             await approval_gate.wait_for_decision(ticket, poll_interval_seconds=0.1)
 
-    def test_list_pending_tickets(self, approval_gate):
+    @pytest.mark.asyncio
+    async def test_list_pending_tickets(self, approval_gate: ApprovalGate) -> None:
         """Test listing pending tickets."""
         # Create multiple tickets
-        ticket1 = approval_gate.create_ticket(
+        ticket1 = await approval_gate.create_ticket(
             run_id="run-1",
             agent_slug="agent-1",
             tool_name="tool1",
             tool_args={},
         )
 
-        ticket2 = approval_gate.create_ticket(
+        ticket2 = await approval_gate.create_ticket(
             run_id="run-2",
             agent_slug="agent-2",
             tool_name="tool2",
@@ -214,25 +221,26 @@ class TestApprovalFlow:
         )
 
         # Approve one ticket
-        approval_gate.approve_ticket(
+        await approval_gate.approve_ticket(
             ticket_id=ticket2.ticket_id,
             approved_by="test-user",
         )
 
         # List pending tickets
-        pending = approval_gate.list_pending_tickets()
+        pending = await approval_gate.list_pending_tickets()
         assert len(pending) == 1
         assert pending[0].ticket_id == ticket1.ticket_id
 
         # Filter by run_id
-        pending_run1 = approval_gate.list_pending_tickets(run_id="run-1")
+        pending_run1 = await approval_gate.list_pending_tickets(run_id="run-1")
         assert len(pending_run1) == 1
         assert pending_run1[0].run_id == "run-1"
 
-    def test_expire_old_tickets(self, approval_gate):
+    @pytest.mark.asyncio
+    async def test_expire_old_tickets(self, approval_gate: ApprovalGate) -> None:
         """Test expiring old tickets."""
         # Create ticket with past expiration
-        ticket = approval_gate.create_ticket(
+        ticket = await approval_gate.create_ticket(
             run_id="test-run-123",
             agent_slug="test-agent",
             tool_name="test_tool",
@@ -241,22 +249,24 @@ class TestApprovalFlow:
 
         # Force expiration
         ticket.expires_at = datetime.now(UTC) - timedelta(seconds=1)
-        approval_gate._tickets[ticket.ticket_id] = ticket
+        async with approval_gate._lock:
+            approval_gate._tickets[ticket.ticket_id] = ticket
 
         # Expire old tickets
-        expired_count = approval_gate.expire_old_tickets()
+        expired_count = await approval_gate.expire_old_tickets()
 
         assert expired_count == 1
 
         # Check ticket status
-        updated_ticket = approval_gate.get_ticket(ticket.ticket_id)
+        updated_ticket = await approval_gate.get_ticket(ticket.ticket_id)
+        assert updated_ticket is not None
         assert updated_ticket.status == "expired"
 
     @pytest.mark.asyncio
-    async def test_execute_with_approval_always(self, approval_gate):
+    async def test_execute_with_approval_always(self, approval_gate: ApprovalGate) -> None:
         """Test execute_with_approval with ALWAYS permission."""
         # Mock tool function
-        async def mock_tool(arg1):
+        async def mock_tool(arg1: str) -> dict[str, str]:
             return {"result": f"executed with {arg1}"}
 
         # Execute with ALWAYS permission (no approval needed)
@@ -268,10 +278,10 @@ class TestApprovalFlow:
         pytest.skip("Requires permission policy configuration to avoid timeout")
 
     @pytest.mark.asyncio
-    async def test_execute_with_approval_denied(self, approval_gate):
+    async def test_execute_with_approval_denied(self, approval_gate: ApprovalGate) -> None:
         """Test execute_with_approval with NEVER permission."""
         # Mock tool function
-        async def mock_tool():
+        async def mock_tool() -> dict[str, str]:
             return {"result": "should not execute"}
 
         # This would require configuring permission_evaluator to return NEVER
@@ -288,7 +298,7 @@ class TestApprovalAPI:
     """Integration tests for Approval API endpoints."""
 
     @pytest.mark.asyncio
-    async def test_approval_api_flow(self):
+    async def test_approval_api_flow(self) -> None:
         """
         Test full approval flow via API (requires running API server).
 

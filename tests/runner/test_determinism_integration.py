@@ -50,7 +50,7 @@ class TestAgentRunnerDeterminism:
                 context = {"deterministic": True}
 
                 # Call _prepare_execution
-                exec_ctx = runner._prepare_execution("test-agent", "run-123", context)
+                runner._prepare_execution("test-agent", "run-123", context)
 
                 # Verify that the ORIGINAL cached agent was NOT mutated
                 assert mock_agent.raw["provider_config"]["temperature"] == 0.9
@@ -100,7 +100,7 @@ class TestAgentRunnerDeterminism:
                 context: Dict[str, Any] = {}
 
                 # Call _prepare_execution
-                exec_ctx = runner._prepare_execution("test-agent", "run-123", context)
+                runner._prepare_execution("test-agent", "run-123", context)
 
                 # Verify config was not modified (temperature should be unchanged)
                 config = mock_agent.raw["provider_config"]
@@ -171,7 +171,7 @@ class TestAgentRunnerDeterminism:
 
                 # Run with deterministic context
                 deterministic_context = {"deterministic": True}
-                exec_ctx = runner._prepare_execution("test-agent", "run-123", deterministic_context)
+                runner._prepare_execution("test-agent", "run-123", deterministic_context)
 
                 # Verify the CACHED agent was NOT mutated
                 cached_config = mock_agent.raw["provider_config"]
@@ -207,7 +207,7 @@ class TestAgentRunnerDeterminism:
 
                 # First run: deterministic
                 deterministic_context = {"deterministic": True}
-                exec_ctx1 = runner._prepare_execution("test-agent", "run-123", deterministic_context)
+                runner._prepare_execution("test-agent", "run-123", deterministic_context)
 
                 # Get the agent that was passed to get_plan in the first call
                 first_call_agent = mock_get_plan.call_args[0][0]
@@ -220,7 +220,7 @@ class TestAgentRunnerDeterminism:
                 # Second run: non-deterministic
                 set_deterministic_mode(False)
                 nondeterministic_context: Dict[str, Any] = {}
-                exec_ctx2 = runner._prepare_execution("test-agent", "run-456", nondeterministic_context)
+                runner._prepare_execution("test-agent", "run-456", nondeterministic_context)
 
                 # Get the agent that was passed to get_plan in the second call
                 second_call_agent = mock_get_plan.call_args[0][0]
@@ -232,7 +232,6 @@ class TestAgentRunnerDeterminism:
         """Test that context={"deterministic": True} works without global mode."""
         from agdd.runners.agent_runner import AgentRunner
         from agdd.registry import AgentDescriptor
-        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)
@@ -258,7 +257,7 @@ class TestAgentRunnerDeterminism:
             with patch.object(runner.router, "get_plan", return_value=mock_plan) as mock_get_plan:
                 # Call with deterministic context (without setting global mode)
                 context = {"deterministic": True, "environment_snapshot": {"seed": 555}}
-                exec_ctx = runner._prepare_execution("test-agent", "run-999", context)
+                runner._prepare_execution("test-agent", "run-999", context)
 
                 # Get the agent passed to get_plan
                 agent_passed = mock_get_plan.call_args[0][0]
@@ -282,7 +281,6 @@ class TestAgentRunnerDeterminism:
         """Test that deterministic mode is restored after successful execution."""
         from agdd.runners.agent_runner import AgentRunner
         from agdd.registry import AgentDescriptor
-        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)
@@ -308,7 +306,7 @@ class TestAgentRunnerDeterminism:
             with patch.object(runner.router, "get_plan", return_value=mock_plan):
                 # Test _prepare_execution with deterministic context
                 context = {"deterministic": True}
-                exec_ctx = runner._prepare_execution("test-agent", "run-test", context)
+                runner._prepare_execution("test-agent", "run-test", context)
 
                 # After _prepare_execution, mode should be enabled
                 assert get_deterministic_mode() is True
@@ -328,7 +326,6 @@ class TestAgentRunnerDeterminism:
         """Test that deterministic mode is restored even if settings application fails."""
         from agdd.runners.agent_runner import AgentRunner
         from agdd.registry import AgentDescriptor
-        from agdd.runner_determinism import get_deterministic_mode, set_deterministic_mode
 
         # Ensure deterministic mode is OFF
         set_deterministic_mode(False)

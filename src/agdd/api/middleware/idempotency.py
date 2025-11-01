@@ -8,11 +8,12 @@ import asyncio
 import hashlib
 import json
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import AsyncIterator, Awaitable, Callable, Dict, List, Optional, Tuple, cast
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 
 class IdempotencyStore:
@@ -97,7 +98,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     5. Returns cached response for exact duplicate requests
     """
 
-    def __init__(self, app, store: Optional[IdempotencyStore] = None):
+    def __init__(self, app: ASGIApp, store: Optional[IdempotencyStore] = None) -> None:
         """Initialize the idempotency middleware.
 
         Args:
@@ -114,7 +115,9 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         self._request_count = 0
         self._cleanup_interval = 1000  # Clean up locks every N requests
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         """Process the request and apply idempotency logic.
 
         Args:
@@ -220,7 +223,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
             # Process the request normally
             # We need to reconstruct the request with the body we already read
-            async def receive():
+            async def receive() -> Dict[str, object]:
                 return {
                     "type": "http.request",
                     "body": body,
@@ -244,9 +247,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     return response
 
                 # Read response body to cache it (only for non-streaming responses)
-                response_body = b""
-                async for chunk in response.body_iterator:
-                    response_body += chunk
+                response_body = await self._collect_response_body(response)
 
                 # Store in idempotency cache with raw headers to preserve multi-value headers
                 # response.raw_headers is a list of (bytes, bytes) tuples that correctly
@@ -276,6 +277,23 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
             # Non-2xx responses are not cached, return as-is
             return response
+
+    async def _collect_response_body(self, response: Response) -> bytes:
+        """Collect response body for caching."""
+        body_iterator = getattr(response, "body_iterator", None)
+        if body_iterator is not None:
+            iterator = cast(AsyncIterator[bytes], body_iterator)
+            body = bytearray()
+            async for chunk in iterator:
+                body.extend(chunk)
+            return bytes(body)
+
+        body_attr = getattr(response, "body", b"")
+        if isinstance(body_attr, (bytes, bytearray)):
+            return bytes(body_attr)
+        if isinstance(body_attr, str):
+            return body_attr.encode("utf-8")
+        return bytes(str(body_attr), "utf-8")
 
     def _is_streaming_response(self, response: Response) -> bool:
         """

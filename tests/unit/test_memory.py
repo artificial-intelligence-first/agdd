@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import AsyncGenerator
 
 import pytest
 
@@ -162,7 +163,7 @@ class TestSQLiteMemoryStore:
     """Test SQLite memory storage backend."""
 
     @pytest.fixture
-    async def store(self) -> SQLiteMemoryStore:
+    async def store(self) -> AsyncGenerator[SQLiteMemoryStore, None]:
         """Create a temporary SQLite memory store."""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "test_memory.db"

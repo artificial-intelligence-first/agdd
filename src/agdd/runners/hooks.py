@@ -7,11 +7,19 @@ and other governance features into agent runners.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any, Callable, Dict, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from agdd.api.config import get_settings
-from agdd.core.permissions import ToolPermission
+from agdd.core.permissions import ToolPermission, mask_tool_args
+from agdd.governance.approval_gate import ApprovalDeniedError, ApprovalTimeoutError
+from agdd.storage import get_storage_backend
+from agdd.storage.serialization import json_safe
+
+if TYPE_CHECKING:  # pragma: no cover - typing aid
+    from agdd.storage.base import StorageBackend
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +52,70 @@ class RunnerHooks:
             if enable_approvals is not None
             else settings.APPROVALS_ENABLED
         )
+        self._storage_backend: Optional["StorageBackend"] = None
+        self._storage_lock = asyncio.Lock()
+        self._storage_disabled = False
+
+    async def _get_storage_backend(self) -> Optional["StorageBackend"]:
+        """Lazily acquire the shared storage backend for audit events."""
+        if self._storage_disabled:
+            return None
+
+        if self._storage_backend is not None:
+            return self._storage_backend
+
+        async with self._storage_lock:
+            if self._storage_backend is not None or self._storage_disabled:
+                return self._storage_backend
+
+            try:
+                self._storage_backend = await get_storage_backend()
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Runner hooks could not acquire storage backend: %s", exc
+                )
+                self._storage_disabled = True
+                return None
+
+        return self._storage_backend
+
+    async def _record_event(
+        self,
+        *,
+        run_id: Optional[str],
+        agent_slug: Optional[str],
+        event_type: str,
+        message: str,
+        payload: Dict[str, Any],
+        level: Optional[str] = None,
+    ) -> None:
+        """Persist tool governance events to the central storage backend."""
+        if not run_id:
+            return
+
+        storage = await self._get_storage_backend()
+        if storage is None:
+            return
+
+        safe_payload = json_safe(payload)
+
+        try:
+            await storage.append_event(
+                run_id=run_id,
+                agent_slug=agent_slug or "unknown",
+                event_type=event_type,
+                timestamp=datetime.now(UTC),
+                level=level,
+                message=message,
+                payload=safe_payload if isinstance(safe_payload, dict) else {"payload": safe_payload},
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Failed to record runner hook event %s for run %s: %s",
+                event_type,
+                run_id,
+                exc,
+            )
 
     async def pre_tool_execution(
         self,
@@ -78,6 +150,18 @@ class RunnerHooks:
         # Evaluate permission
         permission = self.approval_gate.evaluate(tool_name, context)
 
+        await self._record_event(
+            run_id=context.get("run_id"),
+            agent_slug=context.get("agent_slug"),
+            event_type="tool.permission.checked",
+            message=f"Permission evaluated for {tool_name}",
+            payload={
+                "tool": tool_name,
+                "permission": permission.value,
+                "context": json_safe(context),
+            },
+        )
+
         logger.info(
             f"Pre-tool execution: {tool_name} permission={permission.value} "
             f"(agent={context.get('agent_slug')}, run={context.get('run_id')})"
@@ -85,27 +169,96 @@ class RunnerHooks:
 
         # Handle permission
         if permission == ToolPermission.NEVER:
-            from agdd.governance.approval_gate import ApprovalDeniedError
-
+            await self._record_event(
+                run_id=context.get("run_id"),
+                agent_slug=context.get("agent_slug"),
+                event_type="tool.permission.denied",
+                message=f"Tool {tool_name} execution blocked by policy",
+                payload={
+                    "tool": tool_name,
+                    "permission": permission.value,
+                },
+                level="error",
+            )
             raise ApprovalDeniedError(
                 f"Tool {tool_name} is not allowed by policy"
             )
 
         if permission == ToolPermission.REQUIRE_APPROVAL:
             # Create approval ticket and wait for decision
-            ticket = self.approval_gate.create_ticket(
+            metadata_payload = context.get("approval_metadata")
+            if metadata_payload is not None and not isinstance(metadata_payload, dict):
+                metadata_payload = {"value": metadata_payload}
+
+            ticket = await self.approval_gate.create_ticket(
                 run_id=context.get("run_id", "unknown"),
                 agent_slug=context.get("agent_slug", "unknown"),
                 tool_name=tool_name,
                 tool_args=tool_args,
+                step_id=context.get("step_id"),
+                metadata=metadata_payload,
             )
 
             logger.info(
                 f"Created approval ticket {ticket.ticket_id} for {tool_name}"
             )
 
+            await self._record_event(
+                run_id=context.get("run_id"),
+                agent_slug=context.get("agent_slug"),
+                event_type="tool.approval.requested",
+                message=f"Approval requested for {tool_name}",
+                payload={
+                    "tool": tool_name,
+                    "ticket_id": ticket.ticket_id,
+                    "masked_args": mask_tool_args(tool_args),
+                },
+            )
+
             # Wait for approval decision
-            await self.approval_gate.wait_for_decision(ticket)
+            try:
+                decision = await self.approval_gate.wait_for_decision(ticket)
+            except ApprovalTimeoutError as exc:
+                await self._record_event(
+                    run_id=context.get("run_id"),
+                    agent_slug=context.get("agent_slug"),
+                    event_type="tool.approval.timeout",
+                    message=f"Approval timed out for {tool_name}",
+                    payload={
+                        "tool": tool_name,
+                        "ticket_id": ticket.ticket_id,
+                        "reason": str(exc),
+                    },
+                    level="error",
+                )
+                raise
+            except ApprovalDeniedError as exc:
+                await self._record_event(
+                    run_id=context.get("run_id"),
+                    agent_slug=context.get("agent_slug"),
+                    event_type="tool.approval.denied",
+                    message=f"Approval denied for {tool_name}",
+                    payload={
+                        "tool": tool_name,
+                        "ticket_id": ticket.ticket_id,
+                        "reason": str(exc),
+                    },
+                    level="error",
+                )
+                raise
+            else:
+                await self._record_event(
+                    run_id=context.get("run_id"),
+                    agent_slug=context.get("agent_slug"),
+                    event_type="tool.approval.granted",
+                    message=f"Approval granted for {tool_name}",
+                    payload={
+                        "tool": tool_name,
+                        "ticket_id": decision.ticket_id,
+                        "resolved_by": decision.resolved_by,
+                        "decision_reason": decision.decision_reason,
+                    },
+                )
 
             logger.info(
                 f"Tool {tool_name} approved, proceeding with execution"
@@ -136,17 +289,17 @@ class RunnerHooks:
             f"(agent={context.get('agent_slug')}, run={context.get('run_id')})"
         )
 
-        # Placeholder: Log to storage backend
-        # await storage.append_event(
-        #     run_id=context.get("run_id"),
-        #     agent_slug=context.get("agent_slug"),
-        #     event_type="tool.executed",
-        #     payload={
-        #         "tool_name": tool_name,
-        #         "tool_args": tool_args,
-        #         "success": True,
-        #     }
-        # )
+        await self._record_event(
+            run_id=context.get("run_id"),
+            agent_slug=context.get("agent_slug"),
+            event_type="tool.executed",
+            message=f"Tool {tool_name} executed successfully",
+            payload={
+                "tool": tool_name,
+                "masked_args": mask_tool_args(tool_args),
+                "result": json_safe(result),
+            },
+        )
 
     async def on_tool_error(
         self,
@@ -169,19 +322,19 @@ class RunnerHooks:
             f"(agent={context.get('agent_slug')}, run={context.get('run_id')})"
         )
 
-        # Placeholder: Log error to storage backend
-        # await storage.append_event(
-        #     run_id=context.get("run_id"),
-        #     agent_slug=context.get("agent_slug"),
-        #     event_type="tool.error",
-        #     level="error",
-        #     message=str(error),
-        #     payload={
-        #         "tool_name": tool_name,
-        #         "tool_args": tool_args,
-        #         "error": str(error),
-        #     }
-        # )
+        await self._record_event(
+            run_id=context.get("run_id"),
+            agent_slug=context.get("agent_slug"),
+            event_type="tool.error",
+            message=f"Tool {tool_name} raised {type(error).__name__}",
+            payload={
+                "tool": tool_name,
+                "masked_args": mask_tool_args(tool_args),
+                "error_type": type(error).__name__,
+                "error_message": str(error),
+            },
+            level="error",
+        )
 
 
 def create_approval_gate_hook(

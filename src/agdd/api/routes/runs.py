@@ -14,7 +14,7 @@ from ..config import Settings, get_settings
 from ..models import RunSummary
 from ..rate_limit import rate_limit_dependency
 from ..run_tracker import open_logs_file, read_metrics, read_summary
-from ..security import require_api_key, require_scope
+from ..security import require_scope
 
 router = APIRouter(tags=["runs"])
 

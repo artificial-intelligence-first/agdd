@@ -75,7 +75,7 @@ Durable Run provides snapshot/restore capabilities for agent executions, enablin
 Set the feature flag in your environment:
 
 ```bash
-export DURABLE_ENABLED=true
+export AGDD_DURABLE_ENABLED=true
 ```
 
 Or in your API config:
@@ -87,6 +87,8 @@ settings = Settings(
     DURABLE_ENABLED=True,
 )
 ```
+
+Durable snapshots emit storage events (`run.snapshot.saved`, `run.resume`) that you can stream via the storage backend for observability dashboards and replay diagnostics.
 
 ### Basic Usage
 

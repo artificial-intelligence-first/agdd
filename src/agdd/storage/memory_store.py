@@ -13,7 +13,7 @@ import sqlite3
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from agdd.core.memory import MemoryEntry, MemoryScope
 
@@ -394,7 +394,7 @@ class SQLiteMemoryStore(AbstractMemoryStore):
                 "SELECT * FROM memories WHERE memory_id = ?",
                 (memory_id,),
             )
-            return cursor.fetchone()
+            return cast(Optional[sqlite3.Row], cursor.fetchone())
 
         row = await loop.run_in_executor(None, _select)
         if row is None:
@@ -664,7 +664,7 @@ class PostgresMemoryStore(AbstractMemoryStore):
     async def initialize(self) -> None:
         """Initialize database schema"""
         try:
-            import asyncpg  # type: ignore
+            import asyncpg
         except ImportError:
             raise RuntimeError(
                 "asyncpg is required for PostgreSQL backend. "
@@ -838,7 +838,7 @@ class PostgresMemoryStore(AbstractMemoryStore):
                 memory_id,
             )
 
-        return result != "DELETE 0"
+        return cast(str, result) != "DELETE 0"
 
     async def list_memories(
         self,

@@ -11,7 +11,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, List, Optional
+
+if TYPE_CHECKING:  # pragma: no cover - typing aid
+    from agdd.storage.models import ApprovalTicketRecord, RunSnapshotRecord
 
 
 @dataclass
@@ -193,6 +196,84 @@ class StorageBackend(ABC):
             async for event in storage.get_events(run_id):
                 process(event)
         """
+        ...
+
+    @abstractmethod
+    async def create_approval_ticket(self, record: "ApprovalTicketRecord") -> None:
+        """
+        Persist a new approval ticket record.
+
+        Args:
+            record: Approval ticket record with masked arguments
+        """
+        ...
+
+    @abstractmethod
+    async def update_approval_ticket(self, record: "ApprovalTicketRecord") -> None:
+        """
+        Update an approval ticket record (status, resolution, metadata).
+
+        Args:
+            record: Approval ticket record with updated values
+        """
+        ...
+
+    @abstractmethod
+    async def get_approval_ticket(
+        self,
+        ticket_id: str,
+    ) -> Optional["ApprovalTicketRecord"]:
+        """Retrieve an approval ticket by identifier."""
+        ...
+
+    @abstractmethod
+    async def list_approval_tickets(
+        self,
+        run_id: Optional[str] = None,
+        agent_slug: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List["ApprovalTicketRecord"]:
+        """
+        List approval tickets with optional filters.
+
+        Args:
+            run_id: Filter by run identifier
+            agent_slug: Filter by agent slug
+            status: Filter by ticket status
+            limit: Maximum number of records to return
+            offset: Offset for pagination
+        """
+        ...
+
+    @abstractmethod
+    async def upsert_run_snapshot(self, record: "RunSnapshotRecord") -> None:
+        """Create or update a run snapshot (idempotent)."""
+        ...
+
+    @abstractmethod
+    async def get_latest_run_snapshot(self, run_id: str) -> Optional["RunSnapshotRecord"]:
+        """Retrieve the latest snapshot for a run."""
+        ...
+
+    @abstractmethod
+    async def get_run_snapshot(
+        self,
+        run_id: str,
+        step_id: str,
+    ) -> Optional["RunSnapshotRecord"]:
+        """Retrieve a snapshot for a specific step."""
+        ...
+
+    @abstractmethod
+    async def list_run_snapshots(self, run_id: str) -> List["RunSnapshotRecord"]:
+        """List all snapshots for a run ordered by creation time."""
+        ...
+
+    @abstractmethod
+    async def delete_run_snapshots(self, run_id: str) -> int:
+        """Delete all snapshots for a run, returning the number removed."""
         ...
 
     async def search_text(

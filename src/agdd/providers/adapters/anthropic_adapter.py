@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, Sequence, cast
 
 if TYPE_CHECKING:
-    try:
-        from agdd.core.spi.provider import Provider, CapabilityMatrix
-    except ImportError:
-        Provider = Any  # type: ignore
-        CapabilityMatrix = Any  # type: ignore
+    from agdd.core.spi.provider import Provider
 else:
     Provider = Any
-    CapabilityMatrix = Any
 
-from agdd.providers.anthropic import AnthropicProvider, CompletionRequest
+from agdd.providers.anthropic import (
+    AnthropicProvider,
+    CompletionRequest,
+    OpenAIMessage,
+    OpenAITool,
+)
 
 
 class AnthropicAdapter:
@@ -76,7 +76,7 @@ class AnthropicAdapter:
     async def generate(
         self,
         prompt: dict[str, Any] | str,
-        tools: Optional[list[dict[str, Any]]] = None,
+        tools: Optional[Sequence[dict[str, Any]]] = None,
         *,
         mode: Literal["text", "vision", "audio"] = "text",
         schema: Optional[dict[str, Any]] = None,
@@ -121,15 +121,23 @@ class AnthropicAdapter:
 
         # Convert prompt to messages format
         if isinstance(prompt, str):
-            messages = [{"role": "user", "content": prompt}]
+            messages = cast(
+                list[OpenAIMessage], [{"role": "user", "content": prompt}]
+            )
         elif isinstance(prompt, dict):
             # Assume it's already in messages format or a structured prompt
             if "messages" in prompt:
-                messages = prompt["messages"]
+                messages = cast(list[OpenAIMessage], prompt["messages"])
             else:
-                messages = [{"role": "user", "content": str(prompt)}]
+                messages = cast(
+                    list[OpenAIMessage],
+                    [{"role": "user", "content": str(prompt)}],
+                )
         else:
-            messages = [{"role": "user", "content": str(prompt)}]
+            messages = cast(
+                list[OpenAIMessage],
+                [{"role": "user", "content": str(prompt)}],
+            )
 
         # Build request
         request: CompletionRequest = {
@@ -141,22 +149,30 @@ class AnthropicAdapter:
 
         # Add tools if provided
         if tools:
-            request["tools"] = tools
+            request["tools"] = [cast(OpenAITool, tool) for tool in tools]
 
         # Execute the request (non-streaming) in thread pool to avoid blocking event loop
         response = await asyncio.to_thread(self._legacy.complete, request)
 
         # Extract usage information
-        usage = response.get("usage", {})
+        usage_raw = response.get("usage")
+        usage: dict[str, Any]
+        if isinstance(usage_raw, dict):
+            usage = usage_raw
+        else:
+            usage = {}
+
+        input_tokens = int(usage.get("input_tokens", 0))
+        output_tokens = int(usage.get("output_tokens", 0))
 
         return {
             "content": response.get("content"),
             "tool_calls": response.get("tool_calls"),
             "model": response.get("model", model or self._default_model),
             "usage": {
-                "input_tokens": usage.get("input_tokens", 0),
-                "output_tokens": usage.get("output_tokens", 0),
-                "total_tokens": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
             },
             "stop_reason": response.get("stop_reason"),
         }

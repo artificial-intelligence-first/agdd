@@ -22,6 +22,8 @@ from typing import (
 )
 
 from agdd.storage.base import StorageBackend, StorageCapabilities
+from agdd.storage.models import ApprovalTicketRecord, RunSnapshotRecord
+from agdd.storage.serialization import json_safe
 
 try:  # pragma: no cover - optional dependency
     import asyncpg
@@ -173,12 +175,16 @@ class PostgresStorageBackend(StorageBackend):
                     agent_slug TEXT NOT NULL,
                     tool_name TEXT NOT NULL,
                     tool_args JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    args_hash TEXT NOT NULL DEFAULT '',
+                    step_id TEXT,
                     requested_at TIMESTAMPTZ NOT NULL,
                     expires_at TIMESTAMPTZ NOT NULL,
                     status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
                     resolved_at TIMESTAMPTZ,
                     resolved_by TEXT,
-                    response JSONB
+                    decision_reason TEXT,
+                    response JSONB,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb
                 )
                 """
             )
@@ -195,6 +201,19 @@ class PostgresStorageBackend(StorageBackend):
                 """
             )
 
+            await conn.execute(
+                "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS args_hash TEXT NOT NULL DEFAULT ''"
+            )
+            await conn.execute(
+                "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS step_id TEXT"
+            )
+            await conn.execute(
+                "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS decision_reason TEXT"
+            )
+            await conn.execute(
+                "ALTER TABLE approvals ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb"
+            )
+
             # Snapshots table for durable run checkpoint/resume
             await conn.execute(
                 """
@@ -204,6 +223,7 @@ class PostgresStorageBackend(StorageBackend):
                     step_id TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL,
                     state JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
                     UNIQUE(run_id, step_id)
                 )
                 """
@@ -213,6 +233,10 @@ class PostgresStorageBackend(StorageBackend):
                 CREATE INDEX IF NOT EXISTS idx_snapshots_run
                     ON snapshots (run_id, created_at DESC)
                 """
+            )
+
+            await conn.execute(
+                "ALTER TABLE snapshots ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb"
             )
 
             # Memory entries table for memory IR layer
@@ -445,6 +469,252 @@ class PostgresStorageBackend(StorageBackend):
             "metrics": metrics if isinstance(metrics, dict) else {},
             "tags": list(tags) if isinstance(tags, (list, tuple)) else [],
         }
+
+    def _row_to_approval_record(self, row: Mapping[str, Any]) -> ApprovalTicketRecord:
+        """Convert database row into ApprovalTicketRecord."""
+        masked_args = row["tool_args"] if isinstance(row["tool_args"], dict) else {}
+        metadata = row["metadata"] if isinstance(row.get("metadata"), dict) else {}
+        response = row["response"] if isinstance(row.get("response"), dict) else row.get("response")
+        return ApprovalTicketRecord(
+            ticket_id=row["ticket_id"],
+            run_id=row["run_id"],
+            agent_slug=row["agent_slug"],
+            tool_name=row["tool_name"],
+            masked_args=masked_args,
+            args_hash=row["args_hash"],
+            step_id=row.get("step_id"),
+            metadata=metadata,
+            requested_at=row["requested_at"],
+            expires_at=row["expires_at"],
+            status=row["status"],
+            resolved_at=row.get("resolved_at"),
+            resolved_by=row.get("resolved_by"),
+            decision_reason=row.get("decision_reason"),
+            response=response,
+        )
+
+    def _row_to_snapshot_record(self, row: Mapping[str, Any]) -> RunSnapshotRecord:
+        state = row["state"] if isinstance(row.get("state"), dict) else {}
+        metadata = row["metadata"] if isinstance(row.get("metadata"), dict) else {}
+        return RunSnapshotRecord(
+            snapshot_id=row["snapshot_id"],
+            run_id=row["run_id"],
+            step_id=row["step_id"],
+            state=state,
+            metadata=metadata,
+            created_at=row["created_at"],
+        )
+
+    async def create_approval_ticket(self, record: ApprovalTicketRecord) -> None:
+        """Persist a new approval ticket (idempotent)."""
+        payload = {
+            "ticket_id": record.ticket_id,
+            "run_id": record.run_id,
+            "agent_slug": record.agent_slug,
+            "tool_name": record.tool_name,
+            "tool_args": json_safe(record.masked_args),
+            "args_hash": record.args_hash,
+            "step_id": record.step_id,
+            "requested_at": record.requested_at,
+            "expires_at": record.expires_at,
+            "status": record.status,
+            "resolved_at": record.resolved_at,
+            "resolved_by": record.resolved_by,
+            "decision_reason": record.decision_reason,
+            "response": json_safe(record.response) if record.response is not None else None,
+            "metadata": json_safe(record.metadata),
+        }
+        async with self._acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO approvals (
+                    ticket_id,
+                    run_id,
+                    agent_slug,
+                    tool_name,
+                    tool_args,
+                    args_hash,
+                    step_id,
+                    requested_at,
+                    expires_at,
+                    status,
+                    resolved_at,
+                    resolved_by,
+                    decision_reason,
+                    response,
+                    metadata
+                ) VALUES (
+                    $1, $2, $3, $4, COALESCE($5, '{}'::jsonb), $6, $7,
+                    $8, $9, $10, $11, $12, $13, $14, COALESCE($15, '{}'::jsonb)
+                )
+                ON CONFLICT (ticket_id) DO UPDATE SET
+                    run_id = EXCLUDED.run_id,
+                    agent_slug = EXCLUDED.agent_slug,
+                    tool_name = EXCLUDED.tool_name,
+                    tool_args = EXCLUDED.tool_args,
+                    args_hash = EXCLUDED.args_hash,
+                    step_id = EXCLUDED.step_id,
+                    requested_at = EXCLUDED.requested_at,
+                    expires_at = EXCLUDED.expires_at,
+                    status = EXCLUDED.status,
+                    resolved_at = EXCLUDED.resolved_at,
+                    resolved_by = EXCLUDED.resolved_by,
+                    decision_reason = EXCLUDED.decision_reason,
+                    response = EXCLUDED.response,
+                    metadata = EXCLUDED.metadata
+                """,
+                payload["ticket_id"],
+                payload["run_id"],
+                payload["agent_slug"],
+                payload["tool_name"],
+                payload["tool_args"],
+                payload["args_hash"],
+                payload["step_id"],
+                payload["requested_at"],
+                payload["expires_at"],
+                payload["status"],
+                payload["resolved_at"],
+                payload["resolved_by"],
+                payload["decision_reason"],
+                payload["response"],
+                payload["metadata"],
+            )
+
+    async def update_approval_ticket(self, record: ApprovalTicketRecord) -> None:
+        """Update an existing approval ticket."""
+        await self.create_approval_ticket(record)
+
+    async def get_approval_ticket(self, ticket_id: str) -> Optional[ApprovalTicketRecord]:
+        """Fetch approval ticket by ID."""
+        async with self._acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM approvals WHERE ticket_id = $1", ticket_id)
+            if row is None:
+                return None
+            return self._row_to_approval_record(row)
+
+    async def list_approval_tickets(
+        self,
+        run_id: Optional[str] = None,
+        agent_slug: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[ApprovalTicketRecord]:
+        """List approval tickets with filters."""
+        conditions: List[str] = []
+        params: List[Any] = []
+
+        if run_id:
+            conditions.append(f"run_id = ${len(params) + 1}")
+            params.append(run_id)
+        if agent_slug:
+            conditions.append(f"agent_slug = ${len(params) + 1}")
+            params.append(agent_slug)
+        if status:
+            conditions.append(f"status = ${len(params) + 1}")
+            params.append(status)
+
+        params.extend([limit, offset])
+        query_parts = ["SELECT *", "FROM approvals"]
+        if conditions:
+            query_parts.append("WHERE " + " AND ".join(conditions))
+        query_parts.append(
+            f"ORDER BY requested_at ASC LIMIT ${len(params) - 1} OFFSET ${len(params)}"
+        )
+        query = "\n".join(query_parts)
+
+        async with self._acquire() as conn:
+            rows = await conn.fetch(query, *params)  # nosec B608 - predicates built from fixed columns
+        return [self._row_to_approval_record(row) for row in rows]
+
+    async def upsert_run_snapshot(self, record: RunSnapshotRecord) -> None:
+        payload = {
+            "snapshot_id": record.snapshot_id,
+            "run_id": record.run_id,
+            "step_id": record.step_id,
+            "created_at": record.created_at,
+            "state": json_safe(record.state),
+            "metadata": json_safe(record.metadata),
+        }
+        async with self._acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO snapshots (
+                    snapshot_id,
+                    run_id,
+                    step_id,
+                    created_at,
+                    state,
+                    metadata
+                ) VALUES (
+                    $1, $2, $3, $4,
+                    COALESCE($5, '{}'::jsonb),
+                    COALESCE($6, '{}'::jsonb)
+                )
+                ON CONFLICT (run_id, step_id) DO UPDATE SET
+                    snapshot_id = EXCLUDED.snapshot_id,
+                    created_at = EXCLUDED.created_at,
+                    state = EXCLUDED.state,
+                    metadata = EXCLUDED.metadata
+                """,
+                payload["snapshot_id"],
+                payload["run_id"],
+                payload["step_id"],
+                payload["created_at"],
+                payload["state"],
+                payload["metadata"],
+            )
+
+    async def get_latest_run_snapshot(self, run_id: str) -> Optional[RunSnapshotRecord]:
+        async with self._acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT *
+                FROM snapshots
+                WHERE run_id = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                run_id,
+            )
+            if row is None:
+                return None
+            return self._row_to_snapshot_record(row)
+
+    async def get_run_snapshot(self, run_id: str, step_id: str) -> Optional[RunSnapshotRecord]:
+        async with self._acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT * FROM snapshots
+                WHERE run_id = $1 AND step_id = $2
+                LIMIT 1
+                """,
+                run_id,
+                step_id,
+            )
+            if row is None:
+                return None
+            return self._row_to_snapshot_record(row)
+
+    async def list_run_snapshots(self, run_id: str) -> List[RunSnapshotRecord]:
+        async with self._acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM snapshots
+                WHERE run_id = $1
+                ORDER BY created_at ASC
+                """,
+                run_id,
+            )
+        return [self._row_to_snapshot_record(row) for row in rows]
+
+    async def delete_run_snapshots(self, run_id: str) -> int:
+        async with self._acquire() as conn:
+            rows = await conn.fetch(
+                "DELETE FROM snapshots WHERE run_id = $1 RETURNING 1",
+                run_id,
+            )
+        return len(rows)
 
     def get_events(
         self,

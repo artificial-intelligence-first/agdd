@@ -64,7 +64,7 @@ Handoff-as-a-Tool provides a standardized interface for agents to delegate work 
 Set the feature flag in your environment:
 
 ```bash
-export HANDOFF_ENABLED=true
+export AGDD_HANDOFF_ENABLED=true
 ```
 
 Or in your API config:
@@ -85,11 +85,16 @@ from agdd.routing.handoff_tool import HandoffTool
 # Initialize handoff tool
 handoff_tool = HandoffTool()
 
+recent_reviews = ["Great support turnaround", "Rep resolved billing quickly"]
+
 # Delegate to another AGDD agent
 result = await handoff_tool.handoff(
     source_agent="main-orchestrator",
     target_agent="specialist-analyzer",
     task="Analyze customer sentiment from recent reviews",
+    payload={
+        "reviews": recent_reviews,
+    },
     context={
         "customer_id": "12345",
         "time_range": "last_7_days",
@@ -102,6 +107,8 @@ print(f"Handoff ID: {result['handoff_id']}")
 print(f"Status: {result['status']}")
 print(f"Result: {result['result']}")
 ```
+
+`payload` is optional for non-AGDD integrations, but when an `AgentRunner` instance is supplied it is passed directly to the delegated MAG entrypoint.
 
 ### Multi-Platform Handoff
 
@@ -252,6 +259,11 @@ adapter = AnthropicHandoffAdapter()
 assert adapter.supports_platform("anthropic")
 ```
 
+### Contracts
+
+- Handoff requests follow [`catalog/contracts/handoff_request.schema.json`](../catalog/contracts/handoff_request.schema.json).
+- Handoff responses follow [`catalog/contracts/handoff_response.schema.json`](../catalog/contracts/handoff_response.schema.json).
+
 ## Request Tracking
 
 All handoff requests are tracked for observability:
@@ -298,7 +310,7 @@ except PermissionError as e:
     print(f"Handoff denied by policy: {e}")
 ```
 
-Policy configuration (`catalog/policies/tool_permissions.yaml`):
+Policy configuration ([`catalog/policies/tool_permissions.yaml`](../catalog/policies/tool_permissions.yaml)):
 
 ```yaml
 tools:

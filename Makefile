@@ -68,7 +68,7 @@ test-all:
 	PYTEST_ADDOPTS="-k 'slow or not slow'" uv run --no-sync -m pytest -q
 
 test-slow:
-	uv run --no-sync -m pytest -q -m slow
+	uv run --no-sync -m pytest -q -m slow -k ""
 
 test-unit:
 	uv run --no-sync -m pytest tests/unit/ -v -n auto

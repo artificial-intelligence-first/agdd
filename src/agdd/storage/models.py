@@ -8,7 +8,7 @@ for queryability, with flexible JSON payloads for agent-specific data.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field
 
@@ -147,3 +147,60 @@ class ArtifactEvent(BaseModel):
     mime_type: Optional[str] = Field(default=None, description="MIME type")
     checksum: Optional[str] = Field(default=None, description="SHA-256 checksum")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+class ApprovalTicketRecord(BaseModel):
+    """
+    Persisted approval ticket record stored in the storage backend.
+
+    Stores masked arguments and governance metadata while avoiding
+    sensitive payload leakage.
+    """
+
+    ticket_id: str = Field(description="Unique approval ticket identifier")
+    run_id: str = Field(description="Run ID that triggered the approval")
+    agent_slug: str = Field(description="Agent slug requesting approval")
+    tool_name: str = Field(description="Tool requiring approval")
+    masked_args: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Masked tool arguments safe for storage/UI",
+    )
+    args_hash: str = Field(
+        description="Deterministic SHA-256 hash of original tool arguments"
+    )
+    step_id: Optional[str] = Field(
+        default=None,
+        description="Optional execution step identifier associated with ticket",
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata associated with the ticket",
+    )
+    requested_at: datetime = Field(description="Timestamp when approval was requested")
+    expires_at: datetime = Field(description="Timestamp when ticket expires")
+    status: Literal["pending", "approved", "denied", "expired"] = Field(
+        description="Current approval status"
+    )
+    resolved_at: Optional[datetime] = Field(
+        default=None, description="Timestamp when approval was resolved"
+    )
+    resolved_by: Optional[str] = Field(
+        default=None, description="User or system that resolved the ticket"
+    )
+    decision_reason: Optional[str] = Field(
+        default=None, description="Reason provided for the decision"
+    )
+    response: Optional[Dict[str, Any]] = Field(
+        default=None, description="Optional resolver response payload"
+    )
+
+
+class RunSnapshotRecord(BaseModel):
+    """Persisted durable run snapshot stored in the storage backend."""
+
+    snapshot_id: str = Field(description="Unique snapshot identifier")
+    run_id: str = Field(description="Run identifier the snapshot belongs to")
+    step_id: str = Field(description="Execution step identifier")
+    state: Dict[str, Any] = Field(default_factory=dict, description="Serialized run state payload")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata for the snapshot")
+    created_at: datetime = Field(description="Timestamp when snapshot was created")

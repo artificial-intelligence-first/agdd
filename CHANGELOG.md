@@ -36,7 +36,12 @@ sources:
 ### [Unreleased]
 
 #### Added
-- Placeholder for upcoming changes.
+- Durable runner snapshot store now auto-creates run metadata, persists snapshots to configured storage backends, and emits `run.snapshot.saved` / `run.resume` events.
+- Async MCP client and decorators gained full JSON-RPC transport support (stdio/websocket/http), approval-gated invocation flow, and dedicated unit coverage.
+- Handoff tool now records `handoff.requested` / `handoff.completed` events via the storage backend with regression tests covering the event path.
+
+#### Changed
+- AgentRunner automatically captures session `input`/`output` memories when memory IR is enabled and routes AGDD handoffs through the configured runner payload.
 
 ### [0.2.0] - 2025-10-31
 

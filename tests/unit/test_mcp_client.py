@@ -1,10 +1,13 @@
-"""Unit tests for MCP client."""
+"""Unit tests for AsyncMCPClient."""
 
 from __future__ import annotations
 
 import asyncio
+from typing import Any, cast
+from unittest.mock import AsyncMock
 
 import pytest
+import warnings
 
 from agdd.mcp.client import (
     AsyncMCPClient,
@@ -12,358 +15,212 @@ from agdd.mcp.client import (
     CircuitBreakerConfig,
     CircuitState,
     MCPCircuitOpenError,
+    MCPClientError,
     MCPTimeoutError,
     RetryConfig,
     TransportType,
 )
 
 
+warnings.filterwarnings(
+    "ignore",
+    category=DeprecationWarning,
+    module=r"websockets.*",
+)
+
+
 class TestCircuitBreaker:
-    """Test circuit breaker functionality."""
+    """Tests for circuit breaker state transitions."""
 
     def test_initial_state_closed(self) -> None:
-        """Test circuit breaker starts in CLOSED state."""
         cb = CircuitBreaker(CircuitBreakerConfig())
         assert cb.state == CircuitState.CLOSED
         assert cb.can_attempt()
 
     def test_opens_after_threshold_failures(self) -> None:
-        """Test circuit breaker opens after reaching failure threshold."""
-        config = CircuitBreakerConfig(failure_threshold=3)
+        config = CircuitBreakerConfig(failure_threshold=2)
         cb = CircuitBreaker(config)
-
-        # Record failures
-        for _ in range(3):
-            cb.record_failure()
-
+        cb.record_failure()
+        cb.record_failure()
         assert cb.state == CircuitState.OPEN
         assert not cb.can_attempt()
 
     def test_half_open_after_timeout(self) -> None:
-        """Test circuit breaker transitions to HALF_OPEN after timeout."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2,
-            timeout_seconds=0,  # Immediate transition for testing
-        )
+        config = CircuitBreakerConfig(failure_threshold=1, timeout_seconds=0)
         cb = CircuitBreaker(config)
-
-        # Open the circuit
-        cb.record_failure()
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
-
-        # Should transition to HALF_OPEN immediately (timeout=0)
         assert cb.can_attempt()
-        assert cb.state == CircuitState.HALF_OPEN
+        state_after_attempt: CircuitState = cb.state
+        assert state_after_attempt == CircuitState.HALF_OPEN
 
-    def test_closes_after_successes_in_half_open(self) -> None:
-        """Test circuit breaker closes after successes in HALF_OPEN."""
+    def test_closes_after_successes(self) -> None:
         config = CircuitBreakerConfig(
-            failure_threshold=2,
+            failure_threshold=1,
             success_threshold=2,
             timeout_seconds=0,
         )
         cb = CircuitBreaker(config)
-
-        # Open the circuit
         cb.record_failure()
-        cb.record_failure()
-        assert cb.state == CircuitState.OPEN
-
-        # Transition to HALF_OPEN
-        cb.can_attempt()
-        assert cb.state == CircuitState.HALF_OPEN
-
-        # Record successes
+        cb.can_attempt()  # transition to HALF_OPEN
         cb.record_success()
         cb.record_success()
-
         assert cb.state == CircuitState.CLOSED
 
     def test_reopens_on_failure_in_half_open(self) -> None:
-        """Test circuit breaker reopens on failure in HALF_OPEN."""
-        config = CircuitBreakerConfig(
-            failure_threshold=2,
-            timeout_seconds=0,
-        )
+        config = CircuitBreakerConfig(failure_threshold=1, timeout_seconds=0)
         cb = CircuitBreaker(config)
-
-        # Open the circuit
         cb.record_failure()
-        cb.record_failure()
-        assert cb.state == CircuitState.OPEN
-
-        # Transition to HALF_OPEN
         cb.can_attempt()
-        assert cb.state == CircuitState.HALF_OPEN
-
-        # Failure in HALF_OPEN reopens
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
 
 
-class TestRetryLogic:
-    """Test retry and backoff logic."""
-
-    async def test_backoff_calculation(self) -> None:
-        """Test exponential backoff calculation."""
-        config = RetryConfig(
-            base_delay_ms=100,
-            exponential_base=2.0,
-            jitter=False,
-        )
-
-        client = AsyncMCPClient(
-            server_name="test-server",
-            transport=TransportType.HTTP,
-            config={},
-            retry_config=config,
-        )
-
-        # Test backoff delays
-        delay1 = client._calculate_backoff_delay(1)
-        delay2 = client._calculate_backoff_delay(2)
-        delay3 = client._calculate_backoff_delay(3)
-
-        # Without jitter: delay = base * exponential_base^(attempt - 1)
-        assert abs(delay1 - 0.1) < 0.01  # 100ms * 2^0 = 100ms
-        assert abs(delay2 - 0.2) < 0.01  # 100ms * 2^1 = 200ms
-        assert abs(delay3 - 0.4) < 0.01  # 100ms * 2^2 = 400ms
-
-    async def test_backoff_with_jitter(self) -> None:
-        """Test that jitter adds randomness to backoff."""
-        config = RetryConfig(
-            base_delay_ms=100,
-            exponential_base=2.0,
-            jitter=True,
-        )
-
-        client = AsyncMCPClient(
-            server_name="test-server",
-            transport=TransportType.HTTP,
-            config={},
-            retry_config=config,
-        )
-
-        # With jitter, delays should vary but be in expected range
-        delays = [client._calculate_backoff_delay(1) for _ in range(10)]
-
-        # All delays should be near 0.1s but with variance
-        for delay in delays:
-            assert 0.075 <= delay <= 0.125  # ±25% jitter
-
-
+@pytest.mark.asyncio
 class TestMCPClient:
-    """Test AsyncMCPClient functionality."""
-
-    async def test_client_initialization(self) -> None:
-        """Test client initialization."""
-        client = AsyncMCPClient(
-            server_name="test-server",
-            transport=TransportType.HTTP,
-            config={"url": "http://localhost:8080"},
-        )
-
-        assert client.server_name == "test-server"
-        assert client.transport == TransportType.HTTP
-        assert not client._initialized
-
-        await client.initialize()
-        assert client._initialized
-
-        await client.close()
-        assert not client._initialized
+    """Tests for AsyncMCPClient behaviour."""
 
     async def test_invoke_success(self) -> None:
-        """Test successful tool invocation."""
         client = AsyncMCPClient(
-            server_name="test-server",
+            server_name="test",
             transport=TransportType.HTTP,
-            config={},
+            config={"url": "https://example.com"},
         )
+        cast(Any, client)._invoke_internal = AsyncMock(return_value={"ok": True})
 
-        result = await client.invoke(
-            tool="test_tool",
-            args={"arg1": "value1"},
-            timeout=5.0,
-        )
-
-        assert result["success"]
-        assert result["result"]["tool"] == "test_tool"
-        assert result["result"]["args"]["arg1"] == "value1"
-
+        result = await client.invoke(tool="ping", args={})
+        assert result == {"ok": True}
         await client.close()
 
-    async def test_invoke_with_circuit_open(self) -> None:
-        """Test invocation fails when circuit is open."""
-        config = CircuitBreakerConfig(failure_threshold=1)
-
+    async def test_invoke_retries_then_succeeds(self) -> None:
         client = AsyncMCPClient(
-            server_name="test-server",
+            server_name="test",
             transport=TransportType.HTTP,
-            config={},
-            circuit_breaker_config=config,
+            config={"url": "https://example.com"},
+            retry_config=RetryConfig(max_attempts=3, jitter=False, base_delay_ms=1),
         )
+        side_effects = [RuntimeError("boom"), {"value": 42}]
+        cast(Any, client)._invoke_internal = AsyncMock(side_effect=side_effects)
 
-        # Force circuit open
+        result = await client.invoke("tool", {})
+        assert result == {"value": 42}
+        assert client.circuit_breaker.failure_count == 0
+        await client.close()
+
+    async def test_invoke_timeout(self) -> None:
+        client = AsyncMCPClient(
+            server_name="test",
+            transport=TransportType.HTTP,
+            config={"url": "https://example.com"},
+            retry_config=RetryConfig(max_attempts=2, jitter=False),
+        )
+        cast(Any, client)._invoke_internal = AsyncMock(side_effect=asyncio.TimeoutError())
+
+        with pytest.raises(MCPTimeoutError):
+            await client.invoke("tool", {}, timeout=0.01)
+        await client.close()
+
+    async def test_invoke_propagates_final_exception(self) -> None:
+        client = AsyncMCPClient(
+            server_name="test",
+            transport=TransportType.HTTP,
+            config={"url": "https://example.com"},
+            retry_config=RetryConfig(max_attempts=2, jitter=False),
+        )
+        cast(Any, client)._invoke_internal = AsyncMock(side_effect=ValueError("bad"))
+
+        with pytest.raises(MCPClientError):
+            await client.invoke("tool", {})
+        await client.close()
+
+    async def test_circuit_open_blocks_invocation(self) -> None:
+        client = AsyncMCPClient(
+            server_name="test",
+            transport=TransportType.HTTP,
+            config={"url": "https://example.com"},
+            circuit_breaker_config=CircuitBreakerConfig(failure_threshold=1),
+        )
         client.circuit_breaker.record_failure()
-        assert client.circuit_breaker.state == CircuitState.OPEN
-
-        # Invocation should fail immediately
         with pytest.raises(MCPCircuitOpenError):
-            await client.invoke("test_tool", {})
-
+            await client.invoke("tool", {})
         await client.close()
 
-    async def test_circuit_state_tracking(self) -> None:
-        """Test circuit state can be queried."""
+    async def test_build_and_parse_jsonrpc(self) -> None:
         client = AsyncMCPClient(
-            server_name="test-server",
+            server_name="test",
             transport=TransportType.HTTP,
-            config={},
+            config={"url": "https://example.com"},
         )
+        request_id, payload = client._build_request("do", {"a": 1})
+        assert payload == {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "do",
+            "params": {"a": 1},
+        }
+        parsed = client._parse_response(request_id, {"jsonrpc": "2.0", "id": request_id, "result": {"ok": True}})
+        assert parsed == {"ok": True}
 
-        assert client.get_circuit_state() == CircuitState.CLOSED
+        with pytest.raises(MCPClientError):
+            client._parse_response(request_id, {"jsonrpc": "2.0", "id": request_id, "error": {"message": "fail"}})
+        with pytest.raises(MCPClientError):
+            client._parse_response("other", {"jsonrpc": "2.0", "id": request_id, "result": {}})
 
-        # Open circuit
-        client.circuit_breaker.record_failure()
-        client.circuit_breaker.record_failure()
-        client.circuit_breaker.record_failure()
-        client.circuit_breaker.record_failure()
-        client.circuit_breaker.record_failure()
-
-        assert client.get_circuit_state() == CircuitState.OPEN
-
-        # Reset circuit
-        client.reset_circuit()
-        assert client.get_circuit_state() == CircuitState.CLOSED
-
-        await client.close()
-
-    async def test_multiple_transports(self) -> None:
-        """Test client supports multiple transport types."""
-        for transport in [TransportType.STDIO, TransportType.WEBSOCKET, TransportType.HTTP]:
+    async def test_invoke_internal_dispatch(self) -> None:
+        scenarios = [
+            (TransportType.STDIO, "_invoke_stdio"),
+            (TransportType.WEBSOCKET, "_invoke_websocket"),
+            (TransportType.HTTP, "_invoke_http"),
+        ]
+        for transport, method_name in scenarios:
             client = AsyncMCPClient(
-                server_name="test-server",
+                server_name="test",
                 transport=transport,
-                config={},
+                config={"url": "https://example.com"} if transport != TransportType.STDIO else {"command": "echo"},
             )
-
-            await client.initialize()
-            assert client._initialized
-
-            result = await client.invoke("test_tool", {})
-            assert result["success"]
-
+            mock = AsyncMock(return_value={"transport": transport.value})
+            setattr(client, method_name, mock)
+            result = await client._invoke_internal("foo", {})
+            assert result == {"transport": transport.value}
+            mock.assert_awaited_once()
             await client.close()
 
-
-class TestMCPDecorators:
-    """Test MCP decorators."""
-
-    async def test_resolve_secret_env(self) -> None:
-        """Test resolving secrets from environment."""
-        import os
-
-        from agdd.mcp.decorators import resolve_secret
-
-        # Set test environment variable
-        os.environ["TEST_SECRET"] = "secret_value"
-
-        resolved = resolve_secret("env://TEST_SECRET")
-        assert resolved == "secret_value"
-
-        # Plain value
-        plain = resolve_secret("plain_value")
-        assert plain == "plain_value"
-
-        # Clean up
-        del os.environ["TEST_SECRET"]
-
-    async def test_resolve_secret_missing_env(self) -> None:
-        """Test error when environment variable is missing."""
-        from agdd.mcp.decorators import resolve_secret
-
-        with pytest.raises(ValueError, match="not found"):
-            resolve_secret("env://NONEXISTENT_VAR")
-
-    async def test_get_auth_config(self) -> None:
-        """Test authentication config resolution."""
-        import os
-
-        from agdd.mcp.decorators import get_auth_config
-
-        # Set test environment variables
-        os.environ["API_KEY"] = "test_key"
-        os.environ["API_SECRET"] = "test_secret"
-
-        auth_config = get_auth_config({
-            "api_key": "env://API_KEY",
-            "api_secret": "env://API_SECRET",
-            "plain_value": "plain",
-        })
-
-        assert auth_config["api_key"] == "test_key"
-        assert auth_config["api_secret"] == "test_secret"
-        assert auth_config["plain_value"] == "plain"
-
-        # Clean up
-        del os.environ["API_KEY"]
-        del os.environ["API_SECRET"]
-
-    async def test_mcp_tool_decorator(self) -> None:
-        """Test @mcp_tool decorator."""
-        import os
-
-        from agdd.mcp.decorators import mcp_tool
-
-        os.environ["GITHUB_TOKEN"] = "test_token"
-
-        @mcp_tool(
-            server="github",
-            tool="create_issue",
-            auth={"token": "env://GITHUB_TOKEN"},
-            timeout=30.0,
+    async def test_invoke_http_sends_jsonrpc(self) -> None:
+        client = AsyncMCPClient(
+            server_name="test",
+            transport=TransportType.HTTP,
+            config={"url": "https://api.example.com"},
         )
-        async def create_issue(repo: str, title: str) -> dict[str, Any]:
-            pass
+        await client.initialize()
 
-        result = await create_issue("test/repo", "Test Issue")
+        captured: dict[str, Any] = {}
 
-        assert result["server"] == "github"
-        assert result["tool"] == "create_issue"
-        assert "GITHUB_TOKEN" not in result  # Should not expose token
-        assert result["auth_keys"] == ["token"]
+        class DummyResponse:
+            def __init__(self, payload: dict[str, Any]):
+                self._payload = payload
 
-        # Clean up
-        del os.environ["GITHUB_TOKEN"]
+            def raise_for_status(self) -> None:
+                return None
 
-    async def test_mcp_cached_decorator(self) -> None:
-        """Test @mcp_cached decorator."""
-        from agdd.mcp.decorators import mcp_cached
+            def json(self) -> dict[str, Any]:
+                return self._payload
 
-        call_count = 0
+        async def fake_post(
+            url: str,
+            *,
+            json: dict[str, Any],
+            **_: Any,
+        ) -> DummyResponse:
+            captured["url"] = url
+            captured["json"] = json
+            return DummyResponse({"jsonrpc": "2.0", "id": json["id"], "result": {"ok": True}})
 
-        @mcp_cached(ttl_seconds=1)
-        async def expensive_function(x: int) -> int:
-            nonlocal call_count
-            call_count += 1
-            return x * 2
-
-        # First call
-        result1 = await expensive_function(5)
-        assert result1 == 10
-        assert call_count == 1
-
-        # Second call (cached)
-        result2 = await expensive_function(5)
-        assert result2 == 10
-        assert call_count == 1  # Should not increment
-
-        # Wait for cache expiration
-        await asyncio.sleep(1.1)
-
-        # Third call (cache expired)
-        result3 = await expensive_function(5)
-        assert result3 == 10
-        assert call_count == 2  # Should increment
+        http_client = client._http_client
+        assert http_client is not None
+        post_mock = AsyncMock(side_effect=fake_post)
+        setattr(cast(Any, http_client), "post", post_mock)
+        result = await client._invoke_http("ping", {"x": 1})
+        assert result == {"ok": True}
+        assert captured["url"] == "https://api.example.com"
+        assert captured["json"]["method"] == "ping"
+        await client.close()

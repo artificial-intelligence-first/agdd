@@ -18,7 +18,7 @@ from ..config import Settings, get_settings
 from ..models import AgentInfo, AgentRunRequest, AgentRunResponse
 from ..rate_limit import rate_limit_dependency
 from ..run_tracker import find_new_run_id, snapshot_runs
-from ..security import require_api_key, require_scope
+from ..security import require_scope
 
 logger = logging.getLogger(__name__)
 

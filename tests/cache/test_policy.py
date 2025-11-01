@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from agdd.cache.policy import (
     CachePolicyConfig,
     get_cache_policy_config,

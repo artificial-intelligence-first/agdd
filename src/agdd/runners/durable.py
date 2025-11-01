@@ -13,7 +13,11 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
+
+from agdd.storage.base import StorageBackend
+from agdd.storage.models import RunSnapshotRecord
+from agdd.storage.serialization import json_safe
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +68,7 @@ class SnapshotStore:
     Provides methods to save and retrieve snapshots with idempotent writes.
     """
 
-    def __init__(self, storage_backend: Optional[Any] = None):
+    def __init__(self, storage_backend: Optional[StorageBackend] = None):
         """
         Initialize snapshot store.
 
@@ -74,6 +78,8 @@ class SnapshotStore:
         """
         self.storage_backend = storage_backend
         self._snapshots: Dict[str, RunSnapshot] = {}  # In-memory cache
+        self._initialized_runs: set[str] = set()
+        self._run_init_lock = asyncio.Lock()
 
     async def save_snapshot(
         self,
@@ -118,6 +124,9 @@ class SnapshotStore:
                 metadata=metadata or {},
             )
             self._snapshots[snapshot_key] = snapshot
+
+        # Ensure run metadata exists when using persistent storage
+        await self.ensure_run_initialized(run_id, snapshot.metadata)
 
         # Persist to storage backend if available
         if self.storage_backend:
@@ -193,7 +202,15 @@ class SnapshotStore:
         Returns:
             List of RunSnapshots
         """
-        run_snapshots = [
+        if await self._ensure_backend():
+            if self.storage_backend is not None:  # pragma: no cover - defensive check
+                records = await self.storage_backend.list_run_snapshots(run_id)
+                for record in records:
+                    key = f"{record.run_id}:{record.step_id}"
+                    if key not in self._snapshots:
+                        self._snapshots[key] = self._snapshot_from_record(record)
+
+        run_snapshots: list[RunSnapshot] = [
             s for key, s in self._snapshots.items() if s.run_id == run_id
         ]
 
@@ -217,28 +234,185 @@ class SnapshotStore:
         for key in keys_to_delete:
             del self._snapshots[key]
 
-        logger.info(f"Deleted {len(keys_to_delete)} snapshots for run {run_id}")
+        memory_deleted = len(keys_to_delete)
+        if await self._ensure_backend():
+            if self.storage_backend is None:  # pragma: no cover
+                storage_deleted = 0
+            else:
+                storage_deleted = await self.storage_backend.delete_run_snapshots(run_id)
+            total_deleted = storage_deleted
+            if storage_deleted < memory_deleted:
+                total_deleted = memory_deleted
+        else:
+            total_deleted = memory_deleted
 
-        return len(keys_to_delete)
+        logger.info(f"Deleted {total_deleted} snapshots for run {run_id}")
+
+        return total_deleted
+
+    async def _ensure_backend(self) -> bool:
+        """Ensure persistent storage backend is available."""
+        if self.storage_backend is not None:
+            return True
+
+        try:
+            from agdd.storage import get_storage_backend
+
+            self.storage_backend = await get_storage_backend()
+            return True
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Snapshot store backend unavailable: %s", exc)
+            return False
+
+    async def ensure_run_initialized(
+        self,
+        run_id: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Ensure a run record exists before persisting snapshots/events."""
+        if not run_id:
+            return
+
+        if run_id in self._initialized_runs:
+            return
+
+        if not await self._ensure_backend():
+            return
+
+        backend = self.storage_backend
+        if backend is None:
+            return
+
+        async with self._run_init_lock:
+            if run_id in self._initialized_runs:
+                return
+
+            try:
+                existing = await backend.get_run(run_id)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.debug("Snapshot store could not fetch run %s: %s", run_id, exc)
+                existing = None
+
+            if existing:
+                self._initialized_runs.add(run_id)
+                return
+
+            agent_slug = self._extract_agent_slug(metadata)
+            parent_run_id = self._extract_parent_run_id(metadata)
+            tags = self._extract_tags(metadata)
+
+            try:
+                await backend.create_run(
+                    run_id=run_id,
+                    agent_slug=agent_slug,
+                    parent_run_id=parent_run_id,
+                    started_at=datetime.now(UTC),
+                    status="running",
+                    tags=tags,
+                )
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Snapshot store could not auto-create run %s: %s",
+                    run_id,
+                    exc,
+                )
+            else:
+                self._initialized_runs.add(run_id)
+
+    def _extract_agent_slug(self, metadata: Optional[Dict[str, Any]]) -> str:
+        if not isinstance(metadata, dict):
+            return "unknown"
+        for key in ("agent_slug", "agent", "slug", "agent_id"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return "unknown"
+
+    def _extract_parent_run_id(self, metadata: Optional[Dict[str, Any]]) -> Optional[str]:
+        if not isinstance(metadata, dict):
+            return None
+        for key in ("parent_run_id", "parent"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    def _extract_tags(self, metadata: Optional[Dict[str, Any]]) -> Optional[list[str]]:
+        if not isinstance(metadata, dict):
+            return None
+        tags = metadata.get("tags")
+        if isinstance(tags, list):
+            cleaned = [str(tag) for tag in tags if isinstance(tag, str) and tag]
+            return cleaned or None
+        return None
 
     # Storage backend integration (placeholders)
 
     async def _persist_snapshot(self, snapshot: RunSnapshot) -> None:
-        """Persist snapshot to storage backend (placeholder)."""
-        # TODO: Implement storage backend integration
-        pass
+        """Persist snapshot to storage backend (if available)."""
+        if not await self._ensure_backend():
+            return
+
+        record = RunSnapshotRecord(
+            snapshot_id=snapshot.snapshot_id,
+            run_id=snapshot.run_id,
+            step_id=snapshot.step_id,
+            state=dict(snapshot.state),
+            metadata=dict(snapshot.metadata),
+            created_at=snapshot.created_at,
+        )
+
+        backend = self.storage_backend
+        if backend is None:  # pragma: no cover - defensive fallback
+            return
+        await backend.upsert_run_snapshot(record)
 
     async def _load_latest_from_backend(self, run_id: str) -> Optional[RunSnapshot]:
-        """Load latest snapshot from storage backend (placeholder)."""
-        # TODO: Implement storage backend integration
-        return None
+        """Load latest snapshot from storage backend."""
+        if not await self._ensure_backend():
+            return None
+
+        backend = self.storage_backend
+        if backend is None:  # pragma: no cover - defensive fallback
+            return None
+
+        record = await backend.get_latest_run_snapshot(run_id)
+        if record is None:
+            return None
+
+        snapshot = self._snapshot_from_record(record)
+        self._snapshots[f"{snapshot.run_id}:{snapshot.step_id}"] = snapshot
+        return snapshot
 
     async def _load_snapshot_from_backend(
         self, run_id: str, step_id: str
     ) -> Optional[RunSnapshot]:
-        """Load specific snapshot from storage backend (placeholder)."""
-        # TODO: Implement storage backend integration
-        return None
+        """Load specific snapshot from storage backend."""
+        if not await self._ensure_backend():
+            return None
+
+        backend = self.storage_backend
+        if backend is None:  # pragma: no cover - defensive fallback
+            return None
+
+        record = await backend.get_run_snapshot(run_id, step_id)
+        if record is None:
+            return None
+
+        snapshot = self._snapshot_from_record(record)
+        self._snapshots[f"{snapshot.run_id}:{snapshot.step_id}"] = snapshot
+        return snapshot
+
+    def _snapshot_from_record(self, record: RunSnapshotRecord) -> RunSnapshot:
+        """Convert storage record into RunSnapshot instance."""
+        return RunSnapshot(
+            snapshot_id=record.snapshot_id,
+            run_id=record.run_id,
+            step_id=record.step_id,
+            created_at=record.created_at,
+            state=dict(record.state),
+            metadata=dict(record.metadata),
+        )
 
     # File-based storage fallback
 
@@ -306,7 +480,7 @@ class SnapshotStore:
         """Blocking file read for executor."""
         try:
             with open(path, "r") as f:
-                return json.load(f)
+                return cast(Dict[str, Any], json.load(f))
         except (IOError, json.JSONDecodeError) as e:
             logger.error(f"Failed to read snapshot from {path}: {e}")
             return None
@@ -362,6 +536,18 @@ class DurableRunner:
             metadata=metadata,
         )
 
+        await self._record_event(
+            run_id=run_id,
+            agent_slug=self._resolve_agent_slug(metadata),
+            event_type="run.snapshot.saved",
+            message=f"Saved snapshot for step {step_id}",
+            payload={
+                "snapshot_id": snapshot.snapshot_id,
+                "step_id": snapshot.step_id,
+                "metadata": metadata or {},
+            },
+        )
+
         return snapshot
 
     async def resume(
@@ -387,6 +573,17 @@ class DurableRunner:
         if snapshot is None:
             logger.warning(f"No snapshot found for run {run_id}")
             return None
+
+        await self._record_event(
+            run_id=run_id,
+            agent_slug=self._resolve_agent_slug(snapshot.metadata),
+            event_type="run.resume",
+            message=f"Resumed run {run_id} from step {snapshot.step_id}",
+            payload={
+                "snapshot_id": snapshot.snapshot_id,
+                "step_id": snapshot.step_id,
+            },
+        )
 
         logger.info(
             f"Restored state from snapshot {snapshot.snapshot_id} "
@@ -418,3 +615,69 @@ class DurableRunner:
             Number of snapshots deleted
         """
         return await self.snapshot_store.delete_snapshots(run_id)
+
+    def _resolve_agent_slug(self, metadata: Optional[Dict[str, Any]]) -> str:
+        """Extract agent slug from metadata when available."""
+        if not metadata:
+            return "unknown"
+        for key in ("agent_slug", "agent"):
+            value = metadata.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return "unknown"
+
+    async def _record_event(
+        self,
+        *,
+        run_id: str,
+        agent_slug: str,
+        event_type: str,
+        message: Optional[str],
+        payload: Dict[str, Any],
+    ) -> None:
+        """Append durable runner events to the storage backend."""
+        storage = self.snapshot_store.storage_backend
+        if storage is None:
+            try:
+                from agdd.storage import get_storage_backend
+
+                storage = await get_storage_backend()
+                self.snapshot_store.storage_backend = storage
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Durable runner could not initialize storage backend for events: %s",
+                    exc,
+                )
+                return
+
+        # Ensure run exists before recording event to satisfy FK constraints
+        try:
+            await self.snapshot_store.ensure_run_initialized(
+                run_id,
+                {"agent_slug": agent_slug},
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.debug(
+                "Durable runner failed ensuring run %s before event %s: %s",
+                run_id,
+                event_type,
+                exc,
+            )
+
+        try:
+            safe_payload = cast(Dict[str, Any], json_safe(payload))
+            await storage.append_event(
+                run_id=run_id,
+                agent_slug=agent_slug,
+                event_type=event_type,
+                timestamp=datetime.now(UTC),
+                message=message,
+                payload=safe_payload,
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Failed to append durable runner event %s for run %s: %s",
+                event_type,
+                run_id,
+                exc,
+            )

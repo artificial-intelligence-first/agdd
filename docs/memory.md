@@ -14,6 +14,8 @@ The Memory IR (Intermediate Representation) layer provides structured, persisten
 4. **SQLiteMemoryStore**: SQLite-based implementation (development)
 5. **PostgresMemoryStore**: PostgreSQL-based implementation (production)
 
+Memory entry payloads follow [`catalog/contracts/memory_entry.schema.json`](../catalog/contracts/memory_entry.schema.json), ensuring consistent validation across storage backends and catalog tooling.
+
 ### Memory Scopes
 
 Memory entries are organized by scope, which determines their lifetime and visibility:
@@ -47,6 +49,10 @@ export AGDD_MEMORY_ENABLED=true
 # Disable memory IR (default, maintains backward compatibility)
 export AGDD_MEMORY_ENABLED=false
 ```
+
+### Runner Integration
+
+When `AGDD_MEMORY_ENABLED` is active (or `enable_memory=True` is passed to `AgentRunner`), MAG and SAG executions automatically persist session-scoped `input` and `output` memories. Use `await runner.load_memories(...)` inside agents to retrieve recent context or `await runner.save_memory(...)` for durable entries.
 
 ### Creating Memory Entries
 

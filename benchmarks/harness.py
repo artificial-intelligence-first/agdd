@@ -39,7 +39,7 @@ def _compare_outputs(actual: Any, expected: Any) -> tuple[bool, str | None]:
         return True, None
 
     # Generate a helpful diff message
-    if type(actual) != type(expected):
+    if type(actual) is not type(expected):
         return False, f"Type mismatch: expected {type(expected).__name__}, got {type(actual).__name__}"
 
     if isinstance(actual, dict):

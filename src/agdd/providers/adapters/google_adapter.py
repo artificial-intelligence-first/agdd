@@ -8,17 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import TYPE_CHECKING, Any, Literal, Optional
-
-if TYPE_CHECKING:
-    try:
-        from agdd.core.spi.provider import Provider, CapabilityMatrix
-    except ImportError:
-        Provider = Any  # type: ignore
-        CapabilityMatrix = Any  # type: ignore
-else:
-    Provider = Any
-    CapabilityMatrix = Any
+from typing import Any, Literal, Optional
 
 from agdd.providers.google import GoogleProvider
 
@@ -149,9 +139,6 @@ class GoogleAdapter:
             model=model or self._model_name,
             **kwargs,
         )
-
-        # Convert LLMResponse to SPI format
-        usage = response.metadata.get("usage", {})
 
         return {
             "content": response.content,

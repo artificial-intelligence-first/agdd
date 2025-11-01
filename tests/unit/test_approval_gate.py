@@ -166,9 +166,10 @@ tools:
         permission = gate.evaluate("dangerous.tool", {})
         assert permission == ToolPermission.NEVER
 
-    def test_create_ticket(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_create_ticket(self, gate: ApprovalGate) -> None:
         """Test creating an approval ticket."""
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
@@ -184,35 +185,38 @@ tools:
         assert isinstance(ticket.requested_at, datetime)
         assert isinstance(ticket.expires_at, datetime)
 
-    def test_get_ticket(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_get_ticket(self, gate: ApprovalGate) -> None:
         """Test retrieving an approval ticket."""
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
             tool_args={},
         )
 
-        retrieved = gate.get_ticket(ticket.ticket_id)
+        retrieved = await gate.get_ticket(ticket.ticket_id)
         assert retrieved is not None
         assert retrieved.ticket_id == ticket.ticket_id
         assert retrieved.status == "pending"
 
-    def test_get_nonexistent_ticket(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_ticket(self, gate: ApprovalGate) -> None:
         """Test retrieving a non-existent ticket."""
-        retrieved = gate.get_ticket("nonexistent-id")
+        retrieved = await gate.get_ticket("nonexistent-id")
         assert retrieved is None
 
-    def test_approve_ticket(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_approve_ticket(self, gate: ApprovalGate) -> None:
         """Test approving a ticket."""
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
             tool_args={},
         )
 
-        approved = gate.approve_ticket(
+        approved = await gate.approve_ticket(
             ticket_id=ticket.ticket_id,
             approved_by="admin@example.com",
         )
@@ -221,16 +225,17 @@ tools:
         assert approved.resolved_by == "admin@example.com"
         assert approved.resolved_at is not None
 
-    def test_deny_ticket(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_deny_ticket(self, gate: ApprovalGate) -> None:
         """Test denying a ticket."""
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
             tool_args={},
         )
 
-        denied = gate.deny_ticket(
+        denied = await gate.deny_ticket(
             ticket_id=ticket.ticket_id,
             denied_by="admin@example.com",
             reason="Not allowed",
@@ -241,16 +246,17 @@ tools:
         assert denied.resolved_at is not None
         assert denied.response == {"reason": "Not allowed"}
 
-    def test_list_pending_tickets(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_list_pending_tickets(self, gate: ApprovalGate) -> None:
         """Test listing pending tickets."""
         # Create tickets
-        ticket1 = gate.create_ticket(
+        ticket1 = await gate.create_ticket(
             run_id="run-123",
             agent_slug="agent-1",
             tool_name="tool1",
             tool_args={},
         )
-        ticket2 = gate.create_ticket(
+        ticket2 = await gate.create_ticket(
             run_id="run-123",
             agent_slug="agent-2",
             tool_name="tool2",
@@ -258,22 +264,23 @@ tools:
         )
 
         # Approve one
-        gate.approve_ticket(ticket1.ticket_id, "admin")
+        await gate.approve_ticket(ticket1.ticket_id, "admin")
 
         # List all pending
-        pending = gate.list_pending_tickets()
+        pending = await gate.list_pending_tickets()
         assert len(pending) == 1
         assert pending[0].ticket_id == ticket2.ticket_id
 
         # Filter by agent
-        pending_agent2 = gate.list_pending_tickets(agent_slug="agent-2")
+        pending_agent2 = await gate.list_pending_tickets(agent_slug="agent-2")
         assert len(pending_agent2) == 1
         assert pending_agent2[0].ticket_id == ticket2.ticket_id
 
-    def test_expire_old_tickets(self, gate: ApprovalGate) -> None:
+    @pytest.mark.asyncio
+    async def test_expire_old_tickets(self, gate: ApprovalGate) -> None:
         """Test expiring old tickets."""
         # Create a ticket
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
@@ -283,22 +290,24 @@ tools:
 
         # Force expiration by setting expires_at in the past
         ticket.expires_at = datetime.now(UTC) - timedelta(seconds=1)
-        gate._tickets[ticket.ticket_id] = ticket
+        async with gate._lock:
+            gate._tickets[ticket.ticket_id] = ticket
 
         # Expire old tickets
-        count = gate.expire_old_tickets()
+        count = await gate.expire_old_tickets()
         assert count == 1
 
         # Verify ticket is expired
-        expired = gate.get_ticket(ticket.ticket_id)
+        expired = await gate.get_ticket(ticket.ticket_id)
         assert expired is not None
         assert expired.status == "expired"
 
+    @pytest.mark.asyncio
     async def test_wait_for_decision_approved(self, gate: ApprovalGate) -> None:
         """Test waiting for approval decision."""
         import asyncio
 
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
@@ -308,7 +317,7 @@ tools:
         # Approve ticket after a short delay
         async def approve_later() -> None:
             await asyncio.sleep(0.1)
-            gate.approve_ticket(ticket.ticket_id, "admin")
+            await gate.approve_ticket(ticket.ticket_id, "admin")
 
         # Start approval task
         approve_task = asyncio.create_task(approve_later())
@@ -319,11 +328,12 @@ tools:
 
         await approve_task
 
+    @pytest.mark.asyncio
     async def test_wait_for_decision_denied(self, gate: ApprovalGate) -> None:
         """Test waiting for denial decision."""
         import asyncio
 
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
@@ -333,7 +343,7 @@ tools:
         # Deny ticket after a short delay
         async def deny_later() -> None:
             await asyncio.sleep(0.1)
-            gate.deny_ticket(ticket.ticket_id, "admin", "Test denial")
+            await gate.deny_ticket(ticket.ticket_id, "admin", "Test denial")
 
         # Start denial task
         deny_task = asyncio.create_task(deny_later())
@@ -344,9 +354,10 @@ tools:
 
         await deny_task
 
+    @pytest.mark.asyncio
     async def test_wait_for_decision_timeout(self, gate: ApprovalGate) -> None:
         """Test waiting for decision timeout."""
-        ticket = gate.create_ticket(
+        ticket = await gate.create_ticket(
             run_id="run-123",
             agent_slug="test-agent",
             tool_name="test.tool",
@@ -356,7 +367,8 @@ tools:
 
         # Force immediate expiration
         ticket.expires_at = datetime.now(UTC) + timedelta(milliseconds=100)
-        gate._tickets[ticket.ticket_id] = ticket
+        async with gate._lock:
+            gate._tickets[ticket.ticket_id] = ticket
 
         # Wait for decision (should timeout)
         with pytest.raises(ApprovalTimeoutError):

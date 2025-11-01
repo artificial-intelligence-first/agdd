@@ -17,36 +17,36 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, Mapping, Optional
+from typing import Any, Callable, Coroutine, Dict, List, Mapping, Optional, cast
 
 import yaml
 
+from agdd.api.config import get_settings
+from agdd.core.memory import (
+    MemoryEntry,
+    MemoryScope,
+    apply_default_ttl,
+    create_memory,
+)
 from agdd.evaluation.runtime import EvalRuntime
+from agdd.governance.permission_evaluator import PermissionEvaluator
 from agdd.mcp import MCPRegistry, MCPRuntime
 from agdd.observability.logger import ObservabilityLogger
+from agdd.runners.durable import DurableRunner
 from agdd.registry import AgentDescriptor, Registry, get_registry
 from agdd.router import ExecutionPlan, Router, get_router
+from agdd.routing.handoff_tool import HandoffTool
 from agdd.routing.router import Plan as LLMPlan, get_plan as get_llm_plan
+from agdd.storage.memory_store import (
+    AbstractMemoryStore,
+    PostgresMemoryStore,
+    SQLiteMemoryStore,
+)
 
 logger = logging.getLogger(__name__)
 
 # Milliseconds per second for duration calculations
 MS_PER_SECOND = 1000
-
-
-def _env_flag(name: str, default: bool) -> bool:
-    """Read a boolean feature flag from environment variables."""
-
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-
-    value = raw.strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    return default
 
 
 AgentCallable = Callable[..., Dict[str, Any]]
@@ -127,7 +127,8 @@ class SkillRuntime:
     ):
         self.registry = registry or get_registry()
         if enable_mcp is None:
-            enable_mcp = _env_flag("AGDD_ENABLE_MCP", True)
+            settings = get_settings()
+            enable_mcp = settings.MCP_ENABLED
         self.enable_mcp = enable_mcp
         self.mcp_registry: Optional[MCPRegistry] = None
         self._mcp_started = False
@@ -351,16 +352,284 @@ class AgentRunner:
         base_dir: Optional[Path] = None,
         router: Optional[Router] = None,
         enable_mcp: Optional[bool] = None,
+        enable_memory: Optional[bool] = None,
+        memory_store: Optional[AbstractMemoryStore] = None,
+        permission_evaluator: Optional[PermissionEvaluator] = None,
+        handoff_tool: Optional[HandoffTool] = None,
     ):
+        settings = get_settings()
         self.registry: Registry = registry or get_registry()
         self.base_dir = base_dir
         if enable_mcp is None:
-            enable_mcp = _env_flag("AGDD_ENABLE_MCP", True)
+            enable_mcp = settings.MCP_ENABLED
         self.enable_mcp = enable_mcp
         self.skills = SkillRuntime(registry=self.registry, enable_mcp=self.enable_mcp)
         self.evals = EvalRuntime(registry=self.registry)
         self.router: Router = router or get_router()
         self._task_index: dict[str, list[str]] | None = None
+
+        self.durable_enabled = settings.DURABLE_ENABLED
+        self.durable_runner: Optional[DurableRunner] = (
+            DurableRunner()
+            if self.durable_enabled
+            else None
+        )
+
+        if enable_memory is None:
+            enable_memory = settings.MEMORY_ENABLED or memory_store is not None
+        self.memory_enabled = bool(enable_memory)
+        self._memory_store: Optional[AbstractMemoryStore] = (
+            memory_store if self.memory_enabled else None
+        )
+        self._memory_lock = asyncio.Lock()
+
+        self.approvals_enabled = settings.APPROVALS_ENABLED
+        self.handoff_enabled = settings.HANDOFF_ENABLED or handoff_tool is not None
+
+        self.permission_evaluator: Optional[PermissionEvaluator]
+
+        needs_permission = (
+            permission_evaluator is not None
+            or self.approvals_enabled
+            or self.handoff_enabled
+        )
+        if permission_evaluator is not None:
+            self.permission_evaluator = permission_evaluator
+        elif needs_permission:
+            self.permission_evaluator = PermissionEvaluator()
+        else:
+            self.permission_evaluator = None
+
+        self.handoff_tool: Optional[HandoffTool]
+
+        if handoff_tool is not None:
+            self.handoff_tool = handoff_tool
+        elif self.handoff_enabled:
+            self.handoff_tool = HandoffTool(
+                permission_evaluator=self.permission_evaluator,
+                agent_runner=self,
+            )
+        else:
+            self.handoff_tool = None
+
+    def get_durable_runner(self) -> Optional[DurableRunner]:
+        """Expose durable runner instance when feature flag is enabled."""
+        return self.durable_runner
+
+    @staticmethod
+    def _sanitize_for_memory(value: Any) -> Any:
+        """Convert arbitrary values into JSON-serializable structures."""
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, dict):
+            return {str(key): AgentRunner._sanitize_for_memory(val) for key, val in value.items()}
+        if isinstance(value, (list, tuple, set, frozenset)):
+            return [AgentRunner._sanitize_for_memory(item) for item in value]
+        return str(value)
+
+    async def _ensure_memory_store(self) -> Optional[AbstractMemoryStore]:
+        """Lazily initialize and return the configured memory store."""
+        if not self.memory_enabled:
+            return None
+
+        if self._memory_store is not None:
+            return self._memory_store
+
+        async with self._memory_lock:
+            if self._memory_store is not None:
+                return self._memory_store
+
+            settings = get_settings()
+            backend = settings.STORAGE_BACKEND.lower()
+
+            try:
+                if backend in ("postgres", "postgresql", "timescale", "timescaledb"):
+                    if not settings.STORAGE_DSN:
+                        raise ValueError("STORAGE_DSN must be configured for PostgreSQL memory store")
+                    store: AbstractMemoryStore = PostgresMemoryStore(settings.STORAGE_DSN)
+                else:
+                    db_path = Path(settings.STORAGE_DB_PATH)
+                    memory_db = db_path.parent / "memory.db"
+                    memory_db.parent.mkdir(parents=True, exist_ok=True)
+                    store = SQLiteMemoryStore(
+                        db_path=memory_db,
+                        enable_fts=settings.STORAGE_ENABLE_FTS,
+                    )
+
+                await store.initialize()
+                self._memory_store = store
+            except Exception as exc:  # pragma: no cover - defensive guard
+                logger.warning("Failed to initialize memory store: %s", exc)
+                self.memory_enabled = False
+                self._memory_store = None
+
+        return self._memory_store
+
+    async def _capture_session_memory(
+        self,
+        *,
+        agent_slug: str,
+        run_id: str,
+        key: str,
+        value: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
+        tags: Optional[List[str]] = None,
+    ) -> None:
+        """Record session-scoped memory entries for auditing and replay."""
+        if not self.memory_enabled:
+            return
+
+        store = await self._ensure_memory_store()
+        if store is None:
+            return
+
+        sanitized_value = self._sanitize_for_memory(value)
+        value_dict = sanitized_value if isinstance(sanitized_value, dict) else {"value": sanitized_value}
+        ttl_seconds = apply_default_ttl(MemoryScope.SESSION)
+
+        entry = create_memory(
+            scope=MemoryScope.SESSION,
+            agent_slug=agent_slug,
+            run_id=run_id,
+            key=key,
+            value=value_dict,
+            ttl_seconds=ttl_seconds,
+            tags=tags or [],
+            metadata=metadata or {},
+        )
+
+        try:
+            await store.create_memory(entry)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            logger.warning(
+                "Failed to persist session memory for %s (%s/%s): %s",
+                agent_slug,
+                run_id,
+                key,
+                exc,
+            )
+
+    async def save_memory(
+        self,
+        *,
+        scope: MemoryScope,
+        agent_slug: str,
+        key: str,
+        value: Dict[str, Any],
+        run_id: Optional[str] = None,
+        ttl_seconds: Optional[int] = None,
+        pii_tags: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+        retention_policy: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> MemoryEntry:
+        """Persist an explicit memory entry via the configured memory store."""
+        store = await self._ensure_memory_store()
+        if store is None:
+            raise RuntimeError("Memory IR is disabled or store is unavailable")
+
+        sanitized_value = self._sanitize_for_memory(value)
+        value_dict = sanitized_value if isinstance(sanitized_value, dict) else {"value": sanitized_value}
+
+        entry = create_memory(
+            scope=scope,
+            agent_slug=agent_slug,
+            key=key,
+            value=value_dict,
+            run_id=run_id,
+            ttl_seconds=ttl_seconds,
+            pii_tags=pii_tags,
+            tags=tags,
+            retention_policy=retention_policy,
+            metadata=metadata,
+        )
+        await store.create_memory(entry)
+        return entry
+
+    async def load_memories(
+        self,
+        *,
+        scope: Optional[MemoryScope] = None,
+        agent_slug: Optional[str] = None,
+        run_id: Optional[str] = None,
+        key: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        include_expired: bool = False,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[MemoryEntry]:
+        """Load memories using the configured memory store."""
+        store = await self._ensure_memory_store()
+        if store is None:
+            return []
+
+        return await store.list_memories(
+            scope=scope,
+            agent_slug=agent_slug,
+            run_id=run_id,
+            key=key,
+            tags=tags,
+            include_expired=include_expired,
+            limit=limit,
+            offset=offset,
+        )
+
+    async def search_memories(
+        self,
+        *,
+        query: str,
+        scope: Optional[MemoryScope] = None,
+        agent_slug: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[MemoryEntry]:
+        """Full-text search across stored memories."""
+        store = await self._ensure_memory_store()
+        if store is None:
+            return []
+
+        return await store.search_memories(
+            query=query,
+            scope=scope,
+            agent_slug=agent_slug,
+            limit=limit,
+        )
+
+    async def delete_memory(self, memory_id: str) -> bool:
+        """Delete a memory entry by identifier."""
+        store = await self._ensure_memory_store()
+        if store is None:
+            return False
+
+        return await store.delete_memory(memory_id)
+
+    async def handoff(
+        self,
+        *,
+        source_agent: str,
+        target_agent: str,
+        task: str,
+        context: Optional[Dict[str, Any]] = None,
+        payload: Optional[Dict[str, Any]] = None,
+        platform: str = "agdd",
+        run_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Delegate work via the configured handoff tool."""
+        if not self.handoff_enabled or self.handoff_tool is None:
+            raise RuntimeError("Handoff feature is disabled")
+
+        effective_run_id = run_id
+        if effective_run_id is None and context:
+            effective_run_id = context.get("run_id")
+
+        return await self.handoff_tool.handoff(
+            source_agent=source_agent,
+            target_agent=target_agent,
+            task=task,
+            context=context,
+            payload=payload,
+            platform=platform,
+            run_id=effective_run_id,
+        )
 
     def _load_task_index(self) -> dict[str, list[str]]:
         if self._task_index is None:
@@ -672,6 +941,16 @@ class AgentRunner:
             Tuple of (output, duration_ms)
         """
         try:
+            if self.memory_enabled:
+                await self._capture_session_memory(
+                    agent_slug=exec_ctx.agent.slug,
+                    run_id=exec_ctx.observer.run_id,
+                    key="input",
+                    value={"payload": payload},
+                    metadata={"stage": "mag", "direction": "input"},
+                    tags=["mag", "input"],
+                )
+
             run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
             t0 = time.time()
             output: Dict[str, Any] = await run_fn(
@@ -682,6 +961,17 @@ class AgentRunner:
                 obs=exec_ctx.observer,
             )
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+            if self.memory_enabled:
+                await self._capture_session_memory(
+                    agent_slug=exec_ctx.agent.slug,
+                    run_id=exec_ctx.observer.run_id,
+                    key="output",
+                    value={"result": output},
+                    metadata={"stage": "mag", "direction": "output"},
+                    tags=["mag", "output"],
+                )
+
             return output, duration_ms
         finally:
             await self._cleanup_mcp_async()
@@ -819,13 +1109,35 @@ class AgentRunner:
             Exception: If execution fails
         """
         context = context or {}
-        run_id = f"mag-{uuid.uuid4().hex[:8]}"
+        run_id = context.get("run_id") or f"mag-{uuid.uuid4().hex[:8]}"
         context["run_id"] = run_id
         exec_ctx: Optional[_ExecutionContext] = None
 
         try:
             exec_ctx = self._prepare_execution(slug, run_id, context)
             obs = exec_ctx.observer
+
+            resumed_state: Optional[Dict[str, Any]] = None
+            if self.durable_runner is not None and self.durable_enabled:
+                try:
+                    resumed_state = self._run_async_safely(
+                        self.durable_runner.resume(run_id)
+                    )
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logger.warning("Durable resume failed for run %s: %s", run_id, exc)
+
+            if isinstance(resumed_state, dict) and "result" in resumed_state:
+                logger.info("Resumed MAG %s (run %s) from durable snapshot", slug, run_id)
+                obs.log(
+                    "resume",
+                    {
+                        "status": "resumed",
+                        "run_id": run_id,
+                        "agent_slug": slug,
+                    },
+                )
+                obs.finalize()
+                return cast(Dict[str, Any], resumed_state["result"])
 
             obs.log(
                 "start",
@@ -854,6 +1166,23 @@ class AgentRunner:
 
             # Finalize and record success
             self._finalize_mag_success(exec_ctx, duration_ms)
+
+            if self.durable_runner is not None and self.durable_enabled:
+                metadata = {
+                    "agent_slug": slug,
+                    "type": "mag",
+                }
+                try:
+                    self._run_async_safely(
+                        self.durable_runner.checkpoint(
+                            run_id=run_id,
+                            step_id="final",
+                            state={"result": output},
+                            metadata=metadata,
+                        )
+                    )
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logger.warning("Durable checkpoint failed for run %s: %s", run_id, exc)
 
             return output
 
@@ -1044,12 +1373,41 @@ class AgentRunner:
             Tuple of (output, duration_ms)
         """
         try:
+            if self.memory_enabled:
+                await self._capture_session_memory(
+                    agent_slug=exec_ctx.agent.slug,
+                    run_id=exec_ctx.observer.run_id,
+                    key="input",
+                    value={"payload": delegation.input, "task_id": delegation.task_id},
+                    metadata={
+                        "stage": "sag",
+                        "direction": "input",
+                        "task_id": delegation.task_id,
+                    },
+                    tags=["sag", "input"],
+                )
+
             run_fn = self.registry.resolve_entrypoint(exec_ctx.agent.entrypoint)
             t0 = time.time()
             output: Dict[str, Any] = await run_fn(
                 delegation.input, skills=self.skills, obs=exec_ctx.observer
             )
             duration_ms = int((time.time() - t0) * MS_PER_SECOND)
+
+            if self.memory_enabled:
+                await self._capture_session_memory(
+                    agent_slug=exec_ctx.agent.slug,
+                    run_id=exec_ctx.observer.run_id,
+                    key="output",
+                    value={"result": output, "task_id": delegation.task_id},
+                    metadata={
+                        "stage": "sag",
+                        "direction": "output",
+                        "task_id": delegation.task_id,
+                    },
+                    tags=["sag", "output"],
+                )
+
             return output, duration_ms
         finally:
             await self._cleanup_mcp_async()
@@ -1684,4 +2042,3 @@ def _check_moderation_egress(
     except ImportError:
         logger.debug("Moderation hooks module not available, skipping egress check")
         return True
-

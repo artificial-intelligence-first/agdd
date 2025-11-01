@@ -6,6 +6,7 @@ import json
 import os
 import random
 from pathlib import Path
+from typing import Any, Dict
 
 import pytest
 
@@ -318,7 +319,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {"temperature": 0.7}
+        config: Dict[str, Any] = {"temperature": 0.7}
         result = apply_deterministic_settings(config)
 
         assert result["temperature"] == 0.0
@@ -328,7 +329,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {}
+        config: Dict[str, Any] = {}
         result = apply_deterministic_settings(config)
 
         assert result["seed"] == 42
@@ -337,7 +338,7 @@ class TestApplyDeterministicSettings:
         """Test that top_p is set to 1.0 in deterministic mode."""
         set_deterministic_mode(True)
 
-        config = {"top_p": 0.9}
+        config: Dict[str, Any] = {"top_p": 0.9}
         result = apply_deterministic_settings(config)
 
         assert result["top_p"] == 1.0
@@ -347,7 +348,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {}
+        config: Dict[str, Any] = {}
         result = apply_deterministic_settings(config)
 
         assert "metadata" in result
@@ -359,7 +360,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {"metadata": {"custom_field": "custom_value"}}
+        config: Dict[str, Any] = {"metadata": {"custom_field": "custom_value"}}
         result = apply_deterministic_settings(config)
 
         assert result["metadata"]["custom_field"] == "custom_value"
@@ -369,7 +370,7 @@ class TestApplyDeterministicSettings:
         """Test that original config is not mutated."""
         set_deterministic_mode(True)
 
-        original = {"temperature": 0.7, "metadata": {"foo": "bar"}}
+        original: Dict[str, Any] = {"temperature": 0.7, "metadata": {"foo": "bar"}}
         result = apply_deterministic_settings(original)
 
         # Original should be unchanged
@@ -387,7 +388,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {"temperature": 0.7, "metadata": None}
+        config: Dict[str, Any] = {"temperature": 0.7, "metadata": None}
         result = apply_deterministic_settings(config)
 
         # metadata should now be a dict with deterministic fields
@@ -400,7 +401,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {"temperature": 0.7, "metadata": "some_string"}
+        config: Dict[str, Any] = {"temperature": 0.7, "metadata": "some_string"}
         result = apply_deterministic_settings(config)
 
         # metadata should now be a dict with deterministic fields
@@ -413,7 +414,7 @@ class TestApplyDeterministicSettings:
         set_deterministic_mode(True)
         set_deterministic_seed(42)
 
-        config = {"temperature": 0.7}  # No metadata field
+        config: Dict[str, Any] = {"temperature": 0.7}  # No metadata field
         result = apply_deterministic_settings(config)
 
         # metadata should be created as a dict
@@ -427,7 +428,7 @@ class TestCreateReplayContext:
 
     def test_create_context_from_snapshot(self) -> None:
         """Test creating execution context from replay snapshot."""
-        snapshot = {
+        snapshot: Dict[str, Any] = {
             "timestamp": 1234567890.0,
             "seed": 42,
             "deterministic_mode": True,
@@ -443,7 +444,7 @@ class TestCreateReplayContext:
         """Test that replay context enables deterministic mode if snapshot had it."""
         set_deterministic_mode(False)
 
-        snapshot = {
+        snapshot: Dict[str, Any] = {
             "timestamp": 1234567890.0,
             "seed": 42,
             "deterministic_mode": True,
@@ -456,8 +457,8 @@ class TestCreateReplayContext:
 
     def test_create_context_merges_additional_context(self) -> None:
         """Test that additional context is merged."""
-        snapshot = {"timestamp": 1234567890.0, "seed": 42}
-        additional = {"custom_field": "custom_value"}
+        snapshot: Dict[str, Any] = {"timestamp": 1234567890.0, "seed": 42}
+        additional: Dict[str, Any] = {"custom_field": "custom_value"}
 
         context = create_replay_context(snapshot, additional)
 
@@ -466,7 +467,7 @@ class TestCreateReplayContext:
 
     def test_create_context_handles_missing_fields(self) -> None:
         """Test handling of snapshot with missing fields."""
-        snapshot = {}  # Empty snapshot
+        snapshot: Dict[str, Any] = {}  # Empty snapshot
 
         context = create_replay_context(snapshot)
 
@@ -482,7 +483,7 @@ class TestComputeRunFingerprint:
         """Test that fingerprint is stable for same inputs."""
         agent = "test-agent"
         payload = {"input": "test"}
-        config = {"temperature": 0.7}
+        config: Dict[str, Any] = {"temperature": 0.7}
 
         fp1 = compute_run_fingerprint(agent, payload, config)
         fp2 = compute_run_fingerprint(agent, payload, config)
@@ -494,7 +495,7 @@ class TestComputeRunFingerprint:
         agent = "test-agent"
         payload1 = {"input": "test1"}
         payload2 = {"input": "test2"}
-        config = {"temperature": 0.7}
+        config: Dict[str, Any] = {"temperature": 0.7}
 
         fp1 = compute_run_fingerprint(agent, payload1, config)
         fp2 = compute_run_fingerprint(agent, payload2, config)
@@ -505,7 +506,7 @@ class TestComputeRunFingerprint:
         """Test fingerprint format."""
         agent = "test-agent"
         payload = {"input": "test"}
-        config = {"temperature": 0.7}
+        config: Dict[str, Any] = {"temperature": 0.7}
 
         fp = compute_run_fingerprint(agent, payload, config)
 

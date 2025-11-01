@@ -61,8 +61,8 @@ Approval-as-a-Policy is a governance feature that enables human oversight for cr
 Set the feature flag in your environment:
 
 ```bash
-export APPROVALS_ENABLED=true
-export APPROVAL_TTL_MIN=30  # Ticket timeout in minutes
+export AGDD_APPROVALS_ENABLED=true
+export AGDD_APPROVAL_TTL_MIN=30  # Ticket timeout in minutes
 ```
 
 Or in your API config:
@@ -118,6 +118,10 @@ rules:
       tool_pattern: "write_*"
     permission: REQUIRE_APPROVAL
 ```
+
+### Data Contract
+
+Approval tickets emitted by the API and storage layer conform to [`catalog/contracts/approval_ticket.schema.json`](../catalog/contracts/approval_ticket.schema.json). Update the schema when introducing new ticket fields so downstream systems, governance gates, and catalog validators stay in sync.
 
 ### Programmatic Usage
 

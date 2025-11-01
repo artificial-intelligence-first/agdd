@@ -6,7 +6,7 @@ which are loaded from .mcp/servers/*.yaml files.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Dict, Literal
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +58,18 @@ class MCPServerConfig(BaseModel):
         default_factory=MCPLimits,
         description="Rate limits and timeout configuration",
     )
+    transport: Literal["stdio", "websocket", "http"] | None = Field(
+        default=None,
+        description="Transport override: stdio (default), websocket, or http",
+    )
+    url: str | None = Field(
+        default=None,
+        description="Endpoint URL for HTTP/WebSocket transports",
+    )
+    headers: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Additional headers for HTTP/WebSocket transports",
+    )
 
     # MCP server specific fields (type="mcp")
     command: str | None = Field(
@@ -78,8 +90,13 @@ class MCPServerConfig(BaseModel):
     def validate_type_fields(self) -> None:
         """Validate that required fields are present based on server type."""
         if self.type == "mcp":
-            if not self.command:
-                raise ValueError("MCP servers must specify 'command' field")
+            if (self.transport or "stdio") == "stdio" and not self.command:
+                raise ValueError("STDIO MCP servers must specify 'command'")
+            if self.transport in {"http", "websocket"}:
+                if not self.url:
+                    raise ValueError(
+                        "HTTP/WebSocket MCP servers must specify 'url' field"
+                    )
         elif self.type == "postgres":
             if not self.conn:
                 raise ValueError("PostgreSQL servers must specify 'conn' field")

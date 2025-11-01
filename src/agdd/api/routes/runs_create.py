@@ -16,14 +16,19 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from ..config import Settings, get_settings
 from ..models import CreateRunRequest, CreateRunResponse
 from ..rate_limit import rate_limit_dependency
-from ..security import require_api_key, require_scope
+from ..security import require_scope
 
 # Conditional import to avoid dependency on agent_runner if not available
 try:
     from agdd.runners.agent_runner import invoke_mag
 except ImportError:
     # For testing or when agent_runner is not available
-    def invoke_mag(slug: str, payload: dict[str, Any], base_dir: Path | None, context: dict[str, Any] | None) -> dict[str, Any]:
+    def invoke_mag(
+        slug: str,
+        payload: dict[str, Any],
+        base_dir: Path | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Mock invoke_mag function for testing."""
         if context:
             context["run_id"] = f"mag-test-{int(time.time())}"
