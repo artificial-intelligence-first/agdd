@@ -12,7 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import Settings, get_settings
 from .middleware import IdempotencyMiddleware
-from .routes import agents, approvals, github, runs
+from .routes import agents, approvals, github, runs, worktrees
 from .routes import runs_create
 
 # Get settings
@@ -148,6 +148,7 @@ app.include_router(runs.router, prefix=settings.API_PREFIX)
 app.include_router(runs_create.router, prefix=settings.API_PREFIX)
 app.include_router(approvals.router, prefix=settings.API_PREFIX)
 app.include_router(github.router, prefix=settings.API_PREFIX)
+app.include_router(worktrees.router, prefix=settings.API_PREFIX)
 
 
 @app.get("/health")

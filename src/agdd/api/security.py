@@ -88,6 +88,11 @@ def get_scopes_for_key(api_key: str) -> list[str]:
         "runs:logs",
         "approvals:read",
         "approvals:write",
+        "worktrees:read",
+        "worktrees:write",
+        "worktrees:lock",
+        "worktrees:unlock",
+        "worktrees:maintain",
     ]
 
 

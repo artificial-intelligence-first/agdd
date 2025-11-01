@@ -7,11 +7,181 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import typer
 
+from agdd.worktree import (
+    WorktreeError,
+    WorktreeManager,
+    force_removal_allowed,
+)
+
 app = typer.Typer(no_args_is_help=True)
 flow_app = typer.Typer(help="Flow Runner integration commands")
 agent_app = typer.Typer(help="Agent orchestration commands")
 data_app = typer.Typer(help="Data management commands")
 mcp_app = typer.Typer(help="Model Context Protocol server commands")
+wt_app = typer.Typer(help="Git worktree orchestration commands")
+
+
+def _handle_worktree_error(exc: WorktreeError) -> None:
+    typer.echo(f"Error: {exc}", err=True)
+    raise typer.Exit(1)
+
+
+@wt_app.command("new")
+def worktree_new(
+    run_id: str = typer.Argument(..., help="Unique run identifier"),
+    task: str = typer.Option(..., "--task", help="Task slug for the worktree"),
+    base: str = typer.Option(..., "--base", help="Base branch or commit-ish"),
+    detach: bool = typer.Option(False, "--detach", help="Create a detached HEAD worktree"),
+    no_checkout: bool = typer.Option(
+        False, "--no-checkout", help="Create worktree without populating working tree"
+    ),
+    lock: bool = typer.Option(False, "--lock", help="Lock the worktree immediately after creation"),
+    lock_reason: Optional[str] = typer.Option(
+        None, "--lock-reason", help="Optional reason when locking the worktree"
+    ),
+) -> None:
+    """Create a new managed worktree."""
+    manager = WorktreeManager()
+    try:
+        record = manager.create(
+            run_id=run_id,
+            task=task,
+            base=base,
+            detach=detach,
+            no_checkout=no_checkout,
+            lock_reason=lock_reason,
+            auto_lock=lock or lock_reason is not None,
+        )
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+
+    branch_display = record.info.branch_short or "<detached>"
+    typer.echo(f"Worktree created at {record.info.path}")
+    typer.echo(f"  branch: {branch_display}")
+    typer.echo(f"  run: {record.metadata.run_id if record.metadata else run_id}")
+    typer.echo(f"  task: {record.metadata.task if record.metadata else task}")
+
+
+@wt_app.command("ls")
+def worktree_list(
+    json_output: bool = typer.Option(False, "--json", help="Output machine readable JSON"),
+) -> None:
+    """List managed worktrees."""
+    manager = WorktreeManager()
+    try:
+        records = manager.managed_records()
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+
+    if json_output:
+        payload = [record.to_dict() for record in records]
+        typer.echo(json.dumps(payload, indent=2, ensure_ascii=True))
+        return
+
+    if not records:
+        typer.echo("No managed worktrees.")
+        return
+
+    header = f"{'RUN':<16} {'TASK':<24} {'BRANCH':<28} {'LOCKED':<6} PATH"
+    typer.echo(header)
+    for record in records:
+        run_value = "-"
+        task_value = "-"
+        if record.metadata:
+            run_value = record.metadata.run_id
+            task_value = record.metadata.task
+        else:
+            run_value = record.info.run_id or "-"
+            task_value = record.info.task_slug or "-"
+        branch_value = record.info.branch_short or "<detached>"
+        locked_value = "yes" if record.info.locked else "no"
+        typer.echo(
+            f"{run_value:<16.16} {task_value:<24.24} {branch_value:<28.28} {locked_value:<6} {record.info.path}"
+        )
+
+
+@wt_app.command("rm")
+def worktree_remove(
+    run_id: str = typer.Argument(..., help="Run identifier mapped to the worktree"),
+    force: bool = typer.Option(False, "--force", help="Force removal (CI maintenance only)"),
+) -> None:
+    """Remove a managed worktree."""
+    manager = WorktreeManager()
+    if force and not force_removal_allowed():
+        typer.echo(
+            "Error: --force is restricted. Set AGDD_WT_ALLOW_FORCE=1 in CI maintenance context.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    try:
+        manager.remove(run_id, force=force)
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+
+    typer.echo(f"Worktree for run {run_id} removed.")
+
+
+@wt_app.command("gc")
+def worktree_gc(
+    expire: Optional[str] = typer.Option(
+        None,
+        "--expire",
+        help="Expire horizon for prune (defaults to AGDD_WT_TTL).",
+    ),
+) -> None:
+    """Prune stale worktrees."""
+    manager = WorktreeManager()
+    try:
+        manager.prune(expire=expire)
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+    typer.echo("Worktree prune completed.")
+
+
+@wt_app.command("lock")
+def worktree_lock(
+    run_id: str = typer.Argument(..., help="Run identifier mapped to the worktree"),
+    reason: Optional[str] = typer.Option(None, "--reason", help="Optional lock reason"),
+) -> None:
+    """Lock a worktree to prevent removal or pruning."""
+    manager = WorktreeManager()
+    try:
+        record = manager.lock(run_id, reason=reason)
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+    typer.echo(f"Locked worktree at {record.info.path}")
+
+
+@wt_app.command("unlock")
+def worktree_unlock(
+    run_id: str = typer.Argument(..., help="Run identifier mapped to the worktree"),
+) -> None:
+    """Unlock a managed worktree."""
+    manager = WorktreeManager()
+    try:
+        record = manager.unlock(run_id)
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+    typer.echo(f"Unlocked worktree at {record.info.path}")
+
+
+@wt_app.command("repair")
+def worktree_repair() -> None:
+    """Repair worktree admin files when paths were moved manually."""
+    manager = WorktreeManager()
+    try:
+        manager.repair()
+    except WorktreeError as exc:
+        _handle_worktree_error(exc)
+        return
+    typer.echo("Worktree repair completed.")
 
 
 @flow_app.command("available")
@@ -399,6 +569,7 @@ app.add_typer(flow_app, name="flow")
 app.add_typer(agent_app, name="agent")
 app.add_typer(data_app, name="data")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(wt_app, name="wt")
 
 # Catalog management commands
 if TYPE_CHECKING:

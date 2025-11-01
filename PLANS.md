@@ -1,97 +1,93 @@
-# AGDD v0.2 Enterprise Hardening
+# AGDD Git Worktree Adoption Plan
 
-## Purpose / Big Picture
-- Deliver v0.2 release pillars (Approval-as-a-Policy, Remote MCP Client, Durable Run, Handoff-as-a-Tool, Memory IR) with enterprise-grade safety, observability, and resilience.
-- Ensure all additions respect existing IR/SPI patterns, MAG/SAG orchestration, governance, and cost-optimization philosophy.
-- Maintain backward compatibility by defaulting new capabilities behind feature flags and documenting enablement paths.
-- Exit criteria include green test matrix (pytest, mypy strict, ruff), updated documentation, and changelog entries for v0.2.
+## Purpose and Guiding Principles
+- Objective: Run each AI task in an isolated Git worktree with a dedicated branch so concurrent development has near-zero conflicts or context switching.
+- 1 worktree = 1 branch; never check out the same branch in multiple worktrees. Avoid `--force` except for the CI maintenance role.
+- Place worktrees outside the repository root (default `../.worktrees/<run>`), mirroring official Git guidance.
+- Expose machine-parseable state via `git worktree list --porcelain -z`.
+- Protect long-lived or approval-waiting jobs with `git worktree lock`/`unlock`.
+- Remove worktrees only when clean; pair `remove` with `prune --expire` for automation.
 
-## Context and Orientation
-- Roadmap alignment: `docs/development/roadmap.md`.
-- Governance references: `catalog/policies`, `docs/architecture/agents.md`, `docs/architecture/ssot.md`.
-- Runner and routing context: `src/agdd/runners/agent_runner.py`, `src/agdd/router.py`, `src/agdd/routing/router.py`.
-- Storage abstractions: `src/agdd/storage/base.py`, `src/agdd/storage`.
-- Catalog assets to extend: `catalog/contracts`, `catalog/policies`, `catalog/registry`.
-- Branch: `feat/v0.2-enterprise-hardening`.
+## Physical Layout and Naming
+- Worktree root: `${REPO}/../.worktrees/`.
+- Directory pattern: `../.worktrees/wt-<runId>-<task>-<shortSHA>`.
+- Branch pattern: `wt/<runId>/<task>` to keep branches unique, ephemeral, and traceable.
+- Ensure `/.worktrees/` is ignored in the primary checkout to prevent accidental staging.
 
-## Plan of Work
-1. **Planning & Scaffolding**: Establish branches, feature flag scaffolds, shared utilities (permissions enums, schemas).
-2. **Approval-as-a-Policy**: Implement permission evaluation, approval ticket lifecycle, API/SSE surfaces, storage schema updates.
-3. **Remote MCP Client Integration**: Build async MCP client, decorators, policy defaults, configuration, resilience strategies.
-4. **Durable Run Engine**: Introduce snapshot storage, runner integration, restart flows, observability hooks.
-5. **Handoff-as-a-Tool Implementation**: Create tool schema, adapters, policy hooks, event instrumentation.
-6. **Memory IR Layer**: Define memory IR models, storage backend, governance policies, MAG/SAG integration points.
-7. **Testing & Validation**: Unit/integration coverage per pillar, feature flag toggles, SSE/API verification.
-8. **Documentation & Release Readiness**: Author new docs, update README/CHANGELOG, ensure SSOT alignment.
-9. **Cleanup & Final Review**: Remove deprecated logic, obsolete files, outdated docs; verify paths and references are current.
+## Operations Design
+- Create from existing branch: `git worktree add ../.worktrees/<dir> <branch>` when the branch is unused elsewhere.
+- Create with new branch: `git worktree add -b wt/<runId>/<task> ../.worktrees/<dir> <base>`.
+- Detached experimentation: `git worktree add --detach ../.worktrees/<dir> <commit-ish>`.
+- Deferred checkout: `git worktree add --no-checkout ...` for sparse operations.
+- Inventory: `git worktree list --porcelain -z` parsed into structured data.
+- Locking: `git worktree lock --reason "<text>"` / `git worktree unlock <path>` to protect pending work.
+- Removal: `git worktree remove <path>` (clean trees only; `--force` permitted solely for CI maintenance).
+- Garbage collection: `git worktree prune --expire=<duration>` to clean orphan metadata.
+- Recovery: `git worktree repair` restores broken directory references.
+- Optional remote inference: use `--guess-remote` or configure `checkout.defaultRemote=origin`.
 
-## To-do
-- [x] Planning & shared scaffolds ready (feature flags, base enums, schema placeholders).
-- [x] Approval-as-a-Policy implemented (core logic, API, storage, SSE, tests, docs).
-- [x] Remote MCP client operational with decorators, retries, policy integration, tests, docs.
-- [x] Durable Run engine with snapshots, restart handling, storage migrations, tests, docs.
-- [x] Handoff-as-a-Tool available with adapters, policies, events, tests, docs.
-- [x] Memory IR layer active with storage, governance policies, MAG/SAG integration, tests, docs.
-- [x] Full validation matrix green (pytest, pytest -m slow, mypy strict, ruff).
-- [x] Documentation set updated (new guides, README, CHANGELOG, SSOT cross-links).
-- [x] Comprehensive cleanup of legacy code, outdated logic, unused files/folders, stale docs, misaligned relative paths.
+## Integration into AGDD (CLI, API, Events)
+- Typer CLI (`agdd wt`):
+  - `agdd wt new <runId> --task <slug> --base <branch|sha> [--detach] [--no-checkout] [--lock]`.
+  - `agdd wt ls [--json]` returning parsed worktree metadata.
+  - `agdd wt rm <runId> [--force]` with clean-tree enforcement and CI-only force.
+  - `agdd wt gc [--expire <duration>]`.
+  - `agdd wt lock <runId> [--reason]` / `agdd wt unlock <runId>`.
+  - Emit `worktree.*` events to the existing event bus.
+- FastAPI:
+  - `POST /api/v1/worktrees` to create.
+  - `GET /api/v1/worktrees` to list.
+  - `DELETE /api/v1/worktrees/{id}` with optional `force=false`.
+  - SSE stream gains `worktree.create/remove/lock/unlock/prune/repair`.
+- Governance:
+  - Disallow worktree creation from `main` and `release/*`.
+  - Gate `--force` removal behind CI maintenance role checks.
+  - Normalize user-supplied paths to prevent escaping `WORKTREES_ROOT`.
 
-## Progress
-- [2025-02-14 00:00 UTC] Plan drafted based on v0.2 enterprise hardening scope and constraints.
-- [2025-02-14 12:00 UTC] Integrated memory capture, handoff delegation, and validation runs; v0.2 scope ready for release handoff.
-- [2025-02-14 14:30 UTC] Captured strict mypy/ruff debt in tracking issue and updated `make test-slow` to enforce an empty `-k` filter.
-- [2025-02-15 09:30 UTC] Cleared strict mypy/ruff findings; validation matrix fully green and tracking issue closed.
+## Parallel Execution Policy
+- Guarantee 1 task ↔ 1 worktree ↔ 1 ephemeral branch.
+- Enforce `AGDD_WT_MAX_CONCURRENCY` (default 8) by counting existing worktrees before creation; reject beyond limit.
+- Apply TTL via `AGDD_WT_TTL` (default 14 days); expired entries are pruned during `gc`.
+- Approval-gated tasks lock the worktree until explicit unlock after gate completion.
 
-## Decision Log
-- [2025-02-14 00:00 UTC] Adopted feature-flag-first rollout for all pillars to preserve backward compatibility and safety.
-- [2025-02-14 12:00 UTC] Finalised runner-level integration for memory capture and handoff delegation using shared storage/tooling.
+## CI/CD Operations
+- Workflow: runners execute `git fetch --all --prune --tags` then `agdd wt new ...`.
+- Branch lifecycle: branch `wt/<runId>/<task>` pushed to `origin` for PR automation; remove worktree and prune after merge.
+- Scheduled cleanup: nightly `agdd wt gc --expire "3.days.ago"` (cross-platform cron/Task Scheduler coverage).
 
-## Surprises & Discoveries
-- [2025-02-14 00:00 UTC] None yet – awaiting implementation phases to surface risks.
-- [2025-02-14 12:00 UTC] Strict mypy/ruff checks still surface longstanding repository debt; follow-up issue required to reach fully green matrix.
+## Failure Modes and Recovery
+- Removal blocked by dirty tree: surface actionable error; instruct commit/stash; allow CI-maintainer `--force` as last resort.
+- Directory relocation: run `git worktree repair` to relink metadata.
+- Duplicate checkout attempts: rely on Git refusal; fallback to detached or new branch strategies.
 
-## Concrete Steps
-1. Create branch `feat/v0.2-enterprise-hardening` and ensure toolchains via `uv sync --extra production`.
-2. Introduce feature flag constants and configuration plumbing in `src/agdd/api/config.py` and relevant modules.
-3. Scaffold new core modules (permissions, memory, durable runner, MCP client) with type-safe foundations.
-4. Extend storage schema to handle approvals, snapshots, memory entries; write migrations or setup routines.
-5. Wire Approval Gate through runners, API, SSE, and governance policies.
-6. Implement MCP client with retry/circuit breaking, integrate with skills runtime, update policies.
-7. Build durable runner snapshotting and resume logic, ensuring idempotency and observability signals.
-8. Implement handoff tool adapters and schema validations, integrate with routing/governance.
-9. Add memory IR storage API, integrate into MAG/SAG flows where relevant, respect retention policies.
-10. Update catalog contracts/policies and assets for new schemas and defaults.
-11. Write unit/integration tests covering all new paths, including approval flows, MCP usage, durable resumes, handoff requests, memory operations.
-12. Update docs (`docs/approval.md`, `docs/mcp.md`, `docs/durable-run.md`, `docs/handoff.md`, `docs/memory.md`), README highlights, and CHANGELOG for v0.2.
-13. Run validation suite: `make test`, `make test-slow`, `uv run mypy src tests`, `ruff check`.
-14. Final cleanup: remove deprecated code paths, obsolete configs, unused assets; confirm documentation links and relative paths.
+## Observability and Metrics
+- OpenTelemetry spans named `git.worktree.{add|list|remove|prune|lock|unlock}` enriched with `worktree_id`, `branch`, `path`, `locked`.
+- Langfuse metrics: `worktree_create_duration_ms`, `worktree_remove_duration_ms`, `worktrees_active`.
+- Include cost, duration, and success counters for concurrency dashboards.
 
-## Validation and Acceptance
-- Unit tests for permissions, approvals, MCP client, durable runner, handoff tool, memory store.
-- Integration tests for approval workflow (SSE/API), remote MCP invocation (mock servers), durable run restart, cross-platform handoff, memory read/write lifecycle.
-- Static analysis: `uv run mypy --strict src tests`, `ruff check src tests`.
-- Runtime smoke: `uv run agdd agent run` with feature flags enabled/disabled.
-- Governance validation: `uv run agdd flow gate` with updated policies.
+## Copy-Ready Agent Prompt
+```
+Role: Git Worktree rollout implementer for the AGDD repository.
+Goal: Integrate a resilient, reproducible, high-throughput worktree workflow into AGDD v0.2.
+Acceptance Criteria:
+- Provide `agdd wt` CLI and FastAPI endpoints covering new/ls/rm/gc/lock/unlock.
+- Default worktrees to `../.worktrees/` and prevent conflicting checkouts.
+- Enforce 1 worktree = 1 ephemeral branch (`wt/<runId>/<task>`).
+- Parse `git worktree list --porcelain -z` for listings.
+- Require clean trees for remove; allow `--force` only for CI.
+- Support lock/unlock/prune/repair across CLI/API/SSE.
+- Emit OTel/Langfuse telemetry for worktree lifecycle.
+- Honor `AGDD_WT_MAX_CONCURRENCY` and `AGDD_WT_TTL`.
+- Deliver docs, samples, CI hooks; keep mypy, ruff, pytest green.
+Branch: `feat/git-worktree`.
+```
 
-## Idempotence and Recovery
-- Approval tickets resumable via pending status and TTL checks; API supports replays without duplication.
-- Durable runner snapshots allow replay from last successful step; snapshot writes are idempotent by `(run_id, step_id)`.
-- MCP client employs retry limits and circuit breaker to avoid cascading failures; failures log for requeue.
-- Handoff tool records requests/results permitting safe retries with unique identifiers.
-- Memory IR entries include TTLs and idempotent upserts keyed by memory_id.
+## Tests
+- Unit: porcelain parser, branch/worktree collision checks, forced removal guard, concurrency enforcement.
+- Integration: create→commit→remove flow, detached and no-checkout variants, lock/unlock cycle, prune/repair.
+- All tests must complete within 30 seconds; ensure `mypy`, `ruff`, and `pytest` remain green.
 
-## Outcomes & Retrospective
-- All v0.2 enterprise hardening pillars are implemented behind feature flags with updated docs and tests.
-- Runner now emits session memories and supports first-class handoff delegation via shared tooling.
-- Validation suites executed (pytest fast/slow, mypy strict, ruff); static analysis debt catalogued for follow-up remediation.
-
-## Artifacts and Notes
-- Target PR: `feat(v0.2): Approval Gate, Remote MCP, Durable Run, Handoff Tool, Memory IR`.
-- Expected labels: enhancement, safety, mcp, orchestration, durability, memory.
-- Branch: `feat/v0.2-enterprise-hardening`.
-
-## Interfaces and Dependencies
-- Impacted APIs: FastAPI approval endpoints, SSE log stream, storage backends.
-- External dependencies: MCP servers (GitHub, Stripe, Postgres), Flow Runner integration.
-- Catalog updates: tool permission policies, handoff contracts, memory retention policies.
-- Observability tools: OpenTelemetry spans, Langfuse integrations for new events.
+## Safety Notes
+- Follow Git official semantics for `add`, `list`, `lock`, `remove`, `prune`, `repair`, including `--detach` and `--no-checkout`.
+- Respect Git’s default refusal to checkout identical branches across multiple worktrees.
+- Use `--force` only when absolutely necessary and only inside CI maintenance contexts.

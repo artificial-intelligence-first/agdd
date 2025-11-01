@@ -31,6 +31,7 @@ htmlcov/
 .runs/
 .observability_cache/
 .agdd/
+/.worktrees/
 
 # Development
 .DS_Store
